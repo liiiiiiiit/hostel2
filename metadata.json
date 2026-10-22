@@ -1,0 +1,6 @@
+{
+  "name": "YEREVANHUB",
+  "description": "پلتفرم جامع رزرو هاستل، اجاره آپارتمان، راهنمای سفر و زندگی در ارمنستان و مترجم چهارزبانه",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
