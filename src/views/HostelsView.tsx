@@ -110,7 +110,7 @@ export const HostelsView: React.FC<Props> = ({
             {t.featuredHostelsTitle}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            {t.payOnArrivalText} • {t.nightlyAdmissionText} • {t.noSmsCodeText}
+            {t.payOnArrivalText}
           </p>
         </div>
 
@@ -402,8 +402,8 @@ export const HostelsView: React.FC<Props> = ({
                           {hostel.minPricePerNightAMD.toLocaleString()}{' '}
                           <span className="text-xs font-semibold text-amber-700">{t.currencyAMD}</span>
                         </div>
-                        <span className="text-[10px] text-slate-500 block">
-                          {t.perBedPerNight} ({t.payOnArrivalBadge})
+                        <span className="text-[10px] text-slate-400 block">
+                          ≈ {Math.round(hostel.minPricePerNightAMD * 160).toLocaleString()} تومان {t.perBedPerNight}
                         </span>
                       </div>
 

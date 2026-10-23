@@ -36,17 +36,17 @@ export const LanguageSelector: React.FC<Props> = ({ currentLang, onLanguageChang
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Select language"
-        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border border-slate-200 hover:border-amber-500 bg-white hover:bg-amber-50/50 transition-colors text-xs sm:text-sm font-medium text-slate-700 shadow-xs cursor-pointer"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-xl border border-slate-200/90 hover:border-amber-400 bg-white hover:bg-amber-50/40 active:scale-97 transition-all text-xs sm:text-sm font-semibold text-slate-800 shadow-xs cursor-pointer"
       >
-        <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+        <Globe className="w-4 h-4 text-amber-600" />
         <span className="text-sm sm:text-base">{currentObj.flag}</span>
         <span className="hidden sm:inline font-sans">{currentObj.label}</span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-1.5 right-0 z-50 w-44 rounded-xl bg-white shadow-xl border border-slate-100 py-1.5 animate-in fade-in zoom-in-95 duration-100">
-          <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 border-b border-slate-100">
-            انتخاب زبان / Language
+        <div className="absolute top-full mt-2 right-0 z-50 w-48 rounded-2xl bg-white shadow-2xl shadow-slate-900/10 border border-slate-200/80 p-1.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+          <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+            زبان / Language
           </div>
           {LANGUAGES.map(lang => (
             <button
@@ -56,17 +56,17 @@ export const LanguageSelector: React.FC<Props> = ({ currentLang, onLanguageChang
                 onLanguageChange(lang.code);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3.5 py-2 text-sm text-left transition-colors cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-sm text-left transition-all cursor-pointer ${
                 currentLang === lang.code
-                  ? 'bg-amber-50 text-amber-900 font-semibold'
+                  ? 'bg-amber-500/10 text-amber-950 font-bold'
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2.5">
                 <span className="text-base">{lang.flag}</span>
                 <span>{lang.native}</span>
               </span>
-              {currentLang === lang.code && <Check className="w-4 h-4 text-amber-600" />}
+              {currentLang === lang.code && <Check className="w-4 h-4 text-amber-600 shrink-0" />}
             </button>
           ))}
         </div>

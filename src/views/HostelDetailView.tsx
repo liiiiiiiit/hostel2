@@ -421,29 +421,25 @@ export const HostelDetailView: React.FC<Props> = ({
     try {
       const result = appStore.createBooking({
         hostelId: hostel.id,
-        hostelName: getLocalized(hostel.name, 'en') || getLocalized(hostel.name, 'fa'),
         roomTypeId: selectedRoom.id,
-        roomTypeName: getLocalized(selectedRoom.name, currentLang),
         guestName,
+        contactType,
         guestContact,
         checkIn,
         checkOut,
-        nights,
         quantity,
         guestsCount,
         estimatedArrivalTime: arrivalTime,
         isLowerBunkRequested,
         specialRequests,
         couponCode: appliedCouponCode || undefined,
-        baseAmountAMD: pricing.baseAmount,
-        discountAmountAMD: pricing.discountAmount,
-        extraFeesAMD: pricing.extraFees,
-        finalAmountAMD: pricing.finalAmountToPayOnArrival,
-        requiresHostelApproval: true,
       });
 
-      // Navigate to booking tracking view with the token
-      onNavigate('booking-track', { token: result.booking.privateToken });
+      if (result.success && result.booking) {
+        onNavigate('booking-track', { token: result.booking.privateToken });
+      } else {
+        setFormError(result.error || 'Error occurred while creating reservation');
+      }
     } catch (err: any) {
       setFormError(err.message || 'Error occurred while creating reservation');
     } finally {

@@ -137,7 +137,6 @@ export default function App() {
             currentLang={currentLang}
             hostels={appStore.getHostels()}
             onNavigate={handleNavigate}
-            getHostelRating={id => appStore.getHostelAverageRating(id)}
           />
         );
 

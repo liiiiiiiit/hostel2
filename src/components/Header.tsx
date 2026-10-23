@@ -44,98 +44,101 @@ export const Header: React.FC<Props> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 shadow-xs transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 sm:h-18">
           {/* Logo & Brand */}
           <div className="flex items-center gap-6">
             <button
               type="button"
               onClick={() => handleNav('home')}
-              className="flex items-center gap-2.5 text-slate-900 group cursor-pointer text-left"
+              className="flex items-center gap-3 text-slate-900 group cursor-pointer text-left"
               aria-label="YEREVANHUB Home"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform">
-                <Building2 className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 flex items-center justify-center text-white shadow-lg shadow-amber-500/25 ring-1 ring-amber-400/40 group-hover:scale-105 group-hover:shadow-amber-500/35 transition-all">
+                <Building2 className="w-5 h-5 drop-shadow-xs" />
               </div>
               <div className="flex flex-col">
-                <span className="brand-name text-lg sm:text-xl font-extrabold tracking-wider text-slate-900">
-                  YEREVANHUB
-                </span>
-                <span className="hidden sm:block text-[10px] text-slate-500 font-medium truncate max-w-[170px] sm:max-w-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="brand-name text-lg sm:text-xl font-black tracking-wider text-slate-950 group-hover:text-amber-700 transition-colors">
+                    YEREVANHUB
+                  </span>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="سیستم فعال است" />
+                </div>
+                <span className="hidden sm:block text-[10px] text-slate-400 font-medium truncate max-w-[170px] sm:max-w-xs">
                   {t.tagline}
                 </span>
               </div>
             </button>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1 text-sm font-medium">
+            <nav className="hidden lg:flex items-center gap-1.5 text-sm font-medium">
               <button
                 type="button"
                 onClick={() => handleNav('hostels')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                   activeView === 'hostels'
-                    ? 'bg-amber-50 text-amber-900 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-amber-500/10 text-amber-950 font-bold ring-1 ring-amber-500/25 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                 }`}
               >
-                <Building2 className="w-4 h-4 text-amber-600" />
+                <Building2 className={`w-4 h-4 ${activeView === 'hostels' ? 'text-amber-600' : 'text-slate-400'}`} />
                 <span>{t.navHostels}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleNav('rentals')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                   activeView === 'rentals'
-                    ? 'bg-amber-50 text-amber-900 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-blue-50 text-blue-950 font-bold ring-1 ring-blue-500/25 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                 }`}
               >
-                <Home className="w-4 h-4 text-blue-600" />
+                <Home className={`w-4 h-4 ${activeView === 'rentals' ? 'text-blue-600' : 'text-slate-400'}`} />
                 <span>{t.navRentals}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleNav('guide')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                   activeView === 'guide'
-                    ? 'bg-amber-50 text-amber-900 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-500/25 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                 }`}
               >
-                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <BookOpen className={`w-4 h-4 ${activeView === 'guide' ? 'text-emerald-600' : 'text-slate-400'}`} />
                 <span>{t.navGuide}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleNav('translator')}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                   activeView === 'translator'
-                    ? 'bg-amber-50 text-amber-900 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-indigo-50 text-indigo-950 font-bold ring-1 ring-indigo-500/25 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                 }`}
               >
-                <Languages className="w-4 h-4 text-indigo-600" />
+                <Languages className={`w-4 h-4 ${activeView === 'translator' ? 'text-indigo-600' : 'text-slate-400'}`} />
                 <span>{t.navTranslator}</span>
               </button>
             </nav>
           </div>
 
           {/* Right Header Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            {/* Urgent "Just Arrived" Quick Action */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Urgent "Just Arrived" Quick Action with subtle luxury gradient */}
             <button
               type="button"
               onClick={() => handleNav('immediate-stay')}
-              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer animate-pulse"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-700 hover:to-rose-700 active:scale-97 text-white text-xs sm:text-sm font-bold shadow-md shadow-red-500/25 hover:shadow-lg hover:shadow-red-500/35 transition-all cursor-pointer"
               title="برای مسافری که تازه رسیده و همین حالا جای خواب می‌خواهد"
             >
-              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white" />
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0 animate-pulse" />
               <span className="hidden sm:inline">{t.navImmediateStay}</span>
-              <span className="sm:hidden text-[11px]">فوری</span>
+              <span className="sm:hidden text-xs">ورود فوری</span>
             </button>
 
             {/* Language Selector */}

@@ -130,7 +130,7 @@ export const ImmediateStayView: React.FC<Props> = ({
         ? `رسیدن از ${selectedHubObj.name} - نیازمند ورود فوری`
         : `Arriving from ${selectedHubObj.name} - Urgent immediate stay`;
 
-      const booking = appStore.createBooking({
+      const result = appStore.createBooking({
         hostelId: hostel.id,
         roomTypeId: room.id,
         guestName: guestName.trim(),
@@ -143,17 +143,13 @@ export const ImmediateStayView: React.FC<Props> = ({
         estimatedArrivalTime: 'همین حالا / ورود فوری',
         specialRequests: arrivalNote,
         isImmediateArrival: true,
-        isOvernightArrival: true,
-        earlyCheckInFeeAMD: 0,
-        lateCheckInFeeAMD: 0,
-        extraServicesFeeAMD: 0,
-        baseAmountAMD: hostel.minPricePerNightAMD * guestsCount,
-        discountPercent: 0,
-        discountAmountAMD: 0,
-        finalAmountAMD: hostel.minPricePerNightAMD * guestsCount,
       });
 
-      onNavigate('booking-track', { token: booking.privateToken });
+      if (result.success && result.booking) {
+        onNavigate('booking-track', { token: result.booking.privateToken });
+      } else {
+        setErrorMessage(result.error || 'خطا در ثبت درخواست');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'خطا در ثبت درخواست');
     } finally {

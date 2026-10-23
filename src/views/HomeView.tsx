@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
-import { getLocalized, getCityName, getAmenityLabel } from '../utils/i18n';
+import { getLocalized, getCityName } from '../utils/i18n';
 import {
   Building2,
   Home,
@@ -13,10 +13,15 @@ import {
   Calendar,
   Users,
   MapPin,
-  Sparkles,
-  Compass,
   ArrowRight,
   ArrowLeft,
+  Volume2,
+  Copy,
+  Check,
+  Calculator,
+  Compass,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 
 interface Props {
@@ -49,6 +54,55 @@ export const HomeView: React.FC<Props> = ({
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
 
+  // Live Yerevan Clock
+  const [yerevanTime, setYerevanTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      try {
+        const now = new Date();
+        const yerevanDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Yerevan' }));
+        const hh = String(yerevanDate.getHours()).padStart(2, '0');
+        const mm = String(yerevanDate.getMinutes()).padStart(2, '0');
+        setYerevanTime(`${hh}:${mm}`);
+      } catch {
+        setYerevanTime('15:30');
+      }
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Currency Converter State
+  const [calcAMD, setCalcAMD] = useState<number>(10000);
+  const AMD_TO_TOMAN = 160;
+  const AMD_TO_USD = 0.00258;
+  const AMD_TO_RUB = 0.241;
+
+  // Travel Phrase copy & audio state
+  const [copiedPhraseId, setCopiedPhraseId] = useState<string | null>(null);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+
+  const handleCopyPhrase = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPhraseId(id);
+    setTimeout(() => setCopiedPhraseId(null), 2500);
+  };
+
+  const handlePlayPronunciation = (armenianText: string, id: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(armenianText);
+      utterance.lang = 'hy-AM';
+      utterance.rate = 0.85;
+      utterance.onstart = () => setPlayingAudioId(id);
+      utterance.onend = () => setPlayingAudioId(null);
+      utterance.onerror = () => setPlayingAudioId(null);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTab === 'hostels') {
@@ -58,106 +112,164 @@ export const HomeView: React.FC<Props> = ({
     }
   };
 
+  // Quick date presets
+  const setQuickDate = (daysFromToday: number, duration: number = 2) => {
+    const start = new Date();
+    start.setDate(start.getDate() + daysFromToday);
+    const end = new Date(start);
+    end.setDate(end.getDate() + duration);
+
+    setCheckIn(start.toISOString().split('T')[0]);
+    setCheckOut(end.toISOString().split('T')[0]);
+  };
+
   return (
-    <div className="space-y-16 sm:space-y-24">
-      {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-amber-500/10 via-slate-50 to-slate-50 pt-12 pb-16 lg:pt-20 lg:pb-24 border-b border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="space-y-20 sm:space-y-28 pb-20">
+      {/* 1. HERO SECTION - Modern Ambient Glow & Editorial Presence */}
+      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-slate-200/80 bg-gradient-to-b from-amber-500/5 via-slate-50/50 to-white">
+        {/* Subtle Warm Backdrop Glow */}
+        <div 
+          aria-hidden="true" 
+          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-amber-400/15 via-rose-300/10 to-transparent blur-3xl pointer-events-none rounded-full"
+        />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 text-xs sm:text-sm font-semibold shadow-xs">
-              <Sparkles className="w-4 h-4 text-amber-700" />
+            
+            {/* Live Status Ribbon */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>🇦🇲 {t.yerevanLiveStatus}</span>
+              {yerevanTime && (
+                <>
+                  <span className="text-slate-300" aria-hidden="true">|</span>
+                  <span className="font-mono font-bold text-slate-900">{yerevanTime}</span>
+                </>
+              )}
+            </div>
+
+            {/* Header Kicker Tag */}
+            <div className="flex items-center justify-center gap-2 text-xs font-black tracking-widest text-amber-700 uppercase">
+              <span className="brand-name">YEREVANHUB</span>
+              <span aria-hidden="true" className="text-amber-400">·</span>
               <span>{t.officialPlatformBadge}</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-tight">
+            {/* High-Contrast Modern Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-[1.18]">
               {t.heroTitle}
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+            {/* Subtitle */}
+            <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
               {t.heroSubtitle}
             </p>
 
-            {/* TWO MAIN CALL TO ACTIONS */}
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-              {/* Action 1: Search & Book Hostels */}
+            {/* Primary & Immediate Action CTAs */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4">
               <button
                 type="button"
                 onClick={() => onNavigate('hostels')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-base shadow-lg shadow-amber-500/25 transition-all cursor-pointer hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
               >
-                <Building2 className="w-5 h-5 text-slate-950" />
+                <Building2 className="w-4 h-4 text-slate-950" />
                 <span>{t.ctaSearchHostels}</span>
                 <ArrowIcon className="w-4 h-4" />
               </button>
 
-              {/* Action 2: Urgent Just Arrived */}
               <button
                 type="button"
                 onClick={() => onNavigate('immediate-stay')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-base shadow-lg shadow-red-600/25 transition-all cursor-pointer hover:-translate-y-0.5 animate-pulse"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:bg-red-800 text-white font-black text-sm shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
               >
-                <Zap className="w-5 h-5 fill-white" />
+                <Zap className="w-4 h-4 fill-white" />
                 <span>{t.ctaImmediateStay}</span>
               </button>
             </div>
 
-            {/* Micro guarantees */}
-            <div className="pt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-600">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{t.payOnArrivalText}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{t.nightlyAdmissionText}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{t.noSmsCodeText}</span>
-              </div>
+            {/* Single Honest Guarantee (Other phrases removed per user instruction) */}
+            <div className="pt-3 flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{t.payOnArrivalText}</span>
+              <span className="text-slate-300" aria-hidden="true">·</span>
+              <span className="text-slate-500 font-normal">{t.freeCancellation}</span>
             </div>
           </div>
 
-          {/* QUICK SEARCH WIDGET */}
-          <div className="mt-12 max-w-4xl mx-auto bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-200/80 p-4 sm:p-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-              <button
-                type="button"
-                onClick={() => setSearchTab('hostels')}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors cursor-pointer flex items-center gap-2 ${
-                  searchTab === 'hostels'
-                    ? 'bg-amber-500 text-slate-950'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                <span>{t.navHostels}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSearchTab('rentals')}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors cursor-pointer flex items-center gap-2 ${
-                  searchTab === 'rentals'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                <Home className="w-4 h-4" />
-                <span>{t.navRentals}</span>
-              </button>
+          {/* SEARCH CONSOLE - High Elevation Floating Card */}
+          <div className="mt-12 sm:mt-14 max-w-4xl mx-auto bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/8 border border-slate-200/90 p-5 sm:p-7">
+            {/* Segmented Switcher & Quick Date Chips */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => setSearchTab('hostels')}
+                  className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    searchTab === 'hostels'
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 text-amber-600" />
+                  <span>{t.navHostels}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchTab('rentals')}
+                  className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    searchTab === 'rentals'
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Home className="w-4 h-4 text-blue-600" />
+                  <span>{t.navRentals}</span>
+                </button>
+              </div>
+
+              {/* Quick Date Presets (Hostels only) */}
+              {searchTab === 'hostels' && (
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 overflow-x-auto pb-1 sm:pb-0">
+                  <span className="hidden md:inline text-slate-400">سریع:</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(0, 1)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
+                  >
+                    امشب
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(1, 2)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
+                  >
+                    فردا شب
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickDate(3, 3)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
+                  >
+                    آخر هفته
+                  </button>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   {t.cityLabel}
                 </label>
                 <div className="relative">
-                  <MapPin className="w-4 h-4 text-slate-400 absolute top-3 right-3 pointer-events-none" />
+                  <MapPin className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
                   <select
                     value={selectedCity}
                     onChange={e => setSelectedCity(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden pr-9"
+                    className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
                   >
                     <option value="all">{t.allCities}</option>
                     <option value="Yerevan">{getCityName('Yerevan', currentLang)}</option>
@@ -170,46 +282,46 @@ export const HomeView: React.FC<Props> = ({
               {searchTab === 'hostels' ? (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       {t.checkInLabel}
                     </label>
                     <div className="relative">
-                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3 right-3 pointer-events-none" />
+                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
                       <input
                         type="date"
                         value={checkIn}
                         onChange={e => setCheckIn(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden pr-9"
+                        className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       {t.checkOutLabel}
                     </label>
                     <div className="relative">
-                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3 right-3 pointer-events-none" />
+                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
                       <input
                         type="date"
                         value={checkOut}
                         onChange={e => setCheckOut(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden pr-9"
+                        className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       {t.guestsLabel}
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <Users className="w-4 h-4 text-slate-400 absolute top-3 right-3 pointer-events-none" />
+                        <Users className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
                         <select
                           value={guests}
                           onChange={e => setGuests(Number(e.target.value))}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden pr-9"
+                          className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
                         >
                           <option value={1}>{t.guestCount1}</option>
                           <option value={2}>{t.guestCount2}</option>
@@ -219,7 +331,7 @@ export const HomeView: React.FC<Props> = ({
                       </div>
                       <button
                         type="submit"
-                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-sm shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:scale-102"
                       >
                         <Search className="w-4 h-4 text-slate-950" />
                         <span>{t.searchButton}</span>
@@ -230,21 +342,21 @@ export const HomeView: React.FC<Props> = ({
               ) : (
                 <>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       {t.rentalTypeLabel}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => onNavigate('rentals', { type: 'long_term' })}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center"
+                        className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center transition-colors cursor-pointer"
                       >
                         {t.longTermRental}
                       </button>
                       <button
                         type="button"
                         onClick={() => onNavigate('rentals', { type: 'short_term' })}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center"
+                        className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center transition-colors cursor-pointer"
                       >
                         {t.shortTermRental}
                       </button>
@@ -253,7 +365,7 @@ export const HomeView: React.FC<Props> = ({
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-colors cursor-pointer flex items-center justify-center gap-1.5 hover:scale-102"
                     >
                       <Search className="w-4 h-4" />
                       <span>{t.ctaSearchRentals}</span>
@@ -266,28 +378,232 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 2. FEATURED HOSTELS */}
+      {/* 2. REAL-TIME CURRENCY CONVERTER WIDGET - Traveler's Must-Have Tool */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-widest">
+                <Calculator className="w-4 h-4" />
+                <span>{t.currencyConverterTitle}</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                {t.currencyConverterSubtitle}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                تسویه هزینه اقامت در هاستل‌ها در بدو ورود با درام ارمنستان (AMD) انجام می‌شود. با این ابزار هزینه اقامت را سریع به تومان، دلار یا روبل ارزیابی کنید.
+              </p>
+            </div>
+
+            {/* Quick Presets & Interactive Output */}
+            <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800/80 space-y-4 min-w-[280px] sm:min-w-[340px]">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  {t.amountInAMD}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1000"
+                    step="1000"
+                    value={calcAMD}
+                    onChange={e => setCalcAMD(Math.max(0, Number(e.target.value)))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-base font-black text-amber-400 focus:outline-hidden focus:border-amber-400 text-left font-mono"
+                  />
+                  <span className="font-bold text-xs text-slate-400">֏ AMD</span>
+                </div>
+              </div>
+
+              {/* Quick Chip Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[5000, 10000, 20000, 50000].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setCalcAMD(val)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                      calcAMD === val
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    {val.toLocaleString()} ֏
+                  </button>
+                ))}
+              </div>
+
+              {/* Calculated Results Strip */}
+              <div className="pt-3 border-t border-slate-800 grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
+                  <span className="text-[10px] text-slate-400 block">{t.approxInToman}</span>
+                  <span className="text-xs sm:text-sm font-bold text-emerald-400 font-mono">
+                    {Math.round(calcAMD * AMD_TO_TOMAN).toLocaleString()}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
+                  <span className="text-[10px] text-slate-400 block">{t.approxInUSD}</span>
+                  <span className="text-xs sm:text-sm font-bold text-blue-400 font-mono">
+                    ${(calcAMD * AMD_TO_USD).toFixed(1)}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
+                  <span className="text-[10px] text-slate-400 block">{t.approxInRUB}</span>
+                  <span className="text-xs sm:text-sm font-bold text-amber-400 font-mono">
+                    ₽{Math.round(calcAMD * AMD_TO_RUB).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. YEREVAN NEIGHBORHOODS EXPLORER - Architectural District Guide */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
+            <div className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">
+              راهنمای محله‌های ایروان
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {t.neighborhoodsTitle}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              {t.neighborhoodsSubtitle}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Kentron */}
+          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+            <div>
+              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
+                <img
+                  src="https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=800&q=80"
+                  alt="Kentron Yerevan"
+                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
+                />
+                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
+                  {t.distToRepublicSquare}: ۲ {t.minsWalk}
+                </div>
+              </div>
+              <div className="p-5 space-y-2">
+                <h3 className="text-lg font-black text-slate-900 group-hover:text-amber-700 transition-colors">
+                  {t.neighborhoodKentronName}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {t.neighborhoodKentronDesc}
+                </p>
+              </div>
+            </div>
+            <div className="p-5 pt-0">
+              <button
+                type="button"
+                onClick={() => onNavigate('hostels', { district: 'Kentron' })}
+                className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>{t.viewHostelsInDistrict}</span>
+                <ArrowIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Arabkir */}
+          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+            <div>
+              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
+                <img
+                  src="https://images.unsplash.com/photo-1541971875076-8f970d573be6?auto=format&fit=crop&w=800&q=80"
+                  alt="Arabkir Yerevan"
+                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
+                />
+                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
+                  دسترسی مستقیم مترو
+                </div>
+              </div>
+              <div className="p-5 space-y-2">
+                <h3 className="text-lg font-black text-slate-900 group-hover:text-blue-700 transition-colors">
+                  {t.neighborhoodArabkirName}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {t.neighborhoodArabkirDesc}
+                </p>
+              </div>
+            </div>
+            <div className="p-5 pt-0">
+              <button
+                type="button"
+                onClick={() => onNavigate('hostels', { district: 'Arabkir' })}
+                className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>{t.viewHostelsInDistrict}</span>
+                <ArrowIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Avan & Nork */}
+          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
+            <div>
+              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
+                <img
+                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
+                  alt="Avan & Nork Yerevan"
+                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
+                />
+                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
+                  هوای مطبوع و کوهستانی
+                </div>
+              </div>
+              <div className="p-5 space-y-2">
+                <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  {t.neighborhoodAvanName}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {t.neighborhoodAvanDesc}
+                </p>
+              </div>
+            </div>
+            <div className="p-5 pt-0">
+              <button
+                type="button"
+                onClick={() => onNavigate('rentals', { city: 'Yerevan' })}
+                className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>{t.viewAllRentals}</span>
+                <ArrowIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. FEATURED HOSTELS - Clean Aspect Ratios & Tactile Cards */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">
+              {t.navHostels}
+            </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {t.featuredHostelsTitle}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               {t.featuredHostelsSubtitle}
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('hostels')}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
           >
             <span>{t.viewAllHostels} ({hostels.length})</span>
             <ArrowIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
           {hostels.slice(0, 3).map(hostel => {
             const { avg, count } = getHostelRating(hostel.id);
             const localizedName = getLocalized(hostel.name, currentLang);
@@ -296,83 +612,84 @@ export const HomeView: React.FC<Props> = ({
             return (
               <div
                 key={hostel.id}
-                className="group bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col"
+                className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
               >
-                {/* Photo & Badges */}
-                <div className="relative aspect-16/10 overflow-hidden bg-slate-100">
-                  <img
-                    src={hostel.photos[0]}
-                    alt={localizedName}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                  <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+                {/* Photo & Clean Overlays */}
+                <div>
+                  <div className="relative aspect-16/10 overflow-hidden bg-slate-100">
+                    <img
+                      src={hostel.photos[0]}
+                      alt={localizedName}
+                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
+                      loading="lazy"
+                    />
+
                     {hostel.immediateStayEnabled && (
-                      <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-bold shadow-md flex items-center gap-1">
+                      <div className="absolute top-3 right-3 bg-red-600/95 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
                         <Zap className="w-3 h-3 fill-white" />
                         <span>{t.immediateCheckIn}</span>
-                      </span>
+                      </div>
                     )}
-                    {hostel.reception24h && (
-                      <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-white text-[11px] font-medium shadow-xs">
-                        {t.hours24}
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 shadow-xs flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span>{avg}</span>
-                    <span className="text-slate-400 font-normal">({count})</span>
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <div className="text-xs text-amber-700 font-bold uppercase tracking-wider">
-                      {getCityName(hostel.city, currentLang)} • {hostel.district}
+                    {/* Rating Tag */}
+                    <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white shadow-xs flex items-center gap-1.5">
+                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                      <span>{avg}</span>
+                      <span className="text-slate-400 font-normal text-[11px]">({count})</span>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 line-clamp-1 group-hover:text-amber-600 transition-colors">
+                  </div>
+
+                  {/* Details */}
+                  <div className="p-6 space-y-3">
+                    <div className="flex items-center gap-1.5 text-xs text-amber-800 font-bold">
+                      <span>{getCityName(hostel.city, currentLang)}</span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>{hostel.district}</span>
+                      {hostel.reception24h && (
+                        <>
+                          <span aria-hidden="true" className="text-slate-300">·</span>
+                          <span className="text-slate-500 font-normal">{t.hours24}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <h3 className="text-lg font-black text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
                       {localizedName}
                     </h3>
                     <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                       {localizedAddress}
                     </p>
-                  </div>
 
-                  {/* Amenities highlights */}
-                  <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-600 pt-1 border-t border-slate-100">
-                    {hostel.amenities.wifi && (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100">{t.wifi}</span>
-                    )}
-                    {hostel.amenities.lockers && (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100">{t.lockers}</span>
-                    )}
-                    {hostel.freeLuggageStorage && (
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100">{t.luggageStorage}</span>
-                    )}
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-slate-500 pt-3 border-t border-slate-100">
+                      {hostel.amenities.wifi && <span>{t.wifi}</span>}
+                      {hostel.amenities.wifi && hostel.amenities.lockers && <span aria-hidden="true" className="text-slate-300">·</span>}
+                      {hostel.amenities.lockers && <span>{t.lockers}</span>}
+                      {hostel.freeLuggageStorage && <span aria-hidden="true" className="text-slate-300">·</span>}
+                      {hostel.freeLuggageStorage && <span>{t.luggageStorage}</span>}
+                    </div>
                   </div>
+                </div>
 
-                  {/* Price & Action */}
+                {/* Price & Action */}
+                <div className="p-6 pt-0">
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-slate-400 block font-normal">
+                      <span className="text-[11px] text-slate-400 block font-normal">
                         {t.startingFrom}
                       </span>
-                      <div className="text-lg font-extrabold text-slate-900">
+                      <div className="text-lg font-black text-slate-900 tracking-tight">
                         {hostel.minPricePerNightAMD.toLocaleString()}{' '}
-                        <span className="text-xs font-medium text-amber-700">{t.currencyAMD}</span>
+                        <span className="text-xs font-bold text-amber-700">֏ AMD</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 block">
-                        {t.perBedPerNight}
+                      <span className="text-[10px] text-slate-400 block">
+                        ≈ {Math.round(hostel.minPricePerNightAMD * AMD_TO_TOMAN).toLocaleString()} تومان
                       </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => onNavigate('hostel-detail', { id: hostel.id })}
-                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs hover:scale-102"
                     >
                       {t.detailsButton}
                     </button>
@@ -384,67 +701,76 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 3. FEATURED RENTALS */}
+      {/* 5. FEATURED RENTALS - Architectural Presentation */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
+            <div className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">
+              {t.navRentals}
+            </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {t.featuredRentalsTitle}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               {t.featuredRentalsSubtitle}
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('rentals')}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-800 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-700 hover:text-blue-800 cursor-pointer"
           >
             <span>{t.viewAllRentals} ({rentals.length})</span>
             <ArrowIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
           {rentals.slice(0, 2).map(rental => {
             const localizedTitle = getLocalized(rental.title, currentLang);
 
             return (
               <div
                 key={rental.id}
-                className="bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col sm:flex-row"
+                className="bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col sm:flex-row group"
               >
                 <div className="sm:w-2/5 relative aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100">
                   <img
                     src={rental.photos[0]}
                     alt={localizedTitle}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
                     loading="lazy"
                   />
                   {rental.verifiedBadge && (
-                    <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-bold shadow-md flex items-center gap-1">
+                    <div className="absolute top-3 right-3 bg-emerald-600/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-xs flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
                       <span>{t.verifiedBadge}</span>
-                    </span>
+                    </div>
                   )}
                 </div>
 
-                <div className="sm:w-3/5 p-5 flex flex-col justify-between space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="text-xs text-blue-600 font-bold uppercase">
-                      {getCityName(rental.city, currentLang)} • {rental.neighborhood}
+                <div className="sm:w-3/5 p-6 flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs text-blue-700 font-bold">
+                      <span>{getCityName(rental.city, currentLang)}</span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>{rental.neighborhood}</span>
                     </div>
                     <h3 className="text-base font-bold text-slate-900 line-clamp-2">
                       {localizedTitle}
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      {rental.areaSqm} m² • {rental.bedroomsCount} bed • floor {rental.floor}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <span>{rental.areaSqm} m²</span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>{rental.bedroomsCount} bed</span>
+                      <span aria-hidden="true" className="text-slate-300">·</span>
+                      <span>ط {rental.floor} {rental.hasElevator ? '(آسانسور)' : ''}</span>
+                    </div>
                   </div>
 
-                  <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <span className="font-semibold text-slate-700">{t.stayTotal}:</span>{' '}
-                    {rental.refundableDepositAMD.toLocaleString()} {t.currencyAMD}
+                    <strong className="text-slate-900">{rental.refundableDepositAMD.toLocaleString()} {t.currencyAMD}</strong>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -453,7 +779,7 @@ export const HomeView: React.FC<Props> = ({
                         <div>
                           <div className="text-base font-black text-slate-900">
                             {rental.pricePerMonthAMD.toLocaleString()}{' '}
-                            <span className="text-xs font-semibold text-blue-700">{t.currencyAMD}</span>
+                            <span className="text-xs font-bold text-blue-700">{t.currencyAMD}</span>
                           </div>
                           <span className="text-[10px] text-slate-400 block font-medium">{t.perMonth}</span>
                         </div>
@@ -461,7 +787,7 @@ export const HomeView: React.FC<Props> = ({
                         <div>
                           <div className="text-base font-black text-slate-900">
                             {rental.pricePerNightAMD?.toLocaleString()}{' '}
-                            <span className="text-xs font-semibold text-blue-700">{t.currencyAMD}</span>
+                            <span className="text-xs font-bold text-blue-700">{t.currencyAMD}</span>
                           </div>
                           <span className="text-[10px] text-slate-400 block font-medium">{t.perNight}</span>
                         </div>
@@ -471,7 +797,7 @@ export const HomeView: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => onNavigate('rental-detail', { id: rental.id })}
-                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs hover:scale-102"
                     >
                       {t.viewPropertyButton}
                     </button>
@@ -483,40 +809,74 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 4. ESSENTIAL TRAVEL PHRASES SPOTLIGHT */}
-      <section className="bg-slate-900 text-white py-16 rounded-3xl max-w-7xl mx-auto px-6 sm:px-10 overflow-hidden relative">
-        <div className="max-w-3xl mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-semibold mb-3">
-            <Compass className="w-3.5 h-3.5" />
-            <span>{t.travelPhrasesTitle}</span>
+      {/* 6. ESSENTIAL TRAVEL PHRASES SPOTLIGHT - High Contrast Dark Slate with Audio & Quick Copy */}
+      <section className="bg-slate-950 text-white py-14 sm:py-16 rounded-3xl max-w-7xl mx-auto px-6 sm:px-10 overflow-hidden relative border border-slate-800 shadow-2xl">
+        <div className="max-w-3xl mb-8 space-y-2">
+          <div className="text-xs font-bold tracking-widest text-amber-400 uppercase">
+            {t.navTranslator}
           </div>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
             {t.travelPhrasesTitle}
           </h2>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-xs sm:text-sm text-slate-400">
             {t.travelPhrasesSubtitle}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {phrases.slice(0, 3).map(phrase => {
             const displayNative = currentLang === 'en' ? phrase.en : currentLang === 'ru' ? phrase.ru : phrase.fa;
+            const isCopied = copiedPhraseId === phrase.id;
+            const isPlaying = playingAudioId === phrase.id;
 
             return (
               <div
                 key={phrase.id}
-                className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700/80 space-y-3"
+                className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3.5 flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between text-xs text-amber-400 font-semibold">
-                  <span>{phrase.category}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-mono">
-                    {phrase.phoneticHy}
-                  </span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-amber-400 font-semibold">
+                    <span>{phrase.category}</span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {phrase.phoneticHy}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-white">{displayNative}</p>
+                  <p className="text-base font-bold text-amber-300 armenian-text tracking-wide" dir="ltr">
+                    {phrase.hy}
+                  </p>
                 </div>
-                <p className="text-sm font-bold text-white">{displayNative}</p>
-                <p className="text-base font-bold text-amber-300 armenian-text tracking-wide" dir="ltr">
-                  {phrase.hy}
-                </p>
+
+                {/* Audio Pronunciation & Copy for Taxi */}
+                <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePlayPronunciation(phrase.hy, phrase.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      isPlaying
+                        ? 'bg-amber-400 text-slate-950 font-bold animate-pulse'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    }`}
+                    title={t.playPronunciation}
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>{t.playPronunciation}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCopyPhrase(phrase.hy, phrase.id)}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      isCopied
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    }`}
+                    title={t.copyForTaxi}
+                  >
+                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{isCopied ? t.copied : t.copyForTaxi}</span>
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -526,7 +886,7 @@ export const HomeView: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => onNavigate('translator')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-amber-500/25 hover:scale-102"
           >
             <span>{t.openTranslatorWithPhrases}</span>
             <ArrowIcon className="w-4 h-4" />
@@ -534,28 +894,31 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 5. ARMENIA GUIDE HIGHLIGHTS */}
+      {/* 7. ARMENIA GUIDE HIGHLIGHTS - Editorial Quality */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
+            <div className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-1">
+              {t.navGuide}
+            </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {t.guideHighlightsTitle}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               {t.guidePageSubtitle}
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('guide')}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer"
           >
             <span>{t.readMoreButton} ({articles.filter(a => a.status === 'published').length})</span>
             <ArrowIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
           {articles
             .filter(a => a.status === 'published')
             .slice(0, 3)
@@ -563,29 +926,34 @@ export const HomeView: React.FC<Props> = ({
               <div
                 key={article.id}
                 onClick={() => onNavigate('article-detail', { slug: article.slug })}
-                className="group bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs hover:shadow-lg transition-all cursor-pointer flex flex-col"
+                className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between"
               >
-                <div className="aspect-16/10 overflow-hidden bg-slate-100">
-                  <img
-                    src={article.featuredImage}
-                    alt={article.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    <span className="text-xs font-bold text-emerald-700">{article.category}</span>
-                    <h3 className="text-base font-bold text-slate-900 line-clamp-2 group-hover:text-emerald-600 transition-colors">
+                <div>
+                  <div className="aspect-16/10 overflow-hidden bg-slate-100">
+                    <img
+                      src={article.featuredImage}
+                      alt={article.title}
+                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-6 space-y-2.5">
+                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">{article.category}</span>
+                    <h3 className="text-base font-bold text-slate-900 line-clamp-2 group-hover:text-emerald-700 transition-colors">
                       {article.title}
                     </h3>
                     <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                       {article.summary}
                     </p>
                   </div>
+                </div>
+                <div className="p-6 pt-0">
                   <div className="text-[11px] text-slate-400 pt-3 border-t border-slate-100 flex items-center justify-between">
                     <span>{t.lastVerifiedLabel} {article.lastVerifiedDate}</span>
-                    <span className="font-semibold text-emerald-700">{t.readMoreButton}</span>
+                    <span className="font-bold text-emerald-700 flex items-center gap-1">
+                      <span>{t.readMoreButton}</span>
+                      <ArrowIcon className="w-3.5 h-3.5" />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -593,54 +961,46 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 6. WHY YEREVANHUB */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-white rounded-3xl border border-slate-200/80 shadow-xs">
-        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+      {/* 8. WHY YEREVANHUB - 4 Structured Pillars with Hairline Borders */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 bg-white rounded-3xl border border-slate-200/90 shadow-xs">
+        <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
             {t.whyChooseTitle}
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500">
             {t.whyChooseSubtitle}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
-              1
-            </div>
+          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
+            <span className="font-mono text-xs font-black text-amber-700">01</span>
             <h3 className="text-base font-bold text-slate-900">{t.feature1Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               {t.feature1Desc}
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-red-50/50 border border-red-100 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center font-black">
-              2
-            </div>
+          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
+            <span className="font-mono text-xs font-black text-red-700">02</span>
             <h3 className="text-base font-bold text-slate-900">{t.feature2Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               {t.feature2Desc}
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
-              3
-            </div>
+          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
+            <span className="font-mono text-xs font-black text-blue-700">03</span>
             <h3 className="text-base font-bold text-slate-900">{t.feature3Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               {t.feature3Desc}
             </p>
           </div>
 
-          <div className="p-6 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black">
-              4
-            </div>
+          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
+            <span className="font-mono text-xs font-black text-emerald-700">04</span>
             <h3 className="text-base font-bold text-slate-900">{t.feature4Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed font-normal">
               {t.feature4Desc}
             </p>
           </div>

@@ -72,6 +72,16 @@ export interface Translations {
   staffLanguagesText: string;
   amenitiesLabel: string;
   rulesLabel: string;
+  featuredHostelsTitle: string;
+  featuredHostelsSubtitle: string;
+  featuredRentalsTitle: string;
+  featuredRentalsSubtitle: string;
+  guideHighlightsTitle: string;
+  immediateCheckIn: string;
+  hours24: string;
+  wifi: string;
+  lockers: string;
+  luggageStorage: string;
 
   // Immediate Stay Flow
   immediateStayPageTitle: string;
@@ -172,6 +182,30 @@ export interface Translations {
   bookingRules: string;
   footerRights: string;
   timezoneNotice: string;
+
+  // Modern Features & Widgets
+  yerevanLiveStatus: string;
+  currencyConverterTitle: string;
+  currencyConverterSubtitle: string;
+  amountInAMD: string;
+  approxInToman: string;
+  approxInUSD: string;
+  approxInRUB: string;
+  neighborhoodsTitle: string;
+  neighborhoodsSubtitle: string;
+  neighborhoodKentronName: string;
+  neighborhoodKentronDesc: string;
+  neighborhoodArabkirName: string;
+  neighborhoodArabkirDesc: string;
+  neighborhoodAvanName: string;
+  neighborhoodAvanDesc: string;
+  viewHostelsInDistrict: string;
+  playPronunciation: string;
+  copyForTaxi: string;
+  copied: string;
+  distToRepublicSquare: string;
+  minsWalk: string;
+  freeCancellation: string;
 }
 
 export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
@@ -244,6 +278,16 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     staffLanguagesText: 'زبان‌های پذیرش:',
     amenitiesLabel: 'امکانات',
     rulesLabel: 'قوانین و مقررات',
+    featuredHostelsTitle: 'هاستل‌های منتخب ایروان',
+    featuredHostelsSubtitle: 'اقامتگاه‌های تاییدشده، تمیز و دارای موقعیت مرکزی با پرداخت در محل',
+    featuredRentalsTitle: 'آپارتمان‌ها و خانه‌های برگزیده',
+    featuredRentalsSubtitle: 'واحدهای مبله، بازرسی‌شده و دارای شرایط شفاف',
+    guideHighlightsTitle: 'برگزیده راهنمای ارمنستان',
+    immediateCheckIn: 'ورود فوری',
+    hours24: '۲۴ ساعته',
+    wifi: 'وای‌فای',
+    lockers: 'کمد اختصاصی',
+    luggageStorage: 'انبار چمدان',
 
     immediateStayPageTitle: 'تازه رسیده‌ام؛ همین حالا جا می‌خواهم',
     immediateStaySubtitle: 'اگر تازه از اتوبوس پایانه کیلیکیا یا هواپیما پیاده شده‌اید و در نیمه‌شب یا ساعات نامتعارف به تخت خواب نیاز دارید، هاستل‌های زیر آمادگی پذیرش فوری شما را دارند.',
@@ -338,6 +382,30 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     bookingRules: 'قوانین رزرو و لغو اقامت',
     footerRights: 'تمامی حقوق متعلق به پلتفرم بین‌المللی YEREVANHUB است.',
     timezoneNotice: 'کلیه زمان‌ها و تاریخ‌ها بر اساس وقت رسمی ارمنستان (Asia/Yerevan) محاسبه می‌شوند.',
+
+    // Modern Features & Widgets
+    yerevanLiveStatus: 'ایروان: وقت رسمی | وضعیت هاستل‌ها: پذیرش فعال',
+    currencyConverterTitle: 'ماشین‌حساب زنده تبدیل درام ارمنستان (AMD)',
+    currencyConverterSubtitle: 'محاسبه سریع و شفاف قیمت‌ها به تومان، دلار آمریکا و روبل برای مسافران',
+    amountInAMD: 'مبلغ به درام ارمنستان (֏ AMD)',
+    approxInToman: 'معادل تقریبی به تومان',
+    approxInUSD: 'معادل به دلار آمریکا ($)',
+    approxInRUB: 'معادل به روبل روسیه (₽)',
+    neighborhoodsTitle: 'راهنمای محله‌های پرطرفدار ایروان',
+    neighborhoodsSubtitle: 'انتخاب بهترین منطقه بر اساس سلیقه: از قلب تاریخی کنترون تا آرامش آرابکیر',
+    neighborhoodKentronName: 'کِنتْرون (مرکز شهر ایروان)',
+    neighborhoodKentronDesc: 'میدان جمهوری، خیابان شمالی و پله‌های کاسکاد. دسترسی پیاده به همه جا و بهترین هاستل‌ها.',
+    neighborhoodArabkirName: 'آرابکیر و خیابان کومیتاس',
+    neighborhoodArabkirDesc: 'منطقه‌ای دنج، کافه‌های محلی و دسترسی عالی به خط مترو. قیمت‌های مناسب‌تر برای اقامت هفتگی.',
+    neighborhoodAvanName: 'آوان و نورک (هوای پاک)',
+    neighborhoodAvanDesc: 'چشم‌انداز کوه آرارات، مجتمع‌های مسکونی مدرن با اجاره‌بهای اقتصادی‌تر برای اقامت طولانی.',
+    viewHostelsInDistrict: 'مشاهده اقامتگاه‌های این منطقه',
+    playPronunciation: 'شنیدن تلفظ ارمنی',
+    copyForTaxi: 'کپی برای راننده تاکسی',
+    copied: 'کپی شد!',
+    distToRepublicSquare: 'فاصله تا میدان جمهوری',
+    minsWalk: 'دقیقه پیاده',
+    freeCancellation: 'لغو رایگان تا ۲۴ ساعت قبل',
   },
 
   en: {
@@ -409,6 +477,16 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     staffLanguagesText: 'Reception speaks:',
     amenitiesLabel: 'Amenities',
     rulesLabel: 'Rules & Policies',
+    featuredHostelsTitle: 'Featured Yerevan Hostels',
+    featuredHostelsSubtitle: 'Verified, clean hostels in prime central locations with pay-on-arrival in AMD',
+    featuredRentalsTitle: 'Featured Apartments & Homes',
+    featuredRentalsSubtitle: 'Inspected residential properties with transparent deposit terms',
+    guideHighlightsTitle: 'Armenia Travel & Living Highlights',
+    immediateCheckIn: 'Immediate Check-in',
+    hours24: '24/7',
+    wifi: 'Wi-Fi',
+    lockers: 'Lockers',
+    luggageStorage: 'Luggage Storage',
 
     immediateStayPageTitle: 'Just Arrived; Need a Bed Now',
     immediateStaySubtitle: 'If you just stepped off a late bus at Kilikia Station or landed at Zvartnots Airport and need a guaranteed bed during odd hours, these hostels are ready for you right now.',
@@ -503,6 +581,30 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     bookingRules: 'Booking & Cancellation Policies',
     footerRights: 'All rights reserved by YEREVANHUB.',
     timezoneNotice: 'All schedules and timestamps are strictly in Asia/Yerevan time.',
+
+    // Modern Features & Widgets
+    yerevanLiveStatus: 'Yerevan: Local Time | Hostels: Check-in Active',
+    currencyConverterTitle: 'Live Armenian Dram (AMD) Currency Converter',
+    currencyConverterSubtitle: 'Instant, transparent conversion to USD, EUR, RUB & Tomans for travelers',
+    amountInAMD: 'Amount in Armenian Dram (֏ AMD)',
+    approxInToman: 'Approx. in Iranian Toman',
+    approxInUSD: 'Approx. in US Dollar ($)',
+    approxInRUB: 'Approx. in Russian Ruble (₽)',
+    neighborhoodsTitle: 'Explore Yerevan Neighborhoods',
+    neighborhoodsSubtitle: 'Find the ideal district: from historic Kentron to peaceful Arabkir',
+    neighborhoodKentronName: 'Kentron (City Center)',
+    neighborhoodKentronDesc: 'Republic Square, Northern Avenue and Cascade. Walking distance to landmarks and lively hostels.',
+    neighborhoodArabkirName: 'Arabkir & Komitas Ave',
+    neighborhoodArabkirDesc: 'Cozy cafes, authentic vibe and direct metro connection. Ideal for weekly stays and budget rentals.',
+    neighborhoodAvanName: 'Avan & Nork (Fresh Air)',
+    neighborhoodAvanDesc: 'Ararat mountain views, modern apartment blocks and great value for monthly rentals.',
+    viewHostelsInDistrict: 'View stays in this area',
+    playPronunciation: 'Listen to pronunciation',
+    copyForTaxi: 'Copy for Taxi Driver',
+    copied: 'Copied!',
+    distToRepublicSquare: 'Distance to Republic Sq.',
+    minsWalk: 'min walk',
+    freeCancellation: 'Free cancellation up to 24h before',
   },
 
   ru: {
@@ -574,6 +676,16 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     staffLanguagesText: 'Языки ресепшена:',
     amenitiesLabel: 'Удобства',
     rulesLabel: 'Правила проживания',
+    featuredHostelsTitle: 'Популярные хостелы Еревана',
+    featuredHostelsSubtitle: 'Проверенные и чистые хостелы в центре с оплатой на месте в драмах (AMD)',
+    featuredRentalsTitle: 'Проверенные квартиры и дома',
+    featuredRentalsSubtitle: 'Меблированное жилье с прозрачными условиями залога',
+    guideHighlightsTitle: 'Гид по Армении: избранное',
+    immediateCheckIn: 'Срочный заезд',
+    hours24: 'Круглосуточно 24/7',
+    wifi: 'Wi-Fi',
+    lockers: 'Шкафчики',
+    luggageStorage: 'Хранение багажа',
 
     immediateStayPageTitle: 'Только приехал; нужно место прямо сейчас',
     immediateStaySubtitle: 'Если вы только что прибыли на автовокзал Киликия или прилетели в аэропорт Звартноц и вам срочно нужно спальное место, эти хостелы готовы принять вас прямо сейчас.',
@@ -668,6 +780,30 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     bookingRules: 'Правила бронирования и отмены',
     footerRights: 'Все права защищены YEREVANHUB.',
     timezoneNotice: 'Все расчеты и время указаны по поясу Asia/Yerevan.',
+
+    // Modern Features & Widgets
+    yerevanLiveStatus: 'Ереван: Местное время | Хостелы: Заезд открыт',
+    currencyConverterTitle: 'Конвертер армянского драма (AMD)',
+    currencyConverterSubtitle: 'Быстрый и точный расчет стоимости в рублях, долларах и томанах',
+    amountInAMD: 'Сумма в армянских драмах (֏ AMD)',
+    approxInToman: 'Примерно в туманах',
+    approxInUSD: 'Примерно в долларах США ($)',
+    approxInRUB: 'Примерно в рублях (₽)',
+    neighborhoodsTitle: 'Районы Еревана: где остановиться',
+    neighborhoodsSubtitle: 'Выберите район по вкусу: от оживленного Кентрона до спокойного Арабкира',
+    neighborhoodKentronName: 'Кентрон (Центр города)',
+    neighborhoodKentronDesc: 'Площадь Республики, Северный проспект и Каскад. Все достопримечательности в шаговой доступности.',
+    neighborhoodArabkirName: 'Арабкир и проспект Комитаса',
+    neighborhoodArabkirDesc: 'Уютные кафе, аутентичная атмосфера и метро. Отличный выбор для аренды и экономии.',
+    neighborhoodAvanName: 'Аван и Норк (Свежий воздух)',
+    neighborhoodAvanDesc: 'Вид на Арарат, современные жилые комплексы и выгодные цены на долгосрочную аренду.',
+    viewHostelsInDistrict: 'Смотреть жилье в этом районе',
+    playPronunciation: 'Прослушать произношение',
+    copyForTaxi: 'Скопировать для такси',
+    copied: 'Скопировано!',
+    distToRepublicSquare: 'До площади Республики',
+    minsWalk: 'мин пешком',
+    freeCancellation: 'Бесплатная отмена за 24ч',
   },
 
   hy: {
@@ -739,6 +875,16 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     staffLanguagesText: 'Սպասարկման լեզուները՝',
     amenitiesLabel: 'Հարմարություններ',
     rulesLabel: 'Կանոններ և պայմաններ',
+    featuredHostelsTitle: 'Երևանի ընտրված հոսթելները',
+    featuredHostelsSubtitle: 'Ստուգված և մաքուր հոսթելներ քաղաքի կենտրոնում՝ տեղում վճարմամբ (AMD)',
+    featuredRentalsTitle: 'Ընտրված բնակարաններ և տներ',
+    featuredRentalsSubtitle: 'Կահավորված և ստուգված բնակարաններ՝ թափանցիկ պայմաններով',
+    guideHighlightsTitle: 'Հայաստանի ուղեցույցի ընտրանի',
+    immediateCheckIn: 'Անհապաղ մուտք',
+    hours24: '24/7 շուրջօրյա',
+    wifi: 'Wi-Fi',
+    lockers: 'Պահարաններ',
+    luggageStorage: 'Ուղեբեռի պահեստ',
 
     immediateStayPageTitle: 'Նոր եմ հասել. տեղ է պետք հենց հիմա',
     immediateStaySubtitle: 'Եթե նոր եք իջել Կիլիկիա ավտոկայանից կամ Զվարթնոց օդանավակայանից և ուշ ժամի շտապ մահճակալ է պետք, այս հոսթելները պատրաստ են ընդունել ձեզ:',
@@ -833,5 +979,29 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     bookingRules: 'Ամրագրման և չեղարկման կանոններ',
     footerRights: 'Բոլոր իրավունքները պաշտպանված են YEREVANHUB-ի կողմից:',
     timezoneNotice: 'Բոլոր հաշվարկները կատարվում են Asia/Yerevan ժամային գոտով:',
+
+    // Modern Features & Widgets
+    yerevanLiveStatus: 'Երևան. Պաշտոնական ժամ | Հոսթելներ. Ընդունելությունը բաց է',
+    currencyConverterTitle: 'ՀՀ Դրամի (AMD) արժույթի հաշվիչ',
+    currencyConverterSubtitle: 'Արագ հաշվարկ դոլարով, ռուբլիով և թումանով ճանապարհորդների համար',
+    amountInAMD: 'Գումարը ՀՀ Դրամով (֏ AMD)',
+    approxInToman: 'Մոտավորապես Թումանով',
+    approxInUSD: 'Մոտավորապես ԱՄՆ դոլարով ($)',
+    approxInRUB: 'Մոտավորապես ՌԴ ռուբլիով (₽)',
+    neighborhoodsTitle: 'Երևանի հայտնի թաղամասերը',
+    neighborhoodsSubtitle: 'Որտեղ մնալ. պատմական Կենտրոնից մինչև հարմարավետ Արաբկիր',
+    neighborhoodKentronName: 'Կենտրոն (Քաղաքի սիրտը)',
+    neighborhoodKentronDesc: 'Հանրապետության հրապարակ, Հյուսիսային պողոտա և Կասկադ: Ամեն ինչ քայլելու հեռավորության վրա:',
+    neighborhoodArabkirName: 'Արաբկիր և Կոմիտասի պողոտա',
+    neighborhoodArabkirDesc: 'Հարմարավետ սրճարաններ, մետրոյի հասանելիություն և բարենպաստ գներ:',
+    neighborhoodAvanName: 'Ավան և Նորք (Մաքուր օդ)',
+    neighborhoodAvanDesc: 'Տեսարան դեպի Արարատ լեռ, նորակառույց համալիրներ և մատչելի երկարաժամկետ վարձույթ:',
+    viewHostelsInDistrict: 'Դիտել այս տարածքի կացարանները',
+    playPronunciation: 'Լսել հայերեն արտասանությունը',
+    copyForTaxi: 'Պատճենել տաքսու վարորդի համար',
+    copied: 'Պատճենված է!',
+    distToRepublicSquare: 'Հեռավորությունը Հանրապետության հրապարակից',
+    minsWalk: 'րոպե քայլք',
+    freeCancellation: 'Անվճար չեղարկում մինչև 24 ժամ առաջ',
   },
 };
