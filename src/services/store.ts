@@ -621,6 +621,12 @@ class Store {
     this.persist();
   }
 
+  public deleteCoupon(code: string) {
+    this.state.coupons = this.state.coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
+    this.logAudit('DELETE_COUPON', 'COUPON', code, `حذف کد تخفیف ${code}`);
+    this.persist();
+  }
+
   // Articles (Manual one-by-one by Admin)
   public saveArticle(article: Article) {
     const idx = this.state.articles.findIndex(a => a.id === article.id);

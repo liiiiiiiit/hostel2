@@ -63,7 +63,7 @@ export const Header: React.FC<Props> = ({
                   <span className="brand-name text-lg sm:text-xl font-black tracking-wider text-slate-950 group-hover:text-amber-700 transition-colors">
                     YEREVANHUB
                   </span>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="سیستم فعال است" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title={t.systemActive} />
                 </div>
                 <span className="hidden sm:block text-[10px] text-slate-400 font-medium truncate max-w-[170px] sm:max-w-xs">
                   {t.tagline}
@@ -129,18 +129,6 @@ export const Header: React.FC<Props> = ({
 
           {/* Right Header Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Urgent "Just Arrived" Quick Action with subtle luxury gradient */}
-            <button
-              type="button"
-              onClick={() => handleNav('immediate-stay')}
-              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-700 hover:to-rose-700 active:scale-97 text-white text-xs sm:text-sm font-bold shadow-md shadow-red-500/25 hover:shadow-lg hover:shadow-red-500/35 transition-all cursor-pointer"
-              title="برای مسافری که تازه رسیده و همین حالا جای خواب می‌خواهد"
-            >
-              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0 animate-pulse" />
-              <span className="hidden sm:inline">{t.navImmediateStay}</span>
-              <span className="sm:hidden text-xs">ورود فوری</span>
-            </button>
-
             {/* Language Selector */}
             <LanguageSelector currentLang={currentLang} onLanguageChange={onLanguageChange} />
 
@@ -235,14 +223,6 @@ export const Header: React.FC<Props> = ({
             <span>{t.navRentals}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleNav('immediate-stay')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-50 text-red-900 font-semibold text-sm text-right cursor-pointer"
-          >
-            <Zap className="w-5 h-5 text-red-600 fill-red-600" />
-            <span>{t.navImmediateStay}</span>
-          </button>
 
           <button
             type="button"

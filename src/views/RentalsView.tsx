@@ -203,10 +203,10 @@ export const RentalsView: React.FC<Props> = ({
                       {rental.areaSqm} m²
                     </span>
                     <span className="px-2 py-1 rounded-lg bg-slate-100">
-                      {rental.bedroomsCount} bed
+                      {rental.bedroomsCount} {t.bedsLabel}
                     </span>
                     <span className="px-2 py-1 rounded-lg bg-slate-100">
-                      floor {rental.floor} {rental.hasElevator ? '(lift)' : ''}
+                      {t.floorLabel} {rental.floor} {rental.hasElevator ? `(${t.elevatorShort})` : ''}
                     </span>
                   </div>
                 </div>

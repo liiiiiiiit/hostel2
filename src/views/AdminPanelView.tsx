@@ -28,8 +28,66 @@ import {
   FileText,
   Key,
   ExternalLink,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  Check,
+  Link as LinkIcon,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import { appStore } from '../services/store';
+
+export const ARMENIA_PHOTO_PRESETS = [
+  {
+    id: 'republic-sq',
+    title: 'میدان جمهوری ایروان',
+    desc: 'معماری سنگ توف و قلب پایتخت',
+    url: 'https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'cascade',
+    title: 'مجموعه پله‌های کاسکاد',
+    desc: 'نمای پانورامای شهر و هنر مدرن',
+    url: 'https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'ararat-view',
+    title: 'چشم‌انداز کوه آرارات',
+    desc: 'نماد طبیعی ارمنستان و هوای مطبوع',
+    url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'dilijan',
+    title: 'طبیعت کوهستانی دیلیجان',
+    desc: 'جنگل‌های سرسبز و آب‌وهوای کوهستانی',
+    url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'kilikia-bus',
+    title: 'پایانه مسافربری و اتوبوس',
+    desc: 'ترمینال مرکزی کیلیکیا و ورود شبانه',
+    url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'money-dram',
+    title: 'صرافی، پول و درام ارمنستان',
+    desc: 'تبدیل ارز، سوپرمارکت‌های ۲۴ ساعته ساس',
+    url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'sim-telecom',
+    title: 'سیم‌کارت و اینترنت پرسرعت',
+    desc: 'اپراتورهای Viva و Ucom و بسته‌های دیتا',
+    url: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    id: 'apartment-interior',
+    title: 'اجاره آپارتمان و نکات قرارداد',
+    desc: 'املاک، نکات کاداستر و هزینه‌های کومونال',
+    url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
+  },
+];
 
 interface Props {
   currentLang: AppLanguage;
@@ -57,9 +115,15 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
 
   // New Article form
   const [artTitle, setArtTitle] = useState('');
-  const [artCategory, setArtCategory] = useState('راهنماها');
+  const [artCategory, setArtCategory] = useState('ویزا و اقامت');
   const [artContent, setArtContent] = useState('');
   const [artSummary, setArtSummary] = useState('');
+  const [artTags, setArtTags] = useState('');
+  const [artStatus, setArtStatus] = useState<'published' | 'draft'>('published');
+  const [artLanguage, setArtLanguage] = useState<AppLanguage>('fa');
+  const [artImage, setArtImage] = useState<string>(ARMENIA_PHOTO_PRESETS[0].url);
+  const [artImageMode, setArtImageMode] = useState<'preset' | 'upload' | 'url'>('preset');
+  const [artCustomUrl, setArtCustomUrl] = useState('');
 
   // Review reply state
   const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
@@ -102,29 +166,50 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
     setMgrEmail('');
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setArtImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateArticle = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!artTitle || !artContent) return;
+    if (!artTitle.trim() || !artContent.trim()) return;
+
+    const finalImage = artImage || ARMENIA_PHOTO_PRESETS[0].url;
+    const tagsList = artTags.trim()
+      ? artTags.split(/[,،]+/).map(t => t.trim()).filter(Boolean)
+      : [artCategory];
+
     appStore.saveArticle({
       id: '',
-      slug: artTitle.toLowerCase().replace(/\s+/g, '-'),
-      title: artTitle,
-      summary: artSummary,
+      slug: artTitle.toLowerCase().trim().replace(/[^a-zA-Z0-9\u0600-\u06FF\u0530-\u058F\u0400-\u04FF]+/g, '-'),
+      title: artTitle.trim(),
+      summary: artSummary.trim() || artTitle.trim(),
       category: artCategory,
-      tags: [artCategory],
-      featuredImage: 'https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=1200&q=80',
-      content: artContent,
+      tags: tagsList,
+      featuredImage: finalImage,
+      content: artContent.trim(),
       author: 'مدیریت YEREVANHUB',
-      language: 'fa',
-      status: 'published',
+      language: artLanguage,
+      status: artStatus,
       lastVerifiedDate: new Date().toISOString().split('T')[0],
-      sources: ['تحقیقات میدانی YEREVANHUB'],
+      sources: ['تحقیقات و انتشارات YEREVANHUB'],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
+
     setArtTitle('');
     setArtSummary('');
     setArtContent('');
+    setArtTags('');
+    setArtCustomUrl('');
   };
 
   return (
@@ -432,6 +517,25 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {/* TAB 5: COUPONS */}
       {activeTab === 'coupons' && (
         <div className="space-y-6">
+          {/* Explanation Banner for Default 3 Codes */}
+          <div className="bg-purple-50/90 border border-purple-200/90 rounded-2xl p-4 text-xs text-purple-950 space-y-2">
+            <div className="font-bold flex items-center gap-2 text-purple-900 text-sm">
+              <Tag className="w-4 h-4 text-purple-700" />
+              <span>درباره ۳ کد تخفیف پیش‌فرض سامانه:</span>
+            </div>
+            <p className="text-purple-800 leading-relaxed font-normal">
+              سه کد تخفیفی که در ابتدا مشاهده می‌کنید، نمونه‌های پیش‌فرض سامانه برای تست و آزمایش فرآیند رزرو هستند:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-purple-900 pr-2 font-medium">
+              <li><strong className="font-mono text-purple-950">WELCOME10</strong>: ۱۰٪ تخفیف خوش‌آمدگویی مسافران جدید (فعال)</li>
+              <li><strong className="font-mono text-purple-950">SUMMER20</strong>: ۲۰٪ تخفیف برای سفارش‌های بالای ۲۵٬۰۰۰ درام (فعال)</li>
+              <li><strong className="font-mono text-purple-950">EXPIRED50</strong>: کد آزمایشی منقضی‌شده جهت سنجش رفتار سامانه در مواجهه با کدهای منقضی (غیرفعال)</li>
+            </ul>
+            <p className="text-purple-700 text-[11px] pt-1 border-t border-purple-200/70">
+              💡 شما به عنوان مدیر سایت می‌توانید هر یک از این کدها را با دکمه سطل زباله (<Trash2 className="w-3 h-3 inline text-rose-600" />) به طور کامل حذف کنید، وضعیت آن را تغییر دهید یا کدهای تخفیف جدید با درصد و سقف استفاده دلخواه خود تعریف نمایید.
+            </p>
+          </div>
+
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
             <h2 className="text-base font-bold text-slate-900">تعریف کد تخفیف درصدی سراسری هاستل‌ها</h2>
             <form onSubmit={handleCreateCoupon} className="grid grid-cols-1 sm:grid-cols-5 gap-3">
@@ -477,6 +581,9 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
           </div>
 
           <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">کدهای تخفیف موجود در سیستم ({store.coupons.length}):</h3>
+            </div>
             {store.coupons.map(c => (
               <div key={c.code} className="p-4 rounded-2xl bg-white border border-slate-200 flex justify-between items-center text-xs">
                 <div>
@@ -494,9 +601,21 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                   <button
                     type="button"
                     onClick={() => appStore.toggleCoupon(c.code)}
-                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer font-medium"
                   >
                     تغییر وضعیت
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`آیا از حذف کد تخفیف ${c.code} اطمینان دارید؟`)) {
+                        appStore.deleteCoupon(c.code);
+                      }
+                    }}
+                    className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"
+                    title="حذف کامل این کد تخفیف"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -612,80 +731,403 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
         </div>
       )}
 
-      {/* TAB 8: ARTICLES PUBLISHER (Manual one-by-one) */}
+      {/* TAB 8: ARTICLES PUBLISHER & IMAGE STUDIO */}
       {activeTab === 'articles' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">افزودن دستی مقاله و راهنما توسط مدیر (تک‌تک)</h2>
-            <form onSubmit={handleCreateArticle} className="space-y-3">
-              <input
-                type="text"
-                required
-                placeholder="عنوان مقاله"
-                value={artTitle}
-                onChange={e => setArtTitle(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold"
-              />
-              <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-wider mb-1">
+                <BookOpen className="w-4 h-4" />
+                <span>تحریریه و محتوای راهنما</span>
+              </div>
+              <h2 className="text-lg font-black text-slate-900">
+                افزودن و انتشار مقاله با تصویر شاخص (مشابه مقالات استاندارد پلتفرم)
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                می‌توانید از تصاویر آماده باکیفیت ارمنستان انتخاب کنید، عکس دلخواه خود را آپلود نمایید یا آدرس اینترنتی وارد کنید.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateArticle} className="space-y-4">
+              {/* Title & Category */}
+              <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="خلاصه کوتاه"
-                  value={artSummary}
-                  onChange={e => setArtSummary(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                  required
+                  placeholder="عنوان مقاله (مثلاً: راهنمای گام‌به‌گام سیم‌کارت و اینترنت پرسرعت در ایروان)"
+                  value={artTitle}
+                  onChange={e => setArtTitle(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:outline-hidden transition-all"
                 />
-                <select
-                  value={artCategory}
-                  onChange={e => setArtCategory(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
-                >
-                  <option value="ویزا و اقامت">ویزا و اقامت</option>
-                  <option value="هزینه‌های سفر و زندگی">هزینه‌های سفر و زندگی</option>
-                  <option value="تاکسی و حمل‌ونقل عمومی">تاکسی و حمل‌ونقل عمومی</option>
-                  <option value="پول و صرافی">پول و صرافی</option>
-                  <option value="سیم‌کارت و اینترنت">سیم‌کارت و اینترنت</option>
-                  <option value="اجارهٔ خانه و نکات سکونت">اجارهٔ خانه و نکات سکونت</option>
-                </select>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">دسته‌بندی موضوعی</label>
+                    <select
+                      value={artCategory}
+                      onChange={e => setArtCategory(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
+                    >
+                      <option value="ویزا و اقامت">ویزا و اقامت</option>
+                      <option value="هزینه‌های سفر و زندگی">هزینه‌های سفر و زندگی</option>
+                      <option value="راهنمای اولین سفر و تازهواردها">راهنمای اولین سفر و تازهواردها</option>
+                      <option value="تاکسی و حمل‌ونقل عمومی">تاکسی و حمل‌ونقل عمومی</option>
+                      <option value="پول و صرافی">پول و صرافی</option>
+                      <option value="سیم‌کارت و اینترنت">سیم‌کارت و اینترنت</option>
+                      <option value="اجارهٔ خانه و نکات سکونت">اجارهٔ خانه و نکات سکونت</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">زبان مقاله</label>
+                    <select
+                      value={artLanguage}
+                      onChange={e => setArtLanguage(e.target.value as AppLanguage)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
+                    >
+                      <option value="fa">فارسی (FA)</option>
+                      <option value="en">English (EN)</option>
+                      <option value="ru">Русский (RU)</option>
+                      <option value="hy">Հայերեն (HY)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">وضعیت انتشار</label>
+                    <select
+                      value={artStatus}
+                      onChange={e => setArtStatus(e.target.value as 'published' | 'draft')}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-semibold"
+                    >
+                      <option value="published">منتشرشده (نمایش عمومی در سایت)</option>
+                      <option value="draft">پیش‌نویس (فقط قابل رویت مدیر)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="خلاصه کوتاه مطلب (۱ الی ۲ جمله برای کارت مقاله)"
+                    value={artSummary}
+                    onChange={e => setArtSummary(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
+                  />
+                  <input
+                    type="text"
+                    placeholder="برچسب‌ها (با ویرگول جدا کنید: ایروان، تاکسی، صرافی)"
+                    value={artTags}
+                    onChange={e => setArtTags(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
+                  />
+                </div>
               </div>
-              <textarea
-                rows={5}
-                required
-                placeholder="متن کامل مطلب..."
-                value={artContent}
-                onChange={e => setArtContent(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
-              />
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
-              >
-                انتشار مستقیم در سایت
-              </button>
+
+              {/* IMAGE SELECTION STUDIO */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-purple-50/50 border border-purple-200/80 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-purple-700" />
+                    <span className="font-bold text-xs text-slate-900">
+                      تصویر شاخص مقاله (کاور باکیفیت)
+                    </span>
+                  </div>
+
+                  {/* Mode switcher */}
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-purple-200/80 text-[11px] font-semibold text-slate-600">
+                    <button
+                      type="button"
+                      onClick={() => setArtImageMode('preset')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        artImageMode === 'preset'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'hover:bg-purple-50 text-slate-700'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>گالری عکس‌های ارمنستان</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArtImageMode('upload')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        artImageMode === 'upload'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'hover:bg-purple-50 text-slate-700'
+                      }`}
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>آپلود از سیستم</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArtImageMode('url')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        artImageMode === 'url'
+                          ? 'bg-purple-600 text-white shadow-xs'
+                          : 'hover:bg-purple-50 text-slate-700'
+                      }`}
+                    >
+                      <LinkIcon className="w-3 h-3" />
+                      <span>لینک مستقیم URL</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-mode 1: Preset Gallery */}
+                {artImageMode === 'preset' && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      یکی از تصاویر شاخص زیر را که متناسب با موضوع مقاله شماست با یک کلیک انتخاب کنید:
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {ARMENIA_PHOTO_PRESETS.map(preset => {
+                        const isSelected = artImage === preset.url;
+                        return (
+                          <button
+                            type="button"
+                            key={preset.id}
+                            onClick={() => setArtImage(preset.url)}
+                            className={`group relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all text-right p-0 ${
+                              isSelected
+                                ? 'border-purple-600 ring-2 ring-purple-500/30 shadow-md scale-101'
+                                : 'border-white/80 hover:border-purple-300 opacity-80 hover:opacity-100'
+                            }`}
+                          >
+                            <div className="aspect-16/10 bg-slate-200 overflow-hidden">
+                              <img
+                                src={preset.url}
+                                alt={preset.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                loading="lazy"
+                              />
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-2 text-white pointer-events-none">
+                              <span className="text-[10px] font-bold line-clamp-1">{preset.title}</span>
+                              <span className="text-[9px] text-slate-300 line-clamp-1">{preset.desc}</span>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-xs pointer-events-none">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-mode 2: Local File Upload */}
+                {artImageMode === 'upload' && (
+                  <div className="space-y-2">
+                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-purple-300 hover:border-purple-500 bg-white/80 hover:bg-white rounded-2xl p-6 cursor-pointer transition-colors text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center mb-2">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">
+                        برای انتخاب عکس مقاله از روی دستگاه کلیک کنید
+                      </span>
+                      <span className="text-[11px] text-slate-400 mt-1">
+                        فرمت‌های JPG، PNG، WebP یا GIF (پیش‌نمایش بلادرنگ ایجاد می‌شود)
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* Sub-mode 3: Direct URL */}
+                {artImageMode === 'url' && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/... آدرس مستقیم اینترنتی عکس"
+                        value={artCustomUrl}
+                        onChange={e => setArtCustomUrl(e.target.value)}
+                        className="flex-1 bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 ltr-isolate text-left"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (artCustomUrl.trim()) {
+                            setArtImage(artCustomUrl.trim());
+                          }
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
+                      >
+                        تأیید و پیش‌نمایش
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* LIVE PREVIEW OF CHOSEN IMAGE */}
+                {artImage && (
+                  <div className="pt-2 border-t border-purple-200/70">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-purple-900 mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>پیش‌نمایش تصویر انتخابی برای این مقاله:</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setArtImage(ARMENIA_PHOTO_PRESETS[0].url)}
+                        className="text-slate-400 hover:text-purple-700 text-[10px] cursor-pointer"
+                      >
+                        بازنشانی به پیش‌فرض
+                      </button>
+                    </div>
+                    <div className="relative aspect-21/9 sm:aspect-24/7 rounded-2xl overflow-hidden bg-slate-900 shadow-md">
+                      <img
+                        src={artImage}
+                        alt="پیش‌نمایش تصویر مقاله"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to first preset if url is broken
+                          (e.target as HTMLImageElement).src = ARMENIA_PHOTO_PRESETS[0].url;
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-3.5">
+                        <div className="text-white">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-purple-300 block">
+                            {artCategory}
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold line-clamp-1">
+                            {artTitle || 'عنوان نمونه مقاله شما'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono">
+                        کاور فعال ✓
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Full Content */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  متن کامل مقاله (پشتیبانی از سرفصل، شماره‌گذاری و نکات کاربردی)
+                </label>
+                <textarea
+                  rows={8}
+                  required
+                  placeholder="متن کامل مقاله را اینجا بنویسید...
+می‌توانید از عناوین ### و نشانه‌گذاری‌های متنی استفاده کنید.
+مثال:
+### ۱. نکات کلیدی
+- مدارک لازم: فقط گذرنامه
+- هزینه متوسط: ۲٬۰۰۰ درام"
+                  value={artContent}
+                  onChange={e => setArtContent(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 leading-relaxed focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:outline-hidden transition-all"
+                />
+              </div>
+
+              {/* Submit CTA */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    {artStatus === 'published' ? 'انتشار رسمی مقاله در سایت با این عکس' : 'ذخیره مقاله به صورت پیش‌نویس'}
+                  </span>
+                </button>
+              </div>
             </form>
           </div>
 
+          {/* LIST OF REGISTERED ARTICLES */}
           <div className="space-y-3">
-            <h3 className="font-bold text-sm text-slate-900">مطالب ثبت‌شده در سایت:</h3>
-            {store.articles.map(art => (
-              <div key={art.id} className="p-4 rounded-2xl bg-white border border-slate-200 flex justify-between items-center text-xs">
-                <div>
-                  <strong className="text-slate-900 text-sm block">{art.title}</strong>
-                  <span className="text-slate-500">{art.category} • آخرین بررسی: {art.lastVerifiedDate}</span>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">
+                مقالات و راهنماهای موجود در سایت ({store.articles.length}):
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {store.articles.map(art => (
+                <div
+                  key={art.id}
+                  className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-all text-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Thumbnail */}
+                    <div className="w-16 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80 shadow-2xs">
+                      <img
+                        src={art.featuredImage}
+                        alt={art.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = ARMENIA_PHOTO_PRESETS[0].url;
+                        }}
+                      />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <strong className="text-slate-900 text-sm font-bold truncate block">
+                          {art.title}
+                        </strong>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 uppercase">
+                          {art.language || 'fa'}
+                        </span>
+                      </div>
+                      <div className="text-slate-400 text-[11px] mt-0.5 flex items-center gap-2">
+                        <span className="text-purple-700 font-semibold">{art.category}</span>
+                        <span>•</span>
+                        <span>آخرین بررسی: {art.lastVerifiedDate}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <span
+                      className={`px-2.5 py-1 rounded-full font-bold text-[11px] ${
+                        art.status === 'published'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {art.status === 'published' ? 'منتشرشده' : 'پیش‌نویس'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('article-detail', { slug: art.slug })}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold flex items-center gap-1 cursor-pointer"
+                      title="مشاهده مقاله در سایت"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                      <span>مشاهده</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`آیا از حذف مقاله «${art.title}» مطمئن هستید؟`)) {
+                          appStore.deleteArticle(art.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"
+                      title="حذف مقاله"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <span className={`px-2 py-0.5 rounded-full font-bold ${art.status === 'published' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                    {art.status === 'published' ? 'منتشرشده' : 'پیش‌نویس'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => appStore.deleteArticle(art.id)}
-                    className="text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
-                  >
-                    حذف
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -6,7 +6,6 @@ import { Footer } from './components/Footer';
 import { HomeView } from './views/HomeView';
 import { HostelsView } from './views/HostelsView';
 import { HostelDetailView } from './views/HostelDetailView';
-import { ImmediateStayView } from './views/ImmediateStayView';
 import { BookingTrackingView } from './views/BookingTrackingView';
 import { RentalsView } from './views/RentalsView';
 import { RentalDetailView } from './views/RentalDetailView';
@@ -130,15 +129,6 @@ export default function App() {
           />
         );
       }
-
-      case 'immediate-stay':
-        return (
-          <ImmediateStayView
-            currentLang={currentLang}
-            hostels={appStore.getHostels()}
-            onNavigate={handleNavigate}
-          />
-        );
 
       case 'booking-track': {
         const token = viewParams?.token || storeState.bookings[0]?.privateToken;

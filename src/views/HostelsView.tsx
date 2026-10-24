@@ -37,7 +37,6 @@ export const HostelsView: React.FC<Props> = ({
   const [roomTypeFilter, setRoomTypeFilter] = useState<'all' | 'dorm_mixed' | 'dorm_female' | 'private'>('all');
   const [maxPrice, setMaxPrice] = useState<number>(30000);
   const [onlyTonightCapacity, setOnlyTonightCapacity] = useState(false);
-  const [onlyImmediateStay, setOnlyImmediateStay] = useState(false);
   const [only24hReception, setOnly24hReception] = useState(false);
   const [onlyElevator, setOnlyElevator] = useState(false);
   const [onlyCoworking, setOnlyCoworking] = useState(false);
@@ -50,8 +49,7 @@ export const HostelsView: React.FC<Props> = ({
         if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
         if (district !== 'all' && h.district !== district) return false;
         if (h.minPricePerNightAMD > maxPrice) return false;
-        if (onlyImmediateStay && !h.immediateStayEnabled) return false;
-        if (onlyTonightCapacity && !(h.reception24h || h.lateArrivalAvailable || h.immediateStayEnabled)) return false;
+        if (onlyTonightCapacity && !(h.reception24h || h.lateArrivalAvailable)) return false;
         if (only24hReception && !h.reception24h) return false;
         if (onlyElevator && !h.amenities.elevator) return false;
         if (onlyCoworking && !h.amenities.coworking) return false;
@@ -76,7 +74,6 @@ export const HostelsView: React.FC<Props> = ({
     roomTypeFilter,
     maxPrice,
     onlyTonightCapacity,
-    onlyImmediateStay,
     only24hReception,
     onlyElevator,
     onlyCoworking,
@@ -90,7 +87,6 @@ export const HostelsView: React.FC<Props> = ({
     setRoomTypeFilter('all');
     setMaxPrice(30000);
     setOnlyTonightCapacity(false);
-    setOnlyImmediateStay(false);
     setOnly24hReception(false);
     setOnlyElevator(false);
     setOnlyCoworking(false);
@@ -223,18 +219,6 @@ export const HostelsView: React.FC<Props> = ({
             <div className="pt-2 border-t border-slate-100 space-y-2.5">
               <span className="block text-xs font-bold text-slate-700">{t.amenitiesLabel}</span>
 
-              <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={onlyImmediateStay}
-                  onChange={e => setOnlyImmediateStay(e.target.checked)}
-                  className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
-                />
-                <span className="font-semibold text-red-700 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 fill-red-600" />
-                  <span>{t.immediateCheckInBadge}</span>
-                </span>
-              </label>
 
               <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
                 <input
@@ -315,12 +299,6 @@ export const HostelsView: React.FC<Props> = ({
 
                     {/* Tags */}
                     <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
-                      {hostel.immediateStayEnabled && (
-                        <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-bold shadow-md flex items-center gap-1">
-                          <Zap className="w-3 h-3 fill-white" />
-                          <span>{t.immediateCheckIn}</span>
-                        </span>
-                      )}
                       {hostel.reception24h && (
                         <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium">
                           {t.reception24hBadge}
@@ -403,7 +381,7 @@ export const HostelsView: React.FC<Props> = ({
                           <span className="text-xs font-semibold text-amber-700">{t.currencyAMD}</span>
                         </div>
                         <span className="text-[10px] text-slate-400 block">
-                          ≈ {Math.round(hostel.minPricePerNightAMD * 160).toLocaleString()} تومان {t.perBedPerNight}
+                          ≈ {Math.round(hostel.minPricePerNightAMD * 160).toLocaleString()} {t.approxTomanSuffix} {t.perBedPerNight}
                         </span>
                       </div>
 

@@ -61,15 +61,6 @@ export const Footer: React.FC<Props> = ({ currentLang, onNavigate }) => {
               <li>
                 <button
                   type="button"
-                  onClick={() => onNavigate('immediate-stay')}
-                  className="hover:text-red-400 font-semibold text-red-400 transition-colors cursor-pointer"
-                >
-                  {t.navImmediateStay}
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
                   onClick={() => onNavigate('guide')}
                   className="hover:text-amber-400 transition-colors cursor-pointer"
                 >

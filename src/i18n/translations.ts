@@ -206,6 +206,20 @@ export interface Translations {
   distToRepublicSquare: string;
   minsWalk: string;
   freeCancellation: string;
+
+  // Search & Navigation Details
+  quickDatesLabel: string;
+  tonight: string;
+  tomorrowNight: string;
+  thisWeekend: string;
+  neighborhoodsTag: string;
+  directMetroAccess: string;
+  freshMountainAir: string;
+  approxTomanSuffix: string;
+  floorLabel: string;
+  elevatorShort: string;
+  systemActive: string;
+  bedsLabel: string;
 }
 
 export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
@@ -334,8 +348,8 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     whyChooseSubtitle: 'تجربه‌ای امن، مستقیم و بدون واسطه‌های گران‌قیمت برای سفر به ارمنستان',
     feature1Title: 'بدون پیش‌پرداخت اینترنتی',
     feature1Desc: 'رزرو قطعی بدون نیاز به کارت‌های بین‌المللی یا کسر کارمزد؛ تسویه کامل نقدی در بدو ورود به هاستل با درام ارمنستان.',
-    feature2Title: 'پذیرش ورود فوری شبانه',
-    feature2Desc: 'مسیر ویژه برای مسافرانی که تازه از اتوبوس یا فرودگاه پیاده شده‌اند و بدون معطلی تخت آماده می‌خواهند.',
+    feature2Title: 'تضمین بهترین نرخ اقامت',
+    feature2Desc: 'رزرو با قیمت شفاف و بدون واسطه؛ دقیقاً مطابق با نرخ رسمی تصویب‌شده هاستل‌ها در ارمنستان.',
     feature3Title: 'املاک کارشناسی‌شده حضوری',
     feature3Desc: 'تمام خانه‌ها و آپارتمان‌ها از نظر سند، موقعیت و شرایط ودیعه توسط کارشناسان YEREVANHUB بررسی حضوری شده‌اند.',
     feature4Title: 'مترجم و پشتیبانی مقیم ارمنستان',
@@ -406,6 +420,19 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     distToRepublicSquare: 'فاصله تا میدان جمهوری',
     minsWalk: 'دقیقه پیاده',
     freeCancellation: 'لغو رایگان تا ۲۴ ساعت قبل',
+
+    quickDatesLabel: 'سریع:',
+    tonight: 'امشب',
+    tomorrowNight: 'فردا شب',
+    thisWeekend: 'آخر هفته',
+    neighborhoodsTag: 'راهنمای محله‌های ایروان',
+    directMetroAccess: 'دسترسی مستقیم مترو',
+    freshMountainAir: 'هوای مطبوع و کوهستانی',
+    approxTomanSuffix: 'تومان',
+    floorLabel: 'طبقه',
+    elevatorShort: 'آسانسور',
+    systemActive: 'سیستم فعال است',
+    bedsLabel: 'خواب',
   },
 
   en: {
@@ -533,8 +560,8 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     whyChooseSubtitle: 'Safe, direct, and zero online markup for your travel and stay in Armenia',
     feature1Title: 'Zero Online Prepayment',
     feature1Desc: 'Guaranteed reservations without needing foreign payment cards. Pay 100% in cash at the hostel in Armenian Dram (AMD).',
-    feature2Title: 'Instant Midnight Check-in',
-    feature2Desc: 'Special fast-track for arrivals landing late or stepping off buses needing immediate bed access.',
+    feature2Title: 'Best Rate Guarantee',
+    feature2Desc: 'Direct, transparent prices with zero booking middleman markups, matching official hostel rates.',
     feature3Title: 'In-Person Inspected Properties',
     feature3Desc: 'All apartments and homes have deeds and amenities verified directly by YEREVANHUB experts.',
     feature4Title: 'Local Yerevan Support & Translator',
@@ -605,6 +632,19 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     distToRepublicSquare: 'Distance to Republic Sq.',
     minsWalk: 'min walk',
     freeCancellation: 'Free cancellation up to 24h before',
+
+    quickDatesLabel: 'Quick:',
+    tonight: 'Tonight',
+    tomorrowNight: 'Tomorrow',
+    thisWeekend: 'This Weekend',
+    neighborhoodsTag: 'Yerevan Neighborhoods',
+    directMetroAccess: 'Direct Metro Access',
+    freshMountainAir: 'Fresh Mountain Air',
+    approxTomanSuffix: 'Toman',
+    floorLabel: 'Floor',
+    elevatorShort: 'Elevator',
+    systemActive: 'System Active',
+    bedsLabel: 'bed',
   },
 
   ru: {
@@ -732,8 +772,8 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     whyChooseSubtitle: 'Безопасное, прямое бронирование без скрытых комиссий и наценок',
     feature1Title: 'Без онлайн-предоплаты',
     feature1Desc: 'Гарантированная бронь без зарубежных карт. Полная оплата наличными при заселении в драмах.',
-    feature2Title: 'Круглосуточный срочный заезд',
-    feature2Desc: 'Специальный маршрут для прибывших ночным рейсом или автобусом, кому срочно нужна свободная кровать.',
+    feature2Title: 'Гарантия лучшей цены',
+    feature2Desc: 'Прямые и прозрачные тарифы без скрытых комиссий, соответствующие официальным ценам хостелов.',
     feature3Title: 'Проверенное жилье',
     feature3Desc: 'Все квартиры и дома проверены экспертами на соответствие документам, фото и прозрачности депозита.',
     feature4Title: 'Местная поддержка и переводчик',
@@ -804,6 +844,19 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     distToRepublicSquare: 'До площади Республики',
     minsWalk: 'мин пешком',
     freeCancellation: 'Бесплатная отмена за 24ч',
+
+    quickDatesLabel: 'Быстро:',
+    tonight: 'Сегодня',
+    tomorrowNight: 'Завтра',
+    thisWeekend: 'Выходные',
+    neighborhoodsTag: 'Районы Еревана',
+    directMetroAccess: 'Прямой доступ к метро',
+    freshMountainAir: 'Свежий горный воздух',
+    approxTomanSuffix: 'туманов',
+    floorLabel: 'Этаж',
+    elevatorShort: 'Лифт',
+    systemActive: 'Система активна',
+    bedsLabel: 'спальни',
   },
 
   hy: {
@@ -931,8 +984,8 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     whyChooseSubtitle: 'Անվտանգ, ուղիղ և առանց միջնորդավճարների կացություն Հայաստանում',
     feature1Title: 'Առանց առցանց կանխավճարի',
     feature1Desc: 'Երաշխավորված ամրագրում առանց քարտերի. ամբողջական վճարում տեղում հոսթել ժամանելիս դրամով:',
-    feature2Title: 'Շտապ գիշերային ընդունելություն',
-    feature2Desc: 'Հատուկ ուղի ուշ ժամերին ավտոբուսից կամ օդանավակայանից նոր ժամանածների համար:',
+    feature2Title: 'Լավագույն գնի երաշխիք',
+    feature2Desc: 'Ուղիղ և թափանցիկ գներ առանց միջնորդավճարների, համապատասխան հոսթելների պաշտոնական սակագներին:',
     feature3Title: 'Անձամբ ստուգված գույքեր',
     feature3Desc: 'Բոլոր բնակարանները ստուգված են սեփականության, դիրքի և գրավի պայմանների մասով:',
     feature4Title: 'Տեղական աջակցություն և թարգմանիչ',
@@ -1003,5 +1056,18 @@ export const UI_TRANSLATIONS: Record<AppLanguage, Translations> = {
     distToRepublicSquare: 'Հեռավորությունը Հանրապետության հրապարակից',
     minsWalk: 'րոպե քայլք',
     freeCancellation: 'Անվճար չեղարկում մինչև 24 ժամ առաջ',
+
+    quickDatesLabel: 'Արագ՝',
+    tonight: 'Այսօր',
+    tomorrowNight: 'Վաղը',
+    thisWeekend: 'Հանգստյան օրեր',
+    neighborhoodsTag: 'Երևանի թաղամասերը',
+    directMetroAccess: 'Ուղիղ մետրոյի հասանելիություն',
+    freshMountainAir: 'Մաքուր լեռնային օդ',
+    approxTomanSuffix: 'թուման',
+    floorLabel: 'Հարկ',
+    elevatorShort: 'Վերելակ',
+    systemActive: 'Համակարգն ակտիվ է',
+    bedsLabel: 'ննջարան',
   },
 };

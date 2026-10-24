@@ -5,7 +5,6 @@ import { getLocalized, getCityName } from '../utils/i18n';
 import {
   Building2,
   Home,
-  Zap,
   Search,
   Star,
   ShieldCheck,
@@ -15,10 +14,6 @@ import {
   MapPin,
   ArrowRight,
   ArrowLeft,
-  Volume2,
-  Copy,
-  Check,
-  Calculator,
   Compass,
   Clock,
   Sparkles,
@@ -29,7 +24,7 @@ interface Props {
   hostels: Hostel[];
   rentals: RentalProperty[];
   articles: Article[];
-  phrases: TravelPhrase[];
+  phrases?: TravelPhrase[];
   onNavigate: (view: string, params?: any) => void;
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
@@ -39,7 +34,6 @@ export const HomeView: React.FC<Props> = ({
   hostels,
   rentals,
   articles,
-  phrases,
   onNavigate,
   getHostelRating,
 }) => {
@@ -74,34 +68,7 @@ export const HomeView: React.FC<Props> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Currency Converter State
-  const [calcAMD, setCalcAMD] = useState<number>(10000);
   const AMD_TO_TOMAN = 160;
-  const AMD_TO_USD = 0.00258;
-  const AMD_TO_RUB = 0.241;
-
-  // Travel Phrase copy & audio state
-  const [copiedPhraseId, setCopiedPhraseId] = useState<string | null>(null);
-  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-
-  const handleCopyPhrase = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedPhraseId(id);
-    setTimeout(() => setCopiedPhraseId(null), 2500);
-  };
-
-  const handlePlayPronunciation = (armenianText: string, id: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(armenianText);
-      utterance.lang = 'hy-AM';
-      utterance.rate = 0.85;
-      utterance.onstart = () => setPlayingAudioId(id);
-      utterance.onend = () => setPlayingAudioId(null);
-      utterance.onerror = () => setPlayingAudioId(null);
-      window.speechSynthesis.speak(utterance);
-    }
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,39 +130,23 @@ export const HomeView: React.FC<Props> = ({
               {t.heroTitle}
             </h1>
 
-            {/* Subtitle */}
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal max-w-2xl mx-auto">
-              {t.heroSubtitle}
-            </p>
-
-            {/* Primary & Immediate Action CTAs */}
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4">
+            {/* Primary Action CTA */}
+            <div className="pt-2 flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => onNavigate('hostels')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
               >
                 <Building2 className="w-4 h-4 text-slate-950" />
                 <span>{t.ctaSearchHostels}</span>
                 <ArrowIcon className="w-4 h-4" />
               </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigate('immediate-stay')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:bg-red-800 text-white font-black text-sm shadow-lg shadow-red-500/25 hover:shadow-xl hover:shadow-red-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
-              >
-                <Zap className="w-4 h-4 fill-white" />
-                <span>{t.ctaImmediateStay}</span>
-              </button>
             </div>
 
-            {/* Single Honest Guarantee (Other phrases removed per user instruction) */}
+            {/* Single Honest Guarantee */}
             <div className="pt-3 flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{t.payOnArrivalText}</span>
-              <span className="text-slate-300" aria-hidden="true">·</span>
-              <span className="text-slate-500 font-normal">{t.freeCancellation}</span>
             </div>
           </div>
 
@@ -233,27 +184,27 @@ export const HomeView: React.FC<Props> = ({
               {/* Quick Date Presets (Hostels only) */}
               {searchTab === 'hostels' && (
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 overflow-x-auto pb-1 sm:pb-0">
-                  <span className="hidden md:inline text-slate-400">سریع:</span>
+                  <span className="hidden md:inline text-slate-400">{t.quickDatesLabel}</span>
                   <button
                     type="button"
                     onClick={() => setQuickDate(0, 1)}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
                   >
-                    امشب
+                    {t.tonight}
                   </button>
                   <button
                     type="button"
                     onClick={() => setQuickDate(1, 2)}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
                   >
-                    فردا شب
+                    {t.tomorrowNight}
                   </button>
                   <button
                     type="button"
                     onClick={() => setQuickDate(3, 3)}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
                   >
-                    آخر هفته
+                    {t.thisWeekend}
                   </button>
                 </div>
               )}
@@ -378,92 +329,13 @@ export const HomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 2. REAL-TIME CURRENCY CONVERTER WIDGET - Traveler's Must-Have Tool */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-widest">
-                <Calculator className="w-4 h-4" />
-                <span>{t.currencyConverterTitle}</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                {t.currencyConverterSubtitle}
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                تسویه هزینه اقامت در هاستل‌ها در بدو ورود با درام ارمنستان (AMD) انجام می‌شود. با این ابزار هزینه اقامت را سریع به تومان، دلار یا روبل ارزیابی کنید.
-              </p>
-            </div>
-
-            {/* Quick Presets & Interactive Output */}
-            <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800/80 space-y-4 min-w-[280px] sm:min-w-[340px]">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                  {t.amountInAMD}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1000"
-                    step="1000"
-                    value={calcAMD}
-                    onChange={e => setCalcAMD(Math.max(0, Number(e.target.value)))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-base font-black text-amber-400 focus:outline-hidden focus:border-amber-400 text-left font-mono"
-                  />
-                  <span className="font-bold text-xs text-slate-400">֏ AMD</span>
-                </div>
-              </div>
-
-              {/* Quick Chip Buttons */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[5000, 10000, 20000, 50000].map(val => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setCalcAMD(val)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
-                      calcAMD === val
-                        ? 'bg-amber-500 text-slate-950'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
-                    {val.toLocaleString()} ֏
-                  </button>
-                ))}
-              </div>
-
-              {/* Calculated Results Strip */}
-              <div className="pt-3 border-t border-slate-800 grid grid-cols-3 gap-2 text-center">
-                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">{t.approxInToman}</span>
-                  <span className="text-xs sm:text-sm font-bold text-emerald-400 font-mono">
-                    {Math.round(calcAMD * AMD_TO_TOMAN).toLocaleString()}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">{t.approxInUSD}</span>
-                  <span className="text-xs sm:text-sm font-bold text-blue-400 font-mono">
-                    ${(calcAMD * AMD_TO_USD).toFixed(1)}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">{t.approxInRUB}</span>
-                  <span className="text-xs sm:text-sm font-bold text-amber-400 font-mono">
-                    ₽{Math.round(calcAMD * AMD_TO_RUB).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 3. YEREVAN NEIGHBORHOODS EXPLORER - Architectural District Guide */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
             <div className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">
-              راهنمای محله‌های ایروان
+              {t.neighborhoodsTag}
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {t.neighborhoodsTitle}
@@ -519,7 +391,7 @@ export const HomeView: React.FC<Props> = ({
                   className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
                 />
                 <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
-                  دسترسی مستقیم مترو
+                  {t.directMetroAccess}
                 </div>
               </div>
               <div className="p-5 space-y-2">
@@ -553,7 +425,7 @@ export const HomeView: React.FC<Props> = ({
                   className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
                 />
                 <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
-                  هوای مطبوع و کوهستانی
+                  {t.freshMountainAir}
                 </div>
               </div>
               <div className="p-5 space-y-2">
@@ -624,12 +496,6 @@ export const HomeView: React.FC<Props> = ({
                       loading="lazy"
                     />
 
-                    {hostel.immediateStayEnabled && (
-                      <div className="absolute top-3 right-3 bg-red-600/95 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
-                        <Zap className="w-3 h-3 fill-white" />
-                        <span>{t.immediateCheckIn}</span>
-                      </div>
-                    )}
 
                     {/* Rating Tag */}
                     <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white shadow-xs flex items-center gap-1.5">
@@ -682,7 +548,7 @@ export const HomeView: React.FC<Props> = ({
                         <span className="text-xs font-bold text-amber-700">֏ AMD</span>
                       </div>
                       <span className="text-[10px] text-slate-400 block">
-                        ≈ {Math.round(hostel.minPricePerNightAMD * AMD_TO_TOMAN).toLocaleString()} تومان
+                        ≈ {Math.round(hostel.minPricePerNightAMD * AMD_TO_TOMAN).toLocaleString()} {t.approxTomanSuffix}
                       </span>
                     </div>
 
@@ -762,9 +628,9 @@ export const HomeView: React.FC<Props> = ({
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <span>{rental.areaSqm} m²</span>
                       <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>{rental.bedroomsCount} bed</span>
+                      <span>{rental.bedroomsCount} {t.bedsLabel}</span>
                       <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>ط {rental.floor} {rental.hasElevator ? '(آسانسور)' : ''}</span>
+                      <span>{t.floorLabel} {rental.floor} {rental.hasElevator ? `(${t.elevatorShort})` : ''}</span>
                     </div>
                   </div>
 
@@ -806,91 +672,6 @@ export const HomeView: React.FC<Props> = ({
               </div>
             );
           })}
-        </div>
-      </section>
-
-      {/* 6. ESSENTIAL TRAVEL PHRASES SPOTLIGHT - High Contrast Dark Slate with Audio & Quick Copy */}
-      <section className="bg-slate-950 text-white py-14 sm:py-16 rounded-3xl max-w-7xl mx-auto px-6 sm:px-10 overflow-hidden relative border border-slate-800 shadow-2xl">
-        <div className="max-w-3xl mb-8 space-y-2">
-          <div className="text-xs font-bold tracking-widest text-amber-400 uppercase">
-            {t.navTranslator}
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-            {t.travelPhrasesTitle}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
-            {t.travelPhrasesSubtitle}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {phrases.slice(0, 3).map(phrase => {
-            const displayNative = currentLang === 'en' ? phrase.en : currentLang === 'ru' ? phrase.ru : phrase.fa;
-            const isCopied = copiedPhraseId === phrase.id;
-            const isPlaying = playingAudioId === phrase.id;
-
-            return (
-              <div
-                key={phrase.id}
-                className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3.5 flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-amber-400 font-semibold">
-                    <span>{phrase.category}</span>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      {phrase.phoneticHy}
-                    </span>
-                  </div>
-                  <p className="text-sm font-bold text-white">{displayNative}</p>
-                  <p className="text-base font-bold text-amber-300 armenian-text tracking-wide" dir="ltr">
-                    {phrase.hy}
-                  </p>
-                </div>
-
-                {/* Audio Pronunciation & Copy for Taxi */}
-                <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handlePlayPronunciation(phrase.hy, phrase.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      isPlaying
-                        ? 'bg-amber-400 text-slate-950 font-bold animate-pulse'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                    title={t.playPronunciation}
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    <span>{t.playPronunciation}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCopyPhrase(phrase.hy, phrase.id)}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      isCopied
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                    title={t.copyForTaxi}
-                  >
-                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{isCopied ? t.copied : t.copyForTaxi}</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 flex justify-center">
-          <button
-            type="button"
-            onClick={() => onNavigate('translator')}
-            className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-amber-500/25 hover:scale-102"
-          >
-            <span>{t.openTranslatorWithPhrases}</span>
-            <ArrowIcon className="w-4 h-4" />
-          </button>
         </div>
       </section>
 
