@@ -35,6 +35,11 @@ import {
   Link as LinkIcon,
   Sparkles,
   X,
+  Download,
+  Search,
+  DollarSign,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 import { appStore } from '../services/store';
 import { useLanguage } from '../context/LanguageContext';
@@ -102,6 +107,22 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
   >('kpi');
 
+  // Booking filtering & search
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed' | 'rejected' | 'no_show'>('all');
+
+  // New Hostel Form Modal state
+  const [showAddHostelModal, setShowAddHostelModal] = useState(false);
+  const [newHostelNameFa, setNewHostelNameFa] = useState('');
+  const [newHostelNameEn, setNewHostelNameEn] = useState('');
+  const [newHostelAddressFa, setNewHostelAddressFa] = useState('');
+  const [newHostelDistrict, setNewHostelDistrict] = useState('Kentron');
+  const [newHostelMinPrice, setNewHostelMinPrice] = useState(4800);
+  const [newHostelReception24, setNewHostelReception24] = useState(true);
+  const [newHostelPhoto, setNewHostelPhoto] = useState('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80');
+  const [newHostelLat, setNewHostelLat] = useState(40.1780);
+  const [newHostelLng, setNewHostelLng] = useState(44.5130);
+
   // New coupon form
   const [couponCode, setCouponCode] = useState('');
   const [couponPercent, setCouponPercent] = useState(15);
@@ -127,12 +148,139 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const [artImageMode, setArtImageMode] = useState<'preset' | 'upload' | 'url'>('preset');
   const [artCustomUrl, setArtCustomUrl] = useState('');
 
-  // KPIs
+  // KPIs & Financial Analytics
   const pendingBookings = store.bookings.filter(b => b.status === 'pending');
+  const confirmedBookings = store.bookings.filter(b => b.status === 'confirmed');
+  const completedBookings = store.bookings.filter(b => b.status === 'completed');
   const urgentUnanswered = store.bookings.filter(b => b.status === 'pending' && b.isImmediateArrival);
   const entranceIssues = store.bookings.filter(b => b.entranceIssueReported);
   const pendingReviews = store.reviews.filter(r => r.status === 'pending');
   const pendingRentalInquiries = store.rentalInquiries.filter(i => i.status === 'pending_review');
+
+  // Financial Metrics
+  const totalGrossTurnoverAMD = [...confirmedBookings, ...completedBookings].reduce((acc, b) => acc + b.finalAmountAMD, 0);
+  const totalCommissionEarnedAMD = Math.round(totalGrossTurnoverAMD * 0.10); // 10% platform fee
+  const conversionRate = store.bookings.length > 0
+    ? Math.round(([...confirmedBookings, ...completedBookings].length / store.bookings.length) * 100)
+    : 100;
+
+  // Filtered Bookings for Tab 2
+  const filteredBookings = store.bookings.filter(b => {
+    if (bookingStatusFilter !== 'all' && b.status !== bookingStatusFilter) return false;
+    if (bookingSearch.trim()) {
+      const q = bookingSearch.toLowerCase();
+      const matchTrack = b.trackingCode.toLowerCase().includes(q);
+      const matchName = b.guestName.toLowerCase().includes(q);
+      const matchContact = b.guestContact.toLowerCase().includes(q);
+      const matchHostel = b.hostelName.toLowerCase().includes(q);
+      if (!matchTrack && !matchName && !matchContact && !matchHostel) return false;
+    }
+    return true;
+  });
+
+  // Export handlers
+  const handleExportJSON = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(store, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `yerevanhub-backup-${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['TrackingCode', 'GuestName', 'Contact', 'Hostel', 'RoomType', 'CheckIn', 'CheckOut', 'Quantity', 'AmountAMD', 'Status'];
+    const rows = store.bookings.map(b => [
+      b.trackingCode,
+      `"${b.guestName.replace(/"/g, '""')}"`,
+      `"${b.guestContact}"`,
+      `"${b.hostelName}"`,
+      `"${b.roomTypeName}"`,
+      b.checkIn,
+      b.checkOut,
+      b.quantity,
+      b.finalAmountAMD,
+      b.status
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `bookings-report-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handleCreateHostel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHostelNameFa.trim()) return;
+
+    appStore.saveHostel({
+      id: `hostel-${Date.now()}`,
+      slug: newHostelNameEn.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `hostel-${Date.now()}`,
+      name: {
+        fa: newHostelNameFa.trim(),
+        en: newHostelNameEn.trim() || newHostelNameFa.trim(),
+        ru: newHostelNameFa.trim(),
+        hy: newHostelNameFa.trim(),
+      },
+      city: 'Yerevan',
+      district: newHostelDistrict,
+      address: {
+        fa: newHostelAddressFa.trim(),
+        en: newHostelAddressFa.trim(),
+        ru: newHostelAddressFa.trim(),
+        hy: newHostelAddressFa.trim(),
+      },
+      coordinates: {
+        lat: Number(newHostelLat) || 40.1780,
+        lng: Number(newHostelLng) || 44.5130,
+      },
+      photos: [newHostelPhoto],
+      roomTypes: [
+        {
+          id: `rt-dorm-${Date.now()}`,
+          name: { fa: 'تخت در خوابگاه اشتراکی', en: 'Dorm Bed', ru: 'Место в общей комнате', hy: 'Մահճակալ' },
+          type: 'dorm_mixed',
+          pricePerNightAMD: Number(newHostelMinPrice) || 4800,
+          totalBedsOrRooms: 8,
+          description: { fa: 'تخت خوابگاهی راحت با کمد و پریز برق', en: 'Comfortable dorm bed with locker and power socket', ru: 'Удобное место в номере с розеткой и шкафчиком', hy: 'Հարմարավետ մահճակալ' },
+          hasCurtain: true,
+          hasBedsidePlug: true,
+          hasPersonalLocker: true,
+          requiresOwnLock: false,
+        }
+      ],
+      minPricePerNightAMD: Number(newHostelMinPrice) || 4800,
+      amenities: {
+        wifi: true,
+        lockers: true,
+        elevator: true,
+        coworking: true,
+      },
+      reception24h: newHostelReception24,
+      freeLuggageStorage: true,
+      lateArrivalAvailable: true,
+      languagesSpoken: ['fa', 'en', 'ru', 'hy'],
+      rules: {
+        quietHours: '23:00 - 08:00',
+        cancellationPolicy: 'لغو رایگان تا ۲۴ ساعت قبل از ورود',
+        acceptedPaymentMethodsOnArrival: ['Cash AMD', 'Cash USD', 'Card'],
+      },
+      isPublished: true,
+      checkInStandardTime: '14:00',
+      checkOutStandardTime: '12:00',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    setNewHostelNameFa('');
+    setNewHostelNameEn('');
+    setNewHostelAddressFa('');
+    setShowAddHostelModal(false);
+  };
 
   const handleCreateCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,23 +386,49 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Admin Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+      {/* Admin Header with Status & Fast Export */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-md shadow-purple-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-md shadow-purple-500/20 shrink-0">
             <Shield className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="brand-name text-lg font-black text-slate-900">YEREVANHUB</span>
-              <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 text-xs font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 text-xs font-bold">
                 {tAdmin.panelTitle}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>پلتفرم فعال (Live)</span>
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {tAdmin.panelSubtitle}
             </p>
           </div>
+        </div>
+
+        {/* Action Controls: Export Data & Quick Reports */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            title="Export CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>خروجی اکسل رزروها (CSV)</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleExportJSON}
+            className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-purple-200 transition-colors"
+            title="Backup System"
+          >
+            <Download className="w-3.5 h-3.5 text-purple-600" />
+            <span>پشتیبان‌گیری سامانه (JSON)</span>
+          </button>
         </div>
       </div>
 
@@ -285,32 +459,160 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         })}
       </div>
 
-      {/* TAB 1: KPI OVERVIEW */}
+      {/* TAB 1: EXECUTIVE FINANCIAL & OPERATIONAL DASHBOARD */}
       {activeTab === 'kpi' && (
         <div className="space-y-6">
+          {/* Top 4 Executive Financial & Growth Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiPendingBookings}</span>
-              <div className="text-3xl font-black text-slate-900">{pendingBookings.length}</div>
-              <span className="text-[11px] text-amber-600 font-bold block">{pendingBookings.length > 0 ? 'Action required' : 'All clear'}</span>
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 text-white shadow-md space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span className="font-semibold">گردش مالی ناخالص (GMV)</span>
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="text-2xl font-black font-mono tracking-tight text-white">
+                ֏ {totalGrossTurnoverAMD.toLocaleString()} <span className="text-xs font-normal text-slate-400">AMD</span>
+              </div>
+              <div className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                <span>حجم تراکنش‌های قطعی و تکمیل‌شده</span>
+              </div>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiUrgentImmediate}</span>
-              <div className="text-3xl font-black text-red-600">{urgentUnanswered.length}</div>
-              <span className="text-[11px] text-red-600 font-bold block">{urgentUnanswered.length > 0 ? tAdmin.urgentArrivalsAlert : '0'}</span>
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold">سهم کارمزد پلتفرم (۱۰٪)</span>
+                <BarChart3 className="w-4 h-4 text-purple-600" />
+              </div>
+              <div className="text-2xl font-black font-mono text-purple-700">
+                ֏ {totalCommissionEarnedAMD.toLocaleString()} <span className="text-xs font-normal text-slate-500">AMD</span>
+              </div>
+              <div className="text-[11px] text-purple-600 font-medium">
+                مبنای تسویه هفتگی با هاستل‌داران
+              </div>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiEntranceIssues}</span>
-              <div className="text-3xl font-black text-rose-600">{entranceIssues.length}</div>
-              <span className="text-[11px] text-rose-600 font-bold block">{entranceIssues.length > 0 ? tAdmin.entranceIssuesAlert : '0'}</span>
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold">نرخ پذیرش و تأیید</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                {conversionRate}%
+              </div>
+              <div className="text-[11px] text-slate-500">
+                {completedBookings.length + confirmedBookings.length} از {store.bookings.length} رزرو تایید یا انجام‌شده
+              </div>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">{tAdmin.tabReviews}</span>
-              <div className="text-3xl font-black text-indigo-600">{pendingReviews.length}</div>
-              <span className="text-[11px] text-indigo-600 font-bold block">{pendingReviews.length} {tAdmin.pendingReviewsCount}</span>
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-semibold">اقامتگاه‌های ثبت‌شده</span>
+                <Building2 className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                {store.hostels.length + store.rentals.length}
+              </div>
+              <div className="text-[11px] text-amber-700 font-medium">
+                {store.hostels.length} هاستل • {store.rentals.length} واحد آپارتمان
+              </div>
+            </div>
+          </div>
+
+          {/* Operational Status Badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-500 block">{tAdmin.kpiPendingBookings}</span>
+                <span className="text-2xl font-black text-slate-900">{pendingBookings.length}</span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${pendingBookings.length > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
+                {pendingBookings.length > 0 ? 'نیاز به بررسی' : 'پاسخ داده شده'}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-500 block">{tAdmin.kpiUrgentImmediate}</span>
+                <span className="text-2xl font-black text-red-600">{urgentUnanswered.length}</span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${urgentUnanswered.length > 0 ? 'bg-red-100 text-red-800 animate-pulse' : 'bg-slate-100 text-slate-600'}`}>
+                {urgentUnanswered.length > 0 ? 'فوری' : 'هیچ'}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-500 block">{tAdmin.kpiEntranceIssues}</span>
+                <span className="text-2xl font-black text-rose-600">{entranceIssues.length}</span>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${entranceIssues.length > 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'}`}>
+                {entranceIssues.length > 0 ? 'گزارش مشکل' : 'آرام'}
+              </span>
+            </div>
+          </div>
+
+          {/* Financial Ledger Table per Hostel */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                  <span>دفتر کل و گزارش کارمزد هاستل‌های طرف قرارداد</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  محاسبه ۱۰٪ سهم کارمزد پلتفرم YEREVANHUB بر مبنای رزروهای انجام‌شده
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                دوره تسویه: هفتگی (شنبه‌ها)
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-right">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
+                    <th className="pb-3 text-right">نام هاستل</th>
+                    <th className="pb-3 text-center">ناحیه شهری</th>
+                    <th className="pb-3 text-center">رزروهای قطعی</th>
+                    <th className="pb-3 text-left">گردش ناخالص (AMD)</th>
+                    <th className="pb-3 text-left">کارمزد پلتفرم ۱۰٪ (AMD)</th>
+                    <th className="pb-3 text-center">وضعیت تسویه</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {store.hostels.map(h => {
+                    const hostelBookings = store.bookings.filter(b => b.hostelId === h.id && (b.status === 'confirmed' || b.status === 'completed'));
+                    const turnover = hostelBookings.reduce((sum, b) => sum + b.finalAmountAMD, 0);
+                    const commission = Math.round(turnover * 0.10);
+
+                    return (
+                      <tr key={h.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 font-bold text-slate-900">
+                          {getLocalized(h.name, h.name.fa)}
+                        </td>
+                        <td className="py-3.5 text-center text-slate-500">
+                          {h.district}
+                        </td>
+                        <td className="py-3.5 text-center font-bold text-slate-800">
+                          {hostelBookings.length}
+                        </td>
+                        <td className="py-3.5 text-left font-mono font-bold text-slate-900">
+                          ֏ {turnover.toLocaleString()}
+                        </td>
+                        <td className="py-3.5 text-left font-mono font-bold text-purple-700">
+                          ֏ {commission.toLocaleString()}
+                        </td>
+                        <td className="py-3.5 text-center">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                            تراز متعادل ✓
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -328,10 +630,18 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('coupons')}
+                onClick={() => setActiveTab('hostels')}
                 className="px-4 py-2.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-100 font-bold text-xs cursor-pointer flex items-center gap-2"
               >
-                <Tag className="w-4 h-4 text-amber-700" />
+                <Building2 className="w-4 h-4 text-amber-700" />
+                <span>مدیریت و ثبت هاستل جدید</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('coupons')}
+                className="px-4 py-2.5 rounded-xl bg-blue-50 text-blue-900 hover:bg-blue-100 font-bold text-xs cursor-pointer flex items-center gap-2"
+              >
+                <Tag className="w-4 h-4 text-blue-700" />
                 <span>{tAdmin.createCouponAction}</span>
               </button>
               <button
@@ -374,85 +684,164 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* TAB 2: ALL BOOKINGS */}
+      {/* TAB 2: ALL BOOKINGS WITH SEARCH & STATUS FILTERS */}
       {activeTab === 'bookings' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-slate-900">{tAdmin.tabBookings} ({store.bookings.length})</h2>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-purple-600" />
+                <span>مدیریت جامع رزروها و پذیرش مسافران ({filteredBookings.length})</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                جستجو، تغییر وضعیت، تسویه و صدور لینک اختصاصی پیگیری مسافر
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>خروجی CSV</span>
+            </button>
           </div>
-          <div className="space-y-3">
-            {store.bookings.map(b => (
-              <div key={b.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm font-bold text-purple-700">{b.trackingCode}</span>
-                    <span className="font-bold text-slate-900 text-sm">{b.guestName}</span>
-                    <span className="text-xs text-slate-500 ltr-isolate">{b.guestContact}</span>
-                    {b.isImmediateArrival && (
-                      <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
-                        {tAdmin.immediateArrivalBadge}
-                      </span>
-                    )}
-                  </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
-                    b.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                    b.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                    b.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
-                    'bg-slate-100 text-slate-700'
-                  }`}>
-                    {getStatusText(b.status)}
+
+          {/* Search Bar & Status Filter Chips */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={bookingSearch}
+                onChange={e => setBookingSearch(e.target.value)}
+                placeholder="جستجو با شماره پیگیری (YVN-...)، نام مسافر، شماره تماس یا نام هاستل..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+              />
+              {bookingSearch && (
+                <button
+                  type="button"
+                  onClick={() => setBookingSearch('')}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+              <span className="text-slate-400 text-[11px] font-bold ml-2">فیلتر وضعیت:</span>
+              {[
+                { id: 'all', label: 'همه وضعیت‌ها', count: store.bookings.length },
+                { id: 'pending', label: 'در انتظار بررسی', count: pendingBookings.length },
+                { id: 'confirmed', label: 'تأییدشده', count: confirmedBookings.length },
+                { id: 'completed', label: 'تکمیل‌شده', count: completedBookings.length },
+                { id: 'rejected', label: 'ردشده', count: store.bookings.filter(b => b.status === 'rejected').length },
+                { id: 'cancelled', label: 'لغوشده', count: store.bookings.filter(b => b.status === 'cancelled').length },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setBookingStatusFilter(f.id as any)}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-xs flex items-center gap-1.5 ${
+                    bookingStatusFilter === f.id
+                      ? 'bg-purple-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${bookingStatusFilter === f.id ? 'bg-purple-800 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    {f.count}
                   </span>
-                </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600">
-                  <div>{tAdmin.tableColHostel}: <strong className="text-slate-800">{b.hostelName}</strong></div>
-                  <div>{tAdmin.tableColRoom}: <strong className="text-slate-800">{b.roomTypeName}</strong></div>
-                  <div>{tAdmin.tableColDates}: <strong className="text-slate-800 ltr-isolate">{b.checkIn} → {b.checkOut}</strong></div>
-                  <div>{tAdmin.tableColAmount}: <strong className="text-slate-900">{b.finalAmountAMD.toLocaleString()} AMD</strong></div>
-                </div>
+          {/* Bookings List */}
+          <div className="space-y-3">
+            {filteredBookings.length === 0 ? (
+              <div className="bg-white rounded-2xl p-10 text-center border border-slate-200 text-slate-400 text-xs">
+                رزروی با مشخصات فیلترشده یافت نشد.
+              </div>
+            ) : (
+              filteredBookings.map(b => (
+                <div key={b.id} className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3 hover:border-slate-300 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-lg border border-purple-200">
+                        {b.trackingCode}
+                      </span>
+                      <span className="font-bold text-slate-900 text-sm">{b.guestName}</span>
+                      <span className="text-xs text-slate-500 ltr-isolate">{b.guestContact}</span>
+                      {b.isImmediateArrival && (
+                        <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
+                          {tAdmin.immediateArrivalBadge}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
+                      b.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                      b.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                      b.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {getStatusText(b.status)}
+                    </span>
+                  </div>
 
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('booking-track', { token: b.privateToken })}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    <span>{tAdmin.btnPassengerLink}</span>
-                  </button>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-xl">
+                    <div>{tAdmin.tableColHostel}: <strong className="text-slate-800 block mt-0.5">{b.hostelName}</strong></div>
+                    <div>{tAdmin.tableColRoom}: <strong className="text-slate-800 block mt-0.5">{b.roomTypeName}</strong></div>
+                    <div>{tAdmin.tableColDates}: <strong className="text-slate-800 ltr-isolate block mt-0.5">{b.checkIn} → {b.checkOut}</strong></div>
+                    <div>{tAdmin.tableColAmount}: <strong className="text-slate-900 font-mono font-bold block mt-0.5">֏ {b.finalAmountAMD.toLocaleString()} AMD</strong></div>
+                  </div>
 
-                  {b.status === 'pending' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => appStore.updateBookingStatus(b.id, 'confirmed')}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
-                      >
-                        {tAdmin.btnConfirm}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => appStore.updateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
-                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
-                      >
-                        {tAdmin.btnReject}
-                      </button>
-                    </>
-                  )}
-
-                  {b.status === 'confirmed' && (
+                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100 justify-end">
                     <button
                       type="button"
-                      onClick={() => appStore.updateBookingStatus(b.id, 'completed')}
-                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
+                      onClick={() => onNavigate('booking-track', { token: b.privateToken })}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1 cursor-pointer transition-colors"
                     >
-                      {tAdmin.btnComplete}
+                      <ExternalLink className="w-3 h-3" />
+                      <span>{tAdmin.btnPassengerLink}</span>
                     </button>
-                  )}
+
+                    {b.status === 'pending' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => appStore.updateBookingStatus(b.id, 'confirmed')}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          {tAdmin.btnConfirm}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => appStore.updateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
+                          className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          {tAdmin.btnReject}
+                        </button>
+                      </>
+                    )}
+
+                    {b.status === 'confirmed' && (
+                      <button
+                        type="button"
+                        onClick={() => appStore.updateBookingStatus(b.id, 'completed')}
+                        className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        {tAdmin.btnComplete}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
@@ -460,40 +849,218 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       {/* TAB 3: HOSTELS & INVENTORY */}
       {activeTab === 'hostels' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-slate-900">{tAdmin.hostelsListTitle}</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-purple-600" />
+                <span>{tAdmin.hostelsListTitle} ({store.hostels.length})</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                تعریف هاستل‌های جدید، مدیریت ظرفیت، وضعیت انتشار و کنترل پذیرش ۲۴ ساعته
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAddHostelModal(!showAddHostelModal)}
+              className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs transition-colors self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{showAddHostelModal ? 'بستن فرم' : 'ثبت هاستل جدید در پلتفرم'}</span>
+            </button>
           </div>
 
+          {/* Add New Hostel Form Card */}
+          {showAddHostelModal && (
+            <div className="bg-white p-6 rounded-3xl border-2 border-purple-200 shadow-md space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span>ثبت و اضافه کردن هاستل جدید به ایروان‌هاب</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAddHostelModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateHostel} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">نام هاستل (فارسی) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: هاستل هوس ایروان"
+                      value={newHostelNameFa}
+                      onChange={e => setNewHostelNameFa(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">نام هاستل (انگلیسی)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. House Hostel Yerevan"
+                      value={newHostelNameEn}
+                      onChange={e => setNewHostelNameEn(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 ltr-isolate text-left"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">ناحیه شهری</label>
+                    <select
+                      value={newHostelDistrict}
+                      onChange={e => setNewHostelDistrict(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
+                    >
+                      <option value="Kentron">مرکز (Kentron)</option>
+                      <option value="Arabkir">آرابکیر (Arabkir)</option>
+                      <option value="Cascade">کاسکاد (Cascade)</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">آدرس دقیق در ایروان *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="ایروان، ناحیه کنترون، خیابان ماشتوتس..."
+                      value={newHostelAddressFa}
+                      onChange={e => setNewHostelAddressFa(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">قیمت شروع هر تخت (درام)</label>
+                    <input
+                      type="number"
+                      min={1000}
+                      step={100}
+                      value={newHostelMinPrice}
+                      onChange={e => setNewHostelMinPrice(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">عرض جغرافیایی (Latitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={newHostelLat}
+                      onChange={e => setNewHostelLat(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono ltr-isolate text-left"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">طول جغرافیایی (Longitude)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={newHostelLng}
+                      onChange={e => setNewHostelLng(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono ltr-isolate text-left"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">لینک تصویر پیش‌فرض</label>
+                    <input
+                      type="url"
+                      value={newHostelPhoto}
+                      onChange={e => setNewHostelPhoto(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 ltr-isolate text-left"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={newHostelReception24}
+                      onChange={e => setNewHostelReception24(e.target.checked)}
+                      className="rounded-md text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>پذیرش ۲۴ ساعته شبانه‌روزی فعال است</span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer shadow-xs transition-colors"
+                  >
+                    ثبت و ذخیره هاستل
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Hostels Grid with Rich Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {store.hostels.map(h => (
-              <div key={h.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 text-base">{getLocalized(h.name, h.name.fa)}</h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${h.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+              <div key={h.id} className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 shrink-0">
+                      <img
+                        src={h.photos[0]}
+                        alt={getLocalized(h.name, h.name.fa)}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-base">{getLocalized(h.name, h.name.fa)}</h3>
+                      <p className="text-xs text-slate-500 line-clamp-1">{getLocalized(h.address, h.address.fa)}</p>
+                      <span className="text-[11px] text-amber-800 font-bold block mt-0.5">
+                        {h.city} • {h.district}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${h.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
                     {h.isPublished ? tAdmin.activeStatus : tAdmin.inactiveStatus}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{getLocalized(h.address, h.address.fa)}</p>
 
-                <div className="space-y-1.5 text-xs">
+                <div className="space-y-1.5 text-xs bg-slate-50 p-3 rounded-2xl">
                   <span className="font-bold text-slate-700 block">{tAdmin.tableColRoom}:</span>
                   {h.roomTypes.map(rt => (
-                    <div key={rt.id} className="p-2 rounded-lg bg-slate-50 flex justify-between items-center">
-                      <span>{getLocalized(rt.name, rt.name.fa)}</span>
-                      <span className="font-bold text-slate-900">{rt.pricePerNightAMD.toLocaleString()} AMD ({rt.totalBedsOrRooms})</span>
+                    <div key={rt.id} className="py-1 px-2 rounded-lg bg-white flex justify-between items-center shadow-2xs">
+                      <span className="text-slate-800">{getLocalized(rt.name, rt.name.fa)}</span>
+                      <span className="font-mono font-bold text-slate-900">
+                        ֏ {rt.pricePerNightAMD.toLocaleString()} AMD ({rt.totalBedsOrRooms} تخت)
+                      </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="pt-2 flex justify-between items-center text-xs text-slate-500">
-                  <span>{tAdmin.receptionLabel} {h.reception24h ? '24/7' : h.checkInStandardTime}</span>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('hostel-detail', { id: h.id })}
-                    className="text-purple-700 font-bold hover:underline cursor-pointer"
-                  >
-                    {tAdmin.viewOnSiteBtn}
-                  </button>
+                <div className="pt-2 flex flex-wrap gap-2 justify-between items-center text-xs border-t border-slate-100">
+                  <div className="flex items-center gap-2 text-slate-500 text-[11px]">
+                    <span>{tAdmin.receptionLabel} {h.reception24h ? '۲۴/۷' : h.checkInStandardTime}</span>
+                    <span>•</span>
+                    <span className="font-mono text-slate-600 ltr-isolate">{h.coordinates.lat.toFixed(4)}, {h.coordinates.lng.toFixed(4)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => appStore.toggleHostelPublished(h.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                        h.isPublished ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200'
+                      }`}
+                    >
+                      {h.isPublished ? 'تغییر به پیش‌نویس' : 'انتشار در سایت'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('hostel-detail', { id: h.id })}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      {tAdmin.viewOnSiteBtn}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

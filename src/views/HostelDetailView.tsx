@@ -30,6 +30,7 @@ import {
 } from '../utils/pricing';
 import { getLocalized, getCityName } from '../utils/i18n';
 import { appStore } from '../services/store';
+import { HostelLocationMap } from '../components/HostelLocationMap';
 
 interface Props {
   currentLang: AppLanguage;
@@ -661,6 +662,9 @@ export const HostelDetailView: React.FC<Props> = ({
               <p>Accepted Payment Methods: {hostel.rules.acceptedPaymentMethodsOnArrival.join(', ')}</p>
             </div>
           </div>
+
+          {/* Dedicated Hostel Location Map & Distances */}
+          <HostelLocationMap hostel={hostel} currentLang={currentLang} />
 
           {/* Verified Reviews */}
           <div className="space-y-4">

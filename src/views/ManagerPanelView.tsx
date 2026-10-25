@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AppLanguage, Booking, Hostel } from '../types';
 import {
   Key,
-  Zap,
   Clock,
   CheckCircle2,
   XCircle,
@@ -28,12 +27,6 @@ export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
 
   const hostelBookings = store.bookings.filter(b => b.hostelId === hostel.id);
   const pendingBookings = hostelBookings.filter(b => b.status === 'pending');
-
-  const [immediateDuration, setImmediateDuration] = useState(6);
-
-  const handleToggleImmediate = () => {
-    appStore.toggleImmediateStay(hostel.id, !hostel.immediateStayEnabled, immediateDuration);
-  };
 
   const statusLabels: Record<string, Record<AppLanguage, string>> = {
     confirmed: { fa: 'تأییدشده', en: 'Confirmed', ru: 'Подтверждено', hy: 'Հաստատված' },
@@ -63,28 +56,17 @@ export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
           <p className="text-xs text-slate-500">{getLocalized(hostel.address, hostel.address.fa)}</p>
         </div>
 
-        {/* Immediate check-in mode toggle widget */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div>
-            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-              <Zap className={`w-4 h-4 ${hostel.immediateStayEnabled ? 'text-red-600 fill-red-600' : 'text-slate-400'}`} />
-              <span>{tManager.instantStayWidgetTitle}</span>
-            </span>
-            <span className="text-[11px] text-slate-500 block mt-0.5">
-              {hostel.immediateStayEnabled ? tManager.instantStayWidgetDescActive : tManager.instantStayWidgetDescInactive}
-            </span>
-          </div>
-
+        {/* Hostel Quick Stats & Action */}
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={handleToggleImmediate}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-              hostel.immediateStayEnabled
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-slate-900 text-white hover:bg-slate-800'
-            }`}
+            onClick={() => onNavigate('hostel-detail', { id: hostel.id })}
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
           >
-            {hostel.immediateStayEnabled ? tManager.disableInstantStayBtn : tManager.enableInstantStayBtn}
+            <Building2 className="w-4 h-4 text-amber-400" />
+            <span>
+              {currentLang === 'fa' ? 'مشاهده صفحه عمومی هاستل' : currentLang === 'en' ? 'View Public Page' : currentLang === 'ru' ? 'Страница хостела' : 'Դիտել էջը'}
+            </span>
           </button>
         </div>
       </div>

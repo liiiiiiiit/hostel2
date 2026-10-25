@@ -601,6 +601,24 @@ class Store {
     this.persist();
   }
 
+  public toggleHostelPublished(id: string) {
+    const h = this.state.hostels.find(item => item.id === id);
+    if (!h) return;
+    h.isPublished = !h.isPublished;
+    h.updatedAt = new Date().toISOString();
+    this.logAudit('TOGGLE_HOSTEL', 'HOSTEL', id, `تغییر وضعیت انتشار هاستل به ${h.isPublished ? 'منتشرشده' : 'پیش‌نویس'}`);
+    this.persist();
+  }
+
+  public toggleRentalAvailability(id: string) {
+    const r = this.state.rentals.find(item => item.id === id);
+    if (!r) return;
+    r.isAvailable = !r.isAvailable;
+    r.updatedAt = new Date().toISOString();
+    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.isAvailable ? 'موجود' : 'رزروشده'}`);
+    this.persist();
+  }
+
   // Coupons
   public addCoupon(coupon: Coupon): { success: boolean; error?: string } {
     const clean = coupon.code.trim().toUpperCase();
