@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit",
+    "lint": "tsc --noEmit && tsc --project api/tsconfig.json --noEmit",
     "test": "node --import tsx --test src/**/*.test.ts server/*.test.ts",
     "start": "NODE_ENV=production tsx server/dev.ts",
     "test:browser": "node scripts/browser-smoke.mjs"
