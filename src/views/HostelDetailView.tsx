@@ -1,3 +1,6 @@
+import { featureText } from '../i18n/features';
+import { VerificationInfo } from '../components/VerificationInfo';
+import { PlaceActions } from '../components/PlaceActions';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
 import React, { useState } from 'react';
 import { AppLanguage, Hostel, RoomType, Review } from '../types';
@@ -371,21 +374,19 @@ export const HostelDetailView: React.FC<Props> = ({
     lateCheckInFee: lateFee,
   });
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError('');
     setCouponSuccess('');
     const clean = couponInput.trim().toUpperCase();
     if (!clean) return;
 
-    const coupon = appStore.getState().coupons.find(c => c.code.toUpperCase() === clean);
-    const result = validateCoupon(clean,
-      (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights, coupon);
-    if (!result.valid) {
-      setAppliedCouponCode('');
-      setCouponError(result.message);
-      return;
+    const response = await appStore.checkCoupon(clean,
+      (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights);
+    if (!response.success || !response.coupon) {
+      setAppliedCouponCode(''); setCouponError(response.error || 'کد معتبر نیست.'); return;
     }
+    const result = { discountPercent: response.coupon.percent };
 
     setAppliedCouponCode(clean);
     setCouponSuccess(`Coupon applied (${result.discountPercent}% off)`);
@@ -398,7 +399,7 @@ export const HostelDetailView: React.FC<Props> = ({
     setCouponError('');
   };
 
-  const handleSubmitBooking = (e: React.FormEvent) => {
+  const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -425,7 +426,7 @@ export const HostelDetailView: React.FC<Props> = ({
     setIsSubmitting(true);
 
     try {
-      const result = appStore.createBooking({
+      const result = await appStore.createBooking({
         hostelId: hostel.id,
         roomTypeId: selectedRoom.id,
         guestName,
@@ -455,6 +456,8 @@ export const HostelDetailView: React.FC<Props> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+      <PlaceActions kind="hostel" id={hostel.id} />
+      <VerificationInfo verified={hostel.verification?.status === 'verified'} checkedAt={hostel.verification?.checkedAt} note={hostel.verification?.note} />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-slate-500">
         <button
@@ -700,6 +703,7 @@ export const HostelDetailView: React.FC<Props> = ({
                         <span>{rev.rating} / 5</span>
                       </div>
                     </div>
+                    {rev.scores && <div className="grid grid-cols-2 gap-2 text-xs">{(['cleanliness','safety','staff','location'] as const).map(key => <span key={key}>{featureText(currentLang)[key]}: {rev.scores![key]} / 5</span>)}</div>}
                     <p className="text-xs text-slate-700 leading-relaxed">{rev.comment}</p>
                     {rev.adminReply && (
                       <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs text-slate-700 mt-2">
@@ -747,6 +751,7 @@ export const HostelDetailView: React.FC<Props> = ({
                   <input
                     type="date"
                     required
+                    min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)}
                     value={checkIn}
                     onChange={e => setCheckIn(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500"
@@ -759,6 +764,7 @@ export const HostelDetailView: React.FC<Props> = ({
                   <input
                     type="date"
                     required
+                    min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)}
                     value={checkOut}
                     onChange={e => setCheckOut(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500"

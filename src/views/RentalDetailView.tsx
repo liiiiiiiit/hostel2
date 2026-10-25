@@ -1,3 +1,5 @@
+import { VerificationInfo } from '../components/VerificationInfo';
+import { PlaceActions } from '../components/PlaceActions';
 import { yerevanToday } from '../utils/dates';
 import React, { useState } from 'react';
 import { AppLanguage, RentalProperty } from '../types';
@@ -257,7 +259,7 @@ export const RentalDetailView: React.FC<Props> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -271,7 +273,7 @@ export const RentalDetailView: React.FC<Props> = ({
     }
 
     setIsSubmitting(true);
-    const result = appStore.createRentalInquiry({
+    const result = await appStore.createRentalInquiry({
       propertyId: rental.id,
       guestName,
       contact,
@@ -293,6 +295,8 @@ export const RentalDetailView: React.FC<Props> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+      <PlaceActions kind="rental" id={rental.id} />
+      <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-slate-500">
         <button

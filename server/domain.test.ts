@@ -6,7 +6,7 @@ Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
   getItem: (key: string) => storage.get(key) ?? null,
   setItem: (key: string, value: string) => storage.set(key, value),
 } });
-const { Store } = await import('./store');
+const { Store } = await import('./domain');
 
 beforeEach(() => storage.clear());
 

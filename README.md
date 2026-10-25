@@ -1,36 +1,59 @@
 # YEREVANHUB
 
-React 19 / Vite 8 demonstration of hostel bookings, rental inquiries, travel guides and a four-language translator.
+Hostel booking and rental discovery with a React/Vite client and a same-origin Express API. Reservations and accounts now live on the server, not in localStorage.
 
 ## Development
 
-Validated with Node 24.19.0 and npm 11.9.0. Use the committed lockfile:
+Validated with Node 24 and npm 11:
 
 ```sh
 npm ci
-npm run dev -- --strictPort
+npm run dev
 ```
 
-The development server listens on port 3000. Run checks separately so each failure remains visible:
+The combined frontend/API server uses port 3000 (`PORT` overrides it). Local development creates `data/hostel.db` with libSQL/SQLite. These files are ignored by Git and must be backed up independently. Development-only demo accounts are shown in the sign-in dialog. Set `DEMO_MODE=false` before creating a fresh database to omit them. Never reuse a development database as a production database.
 
 ```sh
 npm run lint
 npm test
 npm run build
+npm run test:browser
 ```
 
-`lint` runs TypeScript. Tests use Node's test runner with `tsx`. The build is emitted to `dist/`. No separate backend or database process is connected to the application.
+Browser tests start an isolated server/database and use system Chromium (`BROWSER_PATH` overrides `/usr/bin/chromium`). They require no external email, Telegram, database, or AI account. To run the built client with its API on a persistent host, provide a database and bootstrap administrator, then run `npm start`. `npm run preview` previews only static frontend assets; it does not start the API.
 
-## Demo data and accounts
+## Features
 
-Data is seeded from `src/services/mockData.ts` and saved in the browser's `yerevanhub_store_v1` localStorage entry. Language preference is stored separately. The sign-in dialog provides the existing demo account credentials. Passwords are checked; newly created accounts store a salted PBKDF2 verifier instead of a plaintext password. Web Crypto requires HTTPS or a trusted local origin such as localhost.
+- Server-side accounts with salted scrypt password verifiers, HttpOnly SameSite session cookies, session revocation, role/assigned-hostel authorization, input validation, origin checks and rate limits.
+- Shared reservations, rental inquiries, reviews, coupons and audit records in a persistent SQL database. Each state mutation runs in a write transaction, including confirmation/capacity and coupon accounting.
+- Manager daily capacity calendar, closure to new bookings with capacity zero, and rejection of capacity reductions below confirmed reservations.
+- Ninety-day availability search, date/quantity selection, base stay totals, female/private-room filters, late arrival, kitchen, metro and monthly-stay filters. Metro/monthly flags require actual admin entry; they are not inferred from marketing descriptions.
+- Saved stays and comparison of up to three hostels/rentals. Favourites persist locally on that browser; they are not account-synchronized.
+- Explicit admin property verification with notes and timestamps. Sample properties start unverified; editing a property does not certify it.
+- Private arrival guide and door code for the matching confirmed reservation, with Armenian taxi address, entrance photo, directions and reception contact. Public responses omit door codes, exact internal rental addresses, internal notes, guest records and credentials.
+- Category reviews (cleanliness, safety, staff and location) only for completed past stays, one review per booking, with moderation before publication.
+- Persistent email/Telegram notification outbox, provider adapters, retry lease/backoff and admin queue visibility. Missing providers leave messages queued; they do not falsely mark them sent.
 
-Existing custom accounts from the earlier passwordless implementation have no password verifier and cannot sign in using an arbitrary password. The shipped demo accounts still work. Existing custom accounts require an explicit password reset/migration; creating a new local demo account with another email also works. The application never invents a password for an existing custom account.
+## Deployment
 
-This is a local demonstration, not production authentication. Users can inspect and change their own browser storage and bundled mock data. Real deployment needs server-side authentication, authorization, session handling, protected guest/door-code data, and transactional booking/coupon persistence. Tracking links resolve records in the same browser; they do not provide cross-device booking access.
+See [DEPLOYMENT_FA.md](DEPLOYMENT_FA.md) for Persian Vercel/Turso setup steps.
 
-## Optional services
+Vercel deploys `api/app.ts` alongside `dist`. With no `DATABASE_URL`, it intentionally serves a **read-only preview**: browse, filter, save and compare, with an explicit banner. Account access and reservations remain disabled. Once a hosted libSQL database is configured, records are shared across devices. A configured database failure returns an error; it never silently switches to a fake writable store.
 
-The phrasebook translator works without credentials. Gemini translation and the browser's external fonts/photos are optional. Live Gemini calls were not tested. `VITE_` variables are embedded in client JavaScript: do not use them to protect a production API secret. A production Gemini integration needs a server-side endpoint.
+Required production settings: `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (for authenticated hosted databases), and `ADMIN_EMAIL`/`ADMIN_PASSWORD` for initial administration. The bootstrap password must have at least 12 characters; bootstrap never resets an existing active administrator. Add the settings securely, never to source or chat. The public `APP_URL` must be the project's HTTPS address to include tracking links in emails.
 
-See [CODE_REVIEW.md](CODE_REVIEW.md) for the defects repaired and validation evidence.
+Production never enables the development quick-login accounts. Production uses Secure cookies. Do not connect the local development database to a public deployment.
+
+## Notifications
+
+Optional email: `RESEND_API_KEY` and `NOTIFICATION_FROM` from a verified sender domain. Optional manager Telegram alerts: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Telegram alerts omit guest contact details and private tracking links. All configured recipients must be real/authorized; hostel email is used only after its listing is marked verified.
+
+After a production booking/status change, up to two eligible queued notifications are delivered outside the transaction, in parallel with a 15-second timeout. An outage cannot undo the booking. Run a scheduler against `GET /api/app?worker=notifications` with `Authorization: Bearer <CRON_SECRET>` for backlogs/retries, or use the admin queue button. Schedule frequency must respect your hosting plan. Configure production `APP_URL` for email tracking links. Do not log provider responses or credentials. Email uses provider idempotency keys; Telegram delivery can be duplicated if a worker dies after sending but before recording success.
+
+## Data and limits
+
+The existing browser-local demo data is not imported automatically: it was user-editable and is not trusted production data. The legacy `server/db.ts` implementation is unused; the active persistence layer is `server/database.ts`.
+
+This is a small-site foundation using one transactional JSON state row plus SQL session/outbox/rate-limit tables. It serializes writes; use normalized tables/pagination and retention policies before large-scale use. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
+
+Password reset, email ownership verification, multi-factor authentication and automated backups are not part of this release. Live hosted-database/provider delivery requires your own configuration and has not been validated using real credentials. The phrasebook works offline; live Gemini remains optional and untested. Never embed production API secrets in `VITE_` variables.

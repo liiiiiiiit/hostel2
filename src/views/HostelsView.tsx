@@ -1,3 +1,9 @@
+import { appStore } from '../services/store';
+import { addCalendarDays, yerevanToday } from '../utils/dates';
+import { calculateNights } from '../utils/pricing';
+import { featureText } from '../i18n/features';
+import { VerificationInfo } from '../components/VerificationInfo';
+import { PlaceActions } from '../components/PlaceActions';
 import React, { useState, useMemo } from 'react';
 import { AppLanguage, Hostel } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -32,6 +38,20 @@ export const HostelsView: React.FC<Props> = ({
 }) => {
   const t = UI_TRANSLATIONS[currentLang];
 
+  const ft = featureText(currentLang);
+  const [checkIn, setCheckIn] = useState(initialFilter?.checkIn || yerevanToday());
+  const [checkOut, setCheckOut] = useState(initialFilter?.checkOut || addCalendarDays(initialFilter?.checkIn || yerevanToday(), 2));
+  const [quantity, setQuantity] = useState(initialFilter?.guests || 1);
+  const [kitchen, setKitchen] = useState(false); const [metro, setMetro] = useState(false); const [monthly, setMonthly] = useState(false);
+  const nights = calculateNights(checkIn, checkOut);
+  const eligibleRooms = (hostel: Hostel) => hostel.roomTypes.filter(room =>
+    (roomTypeFilter === 'all' || room.type === roomTypeFilter) &&
+    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= quantity);
+  const stayTotal = (hostel: Hostel) => {
+    const prices = eligibleRooms(hostel).map(room => room.pricePerNightAMD);
+    return prices.length && nights > 0 ? Math.min(...prices) * quantity * nights : 0;
+  };
+
   // Filters
   const [city, setCity] = useState(initialFilter?.city || 'all');
   const [district, setDistrict] = useState(initialFilter?.district || 'all');
@@ -47,10 +67,14 @@ export const HostelsView: React.FC<Props> = ({
   const filteredHostels = useMemo(() => {
     return hostels
       .filter(h => {
+        if (nights < 1 || !eligibleRooms(h).length) return false;
+        if (kitchen && !h.amenities.kitchen) return false;
+        if (metro && !h.nearMetro) return false;
+        if (monthly && !h.monthlyStayAvailable) return false;
         if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
         if (district !== 'all' && h.district !== district) return false;
         if (h.minPricePerNightAMD > maxPrice) return false;
-        if (onlyTonightCapacity && !(h.reception24h || h.lateArrivalAvailable)) return false;
+        if (onlyTonightCapacity && !h.roomTypes.some(room => appStore.remainingCapacity(h, room.id, yerevanToday(), addCalendarDays(yerevanToday(), 1)) >= quantity)) return false;
         if (only24hReception && !h.reception24h) return false;
         if (onlyElevator && !h.amenities.elevator) return false;
         if (onlyCoworking && !h.amenities.coworking) return false;
@@ -79,10 +103,11 @@ export const HostelsView: React.FC<Props> = ({
     onlyElevator,
     onlyCoworking,
     sortBy,
-    getHostelRating,
+    getHostelRating, checkIn, checkOut, quantity, kitchen, metro, monthly,
   ]);
 
   const clearFilters = () => {
+    setKitchen(false); setMetro(false); setMonthly(false);
     setCity('all');
     setDistrict('all');
     setRoomTypeFilter('all');
@@ -96,6 +121,15 @@ export const HostelsView: React.FC<Props> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="bg-white border rounded-2xl p-4 space-y-4">
+        <div className="flex flex-wrap gap-4">
+          <label>{ft.checkIn}<input aria-label={ft.checkIn} className="block p-2 border rounded-xl" type="date" min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} /></label>
+          <label>{ft.checkOut}<input aria-label={ft.checkOut} className="block p-2 border rounded-xl" type="date" min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event => setCheckOut(event.target.value)} /></label>
+          <label>{ft.guests}<input aria-label={ft.guests} className="block p-2 border rounded-xl w-24" type="number" min={1} max={6} value={quantity} onChange={event => setQuantity(Number(event.target.value))} /></label>
+        </div>
+        <div className="flex gap-4 flex-wrap text-sm"><label><input type="checkbox" checked={kitchen} onChange={event => setKitchen(event.target.checked)} /> {ft.kitchen}</label><label><input type="checkbox" checked={metro} onChange={event => setMetro(event.target.checked)} /> {ft.metro}</label><label><input type="checkbox" checked={monthly} onChange={event => setMonthly(event.target.checked)} /> {ft.monthlyStay}</label></div>
+        <p className="text-xs text-slate-500">{ft.horizon} · {ft.feesNotice}</p>
+      </div>
       {/* Title & Top Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div>
@@ -392,9 +426,12 @@ export const HostelsView: React.FC<Props> = ({
                           </span>
                         </div>
 
+                        <div className="text-sm font-bold">{ft.total}: {stayTotal(hostel).toLocaleString()} AMD</div>
+                        <VerificationInfo verified={hostel.verification?.status === 'verified'} checkedAt={hostel.verification?.checkedAt} />
+                        <PlaceActions kind="hostel" id={hostel.id} />
                         <button
                           type="button"
-                          onClick={() => onNavigate('hostel-detail', { ...initialFilter, id: hostel.id })}
+                          onClick={() => onNavigate('hostel-detail', { ...initialFilter, id: hostel.id, checkIn, checkOut, guests: quantity })}
                           className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
                         >
                           {t.detailsButton}

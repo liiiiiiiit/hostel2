@@ -1,4 +1,4 @@
-import { Hostel, RentalProperty, Coupon, Review, Article, TravelPhrase, User, Booking, RentalInquiry, AuditLog } from '../types';
+import { Hostel, RentalProperty, Coupon, Review, Article, TravelPhrase, User, Booking, RentalInquiry, AuditLog } from '../src/types/index';
 
 export const INITIAL_USERS: User[] = [
   {

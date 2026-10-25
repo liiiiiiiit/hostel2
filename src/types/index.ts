@@ -27,6 +27,9 @@ export interface RoomType {
   description: Record<AppLanguage, string>;
 }
 
+export interface CapacityOverride { hostelId: string; roomTypeId: string; date: string; capacity: number }
+export interface AvailabilityDay extends CapacityOverride { booked: number; available: number }
+export interface Verification { status: 'unverified' | 'verified'; checkedAt?: string; checkedBy?: string; note?: string }
 export interface Hostel {
   id: string;
   slug: string;
@@ -45,6 +48,9 @@ export interface Hostel {
   directionsFa: string;
   directionsHy: string;
   floorAndDoorCode?: string;
+  verification?: Verification;
+  nearMetro?: boolean;
+  monthlyStayAvailable?: boolean;
   minPricePerNightAMD: number;
   reception24h: boolean;
   receptionOpenTime?: string;
@@ -243,6 +249,7 @@ export interface Review {
   hostelId: string;
   hostelName: string;
   guestName: string;
+  scores?: { cleanliness: number; safety: number; staff: number; location: number };
   rating: number;
   comment: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -292,3 +299,13 @@ export interface AuditLog {
   targetId: string;
   details: string;
 }
+
+export interface ClientState {
+  users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];
+  coupons: Coupon[]; bookings: Booking[]; rentalInquiries: RentalInquiry[]; reviews: Review[];
+  articles: Article[]; phrases: TravelPhrase[]; auditLogs: AuditLog[]; capacities: CapacityOverride[];
+  previewMode?: boolean;
+  availability: AvailabilityDay[]; demoMode: boolean;
+  settings: { emergencyHotline: string; telegramSupport: string; supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
+}
+export interface ActionResult { success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

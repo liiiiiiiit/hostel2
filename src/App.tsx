@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomeView } from './views/HomeView';
 import { AuthModal } from './views/AuthModal';
+import { useSavedPlaces } from './context/SavedPlacesContext';
+import { featureText } from './i18n/features';
 import { useLanguage } from './context/LanguageContext';
 
 const HostelsView = lazy(() => import('./views/HostelsView').then(module => ({ default: module.HostelsView })));
@@ -21,12 +23,17 @@ const ManagerPanelView = lazy(() => import('./views/ManagerPanelView').then(modu
 const TravelerAccountView = lazy(() => import('./views/TravelerAccountView').then(module => ({ default: module.TravelerAccountView })));
 const StaticPages = lazy(() => import('./views/StaticPages').then(module => ({ default: module.StaticPages })));
 
+const SavedPlacesView = lazy(() => import('./views/SavedPlacesView').then(module => ({ default: module.SavedPlacesView })));
+
 export default function App() {
   const [storeState, setStoreState] = useState(() => appStore.getState());
   const { currentLang, setLanguage } = useLanguage();
+  const savedPlaces = useSavedPlaces();
 
   const [activeView, setActiveView] = useState<string>('home');
   const [viewParams, setViewParams] = useState<any>({});
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Subscribe to store updates
@@ -34,23 +41,28 @@ export default function App() {
     const unsubscribe = appStore.subscribe(() => {
       setStoreState({ ...appStore.getState() });
     });
-    appStore.expirePendingBookings();
-    const timer = window.setInterval(() => appStore.expirePendingBookings(), 30_000);
+    const timer = window.setInterval(() => { void appStore.refresh().catch(() => {}); }, 15_000);
     return () => { unsubscribe(); window.clearInterval(timer); };
   }, []);
 
   // Handle URL hash or direct parameter initialization
   useEffect(() => {
-    const handleHash = () => {
+    let active = true;
+    const handleHash = async () => {
+      setTrackingError('');
       const hash = window.location.hash.replace('#', '');
       if (hash.startsWith('/booking/')) {
         const token = hash.replace('/booking/', '');
-        setActiveView('booking-track');
-        setViewParams({ token });
+        setTrackingLoading(true);
+        try { await appStore.track(token); } catch (error) { setTrackingError(String(error)); }
+        if (!active) return;
+        setActiveView('booking-track'); setViewParams({ token }); setTrackingLoading(false);
       } else if (hash.startsWith('/rental-request/')) {
         const token = hash.replace('/rental-request/', '');
-        setActiveView('rental-track');
-        setViewParams({ token });
+        setTrackingLoading(true);
+        try { await appStore.track('', token); } catch (error) { setTrackingError(String(error)); }
+        if (!active) return;
+        setActiveView('rental-track'); setViewParams({ token }); setTrackingLoading(false);
       } else {
         setActiveView('home');
         setViewParams({});
@@ -59,7 +71,7 @@ export default function App() {
 
     handleHash();
     window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
+    return () => { active = false; window.removeEventListener('hashchange', handleHash); };
   }, []);
 
   const handleNavigate = (view: string, params: any = {}) => {
@@ -77,8 +89,9 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    appStore.logout();
+  const handleLogout = async () => {
+    const result = await appStore.logout();
+    if (!result.success) { window.alert(result.error); return; }
     if (activeView === 'admin' || activeView === 'manager' || activeView === 'account') {
       handleNavigate('home');
     }
@@ -95,7 +108,10 @@ export default function App() {
 
   // Render current view
   const renderView = () => {
+    if (trackingLoading) return <div className="p-8 text-center" role="status">YEREVANHUB…</div>;
+    if (trackingError) return <div role="alert" className="p-8 text-center">{trackingError}</div>;
     switch (activeView) {
+      case 'saved': return <SavedPlacesView onNavigate={handleNavigate} />;
       case 'home':
         return (
           <HomeView
@@ -284,6 +300,8 @@ export default function App() {
         onLogout={handleLogout}
       />
 
+      <div className="bg-white border-b px-4 py-2 text-center"><button className="text-sm text-amber-800 underline" onClick={() => handleNavigate('saved')}>{featureText(currentLang).saved} ({savedPlaces.saved.length} / {savedPlaces.compared.length})</button></div>
+      {storeState.previewMode && <div role="status" className="px-4 py-3 bg-amber-50 text-amber-950 text-center text-sm">{({ fa: 'پیش‌نمایش: مرور و مقایسه فعال است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.', en: 'Preview: browse and compare stays. Booking and sign-in are not enabled yet.', ru: 'Предпросмотр: просмотр и сравнение доступны. Бронирование и вход пока не включены.', hy: 'Նախադիտում․ դիտումն ու համեմատությունը հասանելի են։ Ամրագրումն ու մուտքը դեռ միացված չեն։' })[currentLang]}</div>}
       {/* Main Content Area */}
       <main className="flex-1">
         <Suspense fallback={<div className="p-8 text-center" role="status">YEREVANHUB…</div>}>

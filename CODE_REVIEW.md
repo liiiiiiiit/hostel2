@@ -1,4 +1,6 @@
-# Code review and repairs
+# Earlier code review and repairs
+
+This report records the earlier browser-local repair baseline. The subsequent server-backed release replaces the local authentication/persistence limitations below; see README.md and DEPLOYMENT_FA.md for the current architecture, new features, deployment requirements and remaining limits.
 
 Reviewed the client entry/routing, persisted store, account flows, hostel/rental forms, pricing and coupon rules, status transitions, exports, dependency setup, and build configuration. This review focuses on the application's executable client workflow; it is not a production security certification.
 

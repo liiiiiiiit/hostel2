@@ -157,7 +157,7 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
         </div>
 
         {/* Quick Demo Credentials Autofill */}
-        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+        {appStore.getState().demoMode && <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
           <span className="font-bold text-slate-700 block">{tr.quickDemoLabel}</span>
           <div className="grid grid-cols-3 gap-1.5">
             <button
@@ -182,7 +182,7 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
               {tr.roleTraveler}
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* Tab switch */}
         <div className="flex border-b border-slate-100 pb-1">

@@ -1,3 +1,4 @@
+import { PropertyOperationsPanel } from '../components/PropertyOperationsPanel';
 import { toCsv } from '../utils/csv';
 import React, { useState } from 'react';
 import {
@@ -104,13 +105,17 @@ interface Props {
 export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tAdmin, getLocalized } = useLanguage();
   const store = appStore.getState();
-  const handleUpdateBookingStatus = (...args: Parameters<typeof appStore.updateBookingStatus>) => {
-    const result = appStore.updateBookingStatus(...args);
+  const handleUpdateBookingStatus = async (...args: Parameters<typeof appStore.updateBookingStatus>) => {
+    const result = await appStore.updateBookingStatus(...args);
     if (!result.success) window.alert(result.error);
   };
   const [activeTab, setActiveTab] = useState<
     'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
   >('kpi');
+
+  const runAction = async (task: Promise<import('../types').ActionResult>) => {
+    const result = await task; if (!result.success) window.alert(result.error);
+  };
 
   // Booking filtering & search
   const [bookingSearch, setBookingSearch] = useState('');
@@ -219,11 +224,11 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     window.setTimeout(() => URL.revokeObjectURL(encodedUri), 1000);
   };
 
-  const handleCreateHostel = (e: React.FormEvent) => {
+  const handleCreateHostel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHostelNameFa.trim()) return;
 
-    appStore.saveHostel({
+    const saved = await appStore.saveHostel({
       id: `hostel-${Date.now()}`,
       slug: newHostelNameEn.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `hostel-${Date.now()}`,
       name: {
@@ -301,16 +306,17 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       updatedAt: new Date().toISOString(),
     });
 
+    if (!saved.success) { window.alert(saved.error); return; }
     setNewHostelNameFa('');
     setNewHostelNameEn('');
     setNewHostelAddressFa('');
     setShowAddHostelModal(false);
   };
 
-  const handleCreateCoupon = (e: React.FormEvent) => {
+  const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCode.trim()) return;
-    const result = appStore.addCoupon({
+    const result = await appStore.addCoupon({
       code: couponCode.trim(),
       percent: Number(couponPercent),
       minAmountAMD: Number(couponMinAmount),
@@ -354,7 +360,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     reader.readAsDataURL(file);
   };
 
-  const handleCreateArticle = (e: React.FormEvent) => {
+  const handleCreateArticle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artTitle.trim() || !artContent.trim()) return;
 
@@ -363,7 +369,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       ? artTags.split(/[,،]+/).map(t => t.trim()).filter(Boolean)
       : [artCategory];
 
-    appStore.saveArticle({
+    const saved = await appStore.saveArticle({
       id: '',
       slug: artTitle.toLowerCase().trim().replace(/[^a-zA-Z0-9\u0600-\u06FF\u0530-\u058F\u0400-\u04FF]+/g, '-'),
       title: artTitle.trim(),
@@ -381,6 +387,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       updatedAt: new Date().toISOString(),
     });
 
+    if (!saved.success) { window.alert(saved.error); return; }
     setArtTitle('');
     setArtSummary('');
     setArtContent('');
@@ -415,6 +422,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <PropertyOperationsPanel />
       {/* Admin Header with Status & Fast Export */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
@@ -1075,7 +1083,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => appStore.toggleHostelPublished(h.id)}
+                      onClick={() => runAction(appStore.toggleHostelPublished(h.id))}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
                         h.isPublished ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200'
                       }`}
@@ -1151,7 +1159,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                   </span>
                   <button
                     type="button"
-                    onClick={() => appStore.toggleManagerActive(mgr.id)}
+                    onClick={() => runAction(appStore.toggleManagerActive(mgr.id))}
                     className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
                   >
                     Toggle
@@ -1246,7 +1254,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                   </span>
                   <button
                     type="button"
-                    onClick={() => appStore.toggleCoupon(c.code)}
+                    onClick={() => runAction(appStore.toggleCoupon(c.code))}
                     className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer font-medium transition-colors"
                   >
                     Toggle
@@ -1255,7 +1263,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                     type="button"
                     onClick={() => {
                       if (confirm(`Delete coupon ${c.code}?`)) {
-                        appStore.deleteCoupon(c.code);
+                        void runAction(appStore.deleteCoupon(c.code));
                       }
                     }}
                     className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"
@@ -1309,7 +1317,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                     {rev.status !== 'approved' && (
                       <button
                         type="button"
-                        onClick={() => appStore.moderateReview(rev.id, 'approved')}
+                        onClick={() => runAction(appStore.moderateReview(rev.id, 'approved'))}
                         className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer transition-colors"
                       >
                         {tAdmin.btnApprove}
@@ -1318,7 +1326,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                     {rev.status !== 'rejected' && (
                       <button
                         type="button"
-                        onClick={() => appStore.moderateReview(rev.id, 'rejected')}
+                        onClick={() => runAction(appStore.moderateReview(rev.id, 'rejected'))}
                         className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer transition-colors"
                       >
                         {tAdmin.btnReject}
@@ -1358,14 +1366,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                 <div className="flex gap-2 justify-end pt-2 border-t border-slate-100 text-xs">
                   <button
                     type="button"
-                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'coordinating', 'Contacted owner')}
+                    onClick={() => runAction(appStore.updateRentalInquiryStatus(inq.id, 'coordinating', 'Contacted owner'))}
                     className="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold cursor-pointer"
                   >
                     {tAdmin.statusContacted}
                   </button>
                   <button
                     type="button"
-                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'agreed', 'Final agreement reached')}
+                    onClick={() => runAction(appStore.updateRentalInquiryStatus(inq.id, 'agreed', 'Final agreement reached'))}
                     className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold cursor-pointer"
                   >
                     {tAdmin.statusClosed}
@@ -1749,7 +1757,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                       type="button"
                       onClick={() => {
                         if (confirm(`Delete article "${art.title}"?`)) {
-                          appStore.deleteArticle(art.id);
+                          void runAction(appStore.deleteArticle(art.id));
                         }
                       }}
                       className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"

@@ -1,3 +1,4 @@
+import { featureText } from '../i18n/features';
 import React, { useState } from 'react';
 import { AppLanguage, Booking, Hostel } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -272,6 +273,7 @@ export const BookingTrackingView: React.FC<Props> = ({
 
   // Review state
   const [rating, setRating] = useState(5);
+  const [scores, setScores] = useState({ cleanliness: 5, safety: 5, staff: 5, location: 5 });
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(Boolean(booking.reviewId));
 
@@ -281,25 +283,25 @@ export const BookingTrackingView: React.FC<Props> = ({
     setTimeout(() => setCopiedAddress(false), 2500);
   };
 
-  const handleCancel = (e: React.FormEvent) => {
+  const handleCancel = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = appStore.cancelBookingByGuest(booking.privateToken, cancelReason || 'Cancelled by guest');
+    const result = await appStore.cancelBookingByGuest(booking.privateToken, cancelReason || 'Cancelled by guest');
     if (!result.success) { window.alert(result.error); return; }
     setShowCancelModal(false);
   };
 
-  const handleReportIssue = (e: React.FormEvent) => {
+  const handleReportIssue = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = appStore.reportEntranceIssue(booking.privateToken, issueNote);
+    const result = await appStore.reportEntranceIssue(booking.privateToken, issueNote);
     if (!result.success) { window.alert(result.error); return; }
     setShowIssueModal(false);
     setIssueSubmitted(true);
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewComment.trim()) return;
-    const result = appStore.submitReview(booking.privateToken, rating, reviewComment);
+    const result = await appStore.submitReview(booking.privateToken, rating, reviewComment, scores);
     if (!result.success) { window.alert(result.error); return; }
     setReviewSubmitted(true);
   };
@@ -548,7 +550,7 @@ export const BookingTrackingView: React.FC<Props> = ({
                       <button
                         key={star}
                         type="button"
-                        onClick={() => setRating(star)}
+                        onClick={() => { setRating(star); setScores({ cleanliness: star, safety: star, staff: star, location: star }); }}
                         className="p-1 cursor-pointer"
                       >
                         <Star
@@ -562,6 +564,8 @@ export const BookingTrackingView: React.FC<Props> = ({
                     ))}
                   </div>
                 </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">{(['cleanliness','safety','staff','location'] as const).map(key => <label key={key} className="text-sm">{featureText(currentLang)[key]}<select aria-label={featureText(currentLang)[key]} className="block border p-2 rounded-xl" value={scores[key]} onChange={event => setScores({ ...scores, [key]: Number(event.target.value) })}>{[1,2,3,4,5].map(score => <option key={score} value={score}>{score} / 5</option>)}</select></label>)}</div>
 
                 <div>
                   <textarea

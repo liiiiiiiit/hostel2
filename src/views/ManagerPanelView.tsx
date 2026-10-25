@@ -1,3 +1,4 @@
+import { PropertyOperationsPanel } from '../components/PropertyOperationsPanel';
 import React from 'react';
 import { AppLanguage, Booking, Hostel } from '../types';
 import {
@@ -21,8 +22,8 @@ interface Props {
 export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tManager, getLocalized, isRtl } = useLanguage();
   const store = appStore.getState();
-  const handleUpdateBookingStatus = (...args: Parameters<typeof appStore.updateBookingStatus>) => {
-    const result = appStore.updateBookingStatus(...args);
+  const handleUpdateBookingStatus = async (...args: Parameters<typeof appStore.updateBookingStatus>) => {
+    const result = await appStore.updateBookingStatus(...args);
     if (!result.success) window.alert(result.error);
   };
   const currentUser = store.currentUser;
@@ -48,6 +49,7 @@ export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <PropertyOperationsPanel />
       {/* Header */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

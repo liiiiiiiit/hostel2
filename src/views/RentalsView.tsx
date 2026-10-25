@@ -1,3 +1,5 @@
+import { VerificationInfo } from '../components/VerificationInfo';
+import { PlaceActions } from '../components/PlaceActions';
 import React, { useState, useMemo } from 'react';
 import { AppLanguage, RentalProperty } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -248,7 +250,9 @@ export const RentalsView: React.FC<Props> = ({
                     )}
                   </div>
 
-                  <button
+                  <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} />
+                  <PlaceActions kind="rental" id={rental.id} />
+                    <button
                     type="button"
                     onClick={() => onNavigate('rental-detail', { id: rental.id })}
                     className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
