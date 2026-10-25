@@ -1,3 +1,4 @@
+import { toCsv } from '../utils/csv';
 import React, { useState } from 'react';
 import {
   AppLanguage,
@@ -103,6 +104,10 @@ interface Props {
 export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tAdmin, getLocalized } = useLanguage();
   const store = appStore.getState();
+  const handleUpdateBookingStatus = (...args: Parameters<typeof appStore.updateBookingStatus>) => {
+    const result = appStore.updateBookingStatus(...args);
+    if (!result.success) window.alert(result.error);
+  };
   const [activeTab, setActiveTab] = useState<
     'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
   >('kpi');
@@ -193,24 +198,25 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     const headers = ['TrackingCode', 'GuestName', 'Contact', 'Hostel', 'RoomType', 'CheckIn', 'CheckOut', 'Quantity', 'AmountAMD', 'Status'];
     const rows = store.bookings.map(b => [
       b.trackingCode,
-      `"${b.guestName.replace(/"/g, '""')}"`,
-      `"${b.guestContact}"`,
-      `"${b.hostelName}"`,
-      `"${b.roomTypeName}"`,
+      b.guestName,
+      b.guestContact,
+      b.hostelName,
+      b.roomTypeName,
       b.checkIn,
       b.checkOut,
       b.quantity,
       b.finalAmountAMD,
       b.status
     ]);
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\uFEFF' + toCsv([headers, ...rows]);
+    const encodedUri = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', `bookings-report-${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(encodedUri), 1000);
   };
 
   const handleCreateHostel = (e: React.FormEvent) => {
@@ -238,6 +244,16 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         lat: Number(newHostelLat) || 40.1780,
         lng: Number(newHostelLng) || 44.5130,
       },
+      addressArmenianForTaxi: newHostelAddressFa.trim(),
+      phone: '',
+      email: '',
+      directionsFa: '',
+      directionsHy: '',
+      earlyCheckInAvailable: false,
+      earlyCheckInFeeAMD: 0,
+      lateArrivalFeeAMD: 0,
+      immediateStayEnabled: false,
+      waitingLoungeAvailable: false,
       photos: [newHostelPhoto],
       roomTypes: [
         {
@@ -257,6 +273,13 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       amenities: {
         wifi: true,
         lockers: true,
+        requiresPersonalPadlock: false,
+        kitchen: false,
+        hotWater24h: false,
+        linenIncluded: false,
+        airConditioning: false,
+        breakfastAvailable: false,
+        laundry: false,
         elevator: true,
         coworking: true,
       },
@@ -266,6 +289,8 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       languagesSpoken: ['fa', 'en', 'ru', 'hy'],
       rules: {
         quietHours: '23:00 - 08:00',
+        smokingAllowed: false,
+        petsAllowed: false,
         cancellationPolicy: 'لغو رایگان تا ۲۴ ساعت قبل از ورود',
         acceptedPaymentMethodsOnArrival: ['Cash AMD', 'Cash USD', 'Card'],
       },
@@ -285,7 +310,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const handleCreateCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCode.trim()) return;
-    appStore.addCoupon({
+    const result = appStore.addCoupon({
       code: couponCode.trim(),
       percent: Number(couponPercent),
       minAmountAMD: Number(couponMinAmount),
@@ -296,21 +321,25 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
       description: couponDesc.trim(),
     });
+    if (!result.success) { window.alert(result.error); return; }
     setCouponCode('');
     setCouponDesc('');
   };
 
-  const handleCreateManager = (e: React.FormEvent) => {
+  const handleCreateManager = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mgrName || !mgrEmail) return;
-    appStore.createHostelManager({
-      name: mgrName,
-      email: mgrEmail,
-      initialPassword: mgrPass,
-      assignedHostelIds: [mgrHostelId],
-    });
-    setMgrName('');
-    setMgrEmail('');
+    try {
+      const result = await appStore.createHostelManager({
+        name: mgrName,
+        email: mgrEmail,
+        initialPassword: mgrPass,
+        assignedHostelIds: [mgrHostelId],
+      });
+      if (!result.success) { window.alert(result.error); return; }
+      setMgrName('');
+      setMgrEmail('');
+    } catch (error) { window.alert(error instanceof Error ? error.message : String(error)); }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -814,14 +843,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                       <>
                         <button
                           type="button"
-                          onClick={() => appStore.updateBookingStatus(b.id, 'confirmed')}
+                          onClick={() => handleUpdateBookingStatus(b.id, 'confirmed')}
                           className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
                         >
                           {tAdmin.btnConfirm}
                         </button>
                         <button
                           type="button"
-                          onClick={() => appStore.updateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
+                          onClick={() => handleUpdateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
                           className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
                         >
                           {tAdmin.btnReject}
@@ -832,7 +861,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                     {b.status === 'confirmed' && (
                       <button
                         type="button"
-                        onClick={() => appStore.updateBookingStatus(b.id, 'completed')}
+                        onClick={() => handleUpdateBookingStatus(b.id, 'completed')}
                         className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
                       >
                         {tAdmin.btnComplete}

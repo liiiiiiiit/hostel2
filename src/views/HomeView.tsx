@@ -1,3 +1,4 @@
+import { addCalendarDays, yerevanToday } from '../utils/dates';
 import React, { useState, useEffect } from 'react';
 import { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -61,13 +62,9 @@ export const HomeView: React.FC<Props> = ({
 
   // Quick date presets
   const setQuickDate = (daysFromToday: number, duration: number = 2) => {
-    const start = new Date();
-    start.setDate(start.getDate() + daysFromToday);
-    const end = new Date(start);
-    end.setDate(end.getDate() + duration);
-
-    setCheckIn(start.toISOString().split('T')[0]);
-    setCheckOut(end.toISOString().split('T')[0]);
+    const start = addCalendarDays(yerevanToday(), daysFromToday);
+    setCheckIn(start);
+    setCheckOut(addCalendarDays(start, duration));
   };
 
   return (

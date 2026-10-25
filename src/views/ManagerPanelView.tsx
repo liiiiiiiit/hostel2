@@ -21,9 +21,14 @@ interface Props {
 export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tManager, getLocalized, isRtl } = useLanguage();
   const store = appStore.getState();
+  const handleUpdateBookingStatus = (...args: Parameters<typeof appStore.updateBookingStatus>) => {
+    const result = appStore.updateBookingStatus(...args);
+    if (!result.success) window.alert(result.error);
+  };
   const currentUser = store.currentUser;
-  const assignedHostelId = currentUser?.assignedHostelIds?.[0] || store.hostels[0].id;
-  const hostel = store.hostels.find(h => h.id === assignedHostelId) || store.hostels[0];
+  const assignedHostelId = currentUser?.assignedHostelIds?.[0];
+  const hostel = store.hostels.find(h => h.id === assignedHostelId);
+  if (!hostel) return <div className="p-8 text-center">{tManager.panelTitle}: —</div>;
 
   const hostelBookings = store.bookings.filter(b => b.hostelId === hostel.id);
   const pendingBookings = hostelBookings.filter(b => b.status === 'pending');
@@ -153,14 +158,14 @@ export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
                   <>
                     <button
                       type="button"
-                      onClick={() => appStore.updateBookingStatus(b.id, 'confirmed')}
+                      onClick={() => handleUpdateBookingStatus(b.id, 'confirmed')}
                       className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
                     >
                       {tManager.confirmBtn}
                     </button>
                     <button
                       type="button"
-                      onClick={() => appStore.updateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
+                      onClick={() => handleUpdateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
                       className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
                     >
                       {tManager.rejectBtn}
@@ -172,14 +177,14 @@ export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
                   <>
                     <button
                       type="button"
-                      onClick={() => appStore.updateBookingStatus(b.id, 'completed')}
+                      onClick={() => handleUpdateBookingStatus(b.id, 'completed')}
                       className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
                     >
                       {tManager.completeBtn}
                     </button>
                     <button
                       type="button"
-                      onClick={() => appStore.updateBookingStatus(b.id, 'no_show', 'عدم حضور مسافر')}
+                      onClick={() => handleUpdateBookingStatus(b.id, 'no_show', 'عدم حضور مسافر')}
                       className="px-4 py-1.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold text-xs cursor-pointer transition-colors"
                     >
                       {tManager.noShowBtn}

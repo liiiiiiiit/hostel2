@@ -34,7 +34,7 @@ export const HostelsView: React.FC<Props> = ({
 
   // Filters
   const [city, setCity] = useState(initialFilter?.city || 'all');
-  const [district, setDistrict] = useState('all');
+  const [district, setDistrict] = useState(initialFilter?.district || 'all');
   const [roomTypeFilter, setRoomTypeFilter] = useState<'all' | 'dorm_mixed' | 'dorm_female' | 'private'>('all');
   const [maxPrice, setMaxPrice] = useState<number>(30000);
   const [onlyTonightCapacity, setOnlyTonightCapacity] = useState(false);
@@ -394,7 +394,7 @@ export const HostelsView: React.FC<Props> = ({
 
                         <button
                           type="button"
-                          onClick={() => onNavigate('hostel-detail', { id: hostel.id })}
+                          onClick={() => onNavigate('hostel-detail', { ...initialFilter, id: hostel.id })}
                           className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
                         >
                           {t.detailsButton}

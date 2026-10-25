@@ -283,13 +283,15 @@ export const BookingTrackingView: React.FC<Props> = ({
 
   const handleCancel = (e: React.FormEvent) => {
     e.preventDefault();
-    appStore.cancelBookingByGuest(booking.privateToken, cancelReason || 'Cancelled by guest');
+    const result = appStore.cancelBookingByGuest(booking.privateToken, cancelReason || 'Cancelled by guest');
+    if (!result.success) { window.alert(result.error); return; }
     setShowCancelModal(false);
   };
 
   const handleReportIssue = (e: React.FormEvent) => {
     e.preventDefault();
-    appStore.reportEntranceIssue(booking.privateToken, issueNote);
+    const result = appStore.reportEntranceIssue(booking.privateToken, issueNote);
+    if (!result.success) { window.alert(result.error); return; }
     setShowIssueModal(false);
     setIssueSubmitted(true);
   };
@@ -297,7 +299,8 @@ export const BookingTrackingView: React.FC<Props> = ({
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewComment.trim()) return;
-    appStore.submitReview(booking.privateToken, rating, reviewComment);
+    const result = appStore.submitReview(booking.privateToken, rating, reviewComment);
+    if (!result.success) { window.alert(result.error); return; }
     setReviewSubmitted(true);
   };
 
@@ -324,6 +327,11 @@ export const BookingTrackingView: React.FC<Props> = ({
             <span>{tr.rejectedBadge}</span>
           </div>
         );
+      case 'expired':
+      case 'no_show':
+        return <div className="px-3 py-1.5 rounded-xl bg-slate-100 font-bold text-xs">{booking.status === 'expired'
+          ? ({ fa: 'مهلت درخواست به پایان رسید', en: 'Request expired', ru: 'Срок запроса истёк', hy: 'Հարցման ժամկետն ավարտվել է' })[currentLang]
+          : ({ fa: 'عدم حضور', en: 'No show', ru: 'Не заехал', hy: 'Չներկայացավ' })[currentLang]}</div>;
       case 'cancelled':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs sm:text-sm">

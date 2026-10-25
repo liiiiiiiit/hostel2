@@ -31,12 +31,37 @@ export interface PricingResult {
  * Check-out date is not counted as a night of stay.
  */
 export function calculateNights(checkIn: string, checkOut: string): number {
-  if (!checkIn || !checkOut) return 0;
-  const inDate = new Date(checkIn + 'T12:00:00Z');
-  const outDate = new Date(checkOut + 'T12:00:00Z');
-  const diffTime = outDate.getTime() - inDate.getTime();
+  const inDate = parseCalendarDate(checkIn);
+  const outDate = parseCalendarDate(checkOut);
+  if (inDate === null || outDate === null) return 0;
+  const diffTime = outDate - inDate;
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(0, diffDays);
+}
+
+function parseCalendarDate(value: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== value) return null;
+  return timestamp;
+}
+
+/** Maximum simultaneous occupancy, with checkout releasing capacity that day. */
+export function peakBookedQuantity(checkIn: string, checkOut: string, bookings: { checkIn: string; checkOut: string; quantity: number }[]): number {
+  const events: { date: string; delta: number }[] = [];
+  for (const booking of bookings) {
+    if (!areDatesOverlapping(checkIn, checkOut, booking.checkIn, booking.checkOut)) continue;
+    events.push({ date: booking.checkIn < checkIn ? checkIn : booking.checkIn, delta: booking.quantity });
+    events.push({ date: booking.checkOut > checkOut ? checkOut : booking.checkOut, delta: -booking.quantity });
+  }
+  events.sort((a, b) => a.date.localeCompare(b.date) || a.delta - b.delta);
+  let current = 0;
+  let peak = 0;
+  for (const event of events) {
+    current += event.delta;
+    peak = Math.max(peak, current);
+  }
+  return peak;
 }
 
 /**
@@ -60,7 +85,10 @@ export function validateBookingDates(checkIn: string, checkOut: string): { valid
  */
 export function calculateBookingPrice(input: PricingInput): PricingResult {
   const nights = calculateNights(input.checkIn, input.checkOut);
-  if (nights <= 0) {
+  if (nights <= 0 || !Number.isFinite(input.pricePerNight) || input.pricePerNight < 0 ||
+      !Number.isInteger(input.quantity) || input.quantity < 1 ||
+      [input.discountPercent, input.earlyCheckInFee, input.lateCheckInFee, input.extraServicesFee]
+        .some(value => value !== undefined && (!Number.isFinite(value) || value < 0))) {
     return {
       nights: 0,
       baseAmount: 0,
@@ -70,7 +98,7 @@ export function calculateBookingPrice(input: PricingInput): PricingResult {
       extraFees: 0,
       finalAmountToPayOnArrival: 0,
       isValidDates: false,
-      errorMessage: 'تاریخ خروج باید حداقل یک روز بعد از تاریخ ورود باشد.',
+      errorMessage: 'تاریخ، تعداد یا مبلغ اقامت معتبر نیست.',
     };
   }
 
@@ -109,6 +137,7 @@ export interface CouponRule {
   percent: number;
   active: boolean;
   minAmount?: number;
+  minAmountAMD?: number;
   maxUses?: number;
   usedCount: number;
   startsAt?: string;
@@ -138,11 +167,19 @@ export function validateCoupon(
     return { valid: false, discountPercent: 0, message: 'این کد تخفیف غیرفعال شده است.' };
   }
 
-  if (coupon.startsAt && currentDateIso < coupon.startsAt) {
+  const now = Date.parse(currentDateIso);
+  if (!Number.isFinite(now) || !Number.isFinite(baseAccommodationAmount) || baseAccommodationAmount < 0 ||
+      !Number.isFinite(coupon.percent) || coupon.percent < 0 || coupon.percent > 100 ||
+      (coupon.startsAt && !Number.isFinite(Date.parse(coupon.startsAt))) ||
+      (coupon.expiresAt && !Number.isFinite(Date.parse(coupon.expiresAt)))) {
+    return { valid: false, discountPercent: 0, message: 'اطلاعات کد تخفیف معتبر نیست.' };
+  }
+
+  if (coupon.startsAt && now < Date.parse(coupon.startsAt)) {
     return { valid: false, discountPercent: 0, message: 'مهلت استفاده از این کد هنوز آغاز نشده است.' };
   }
 
-  if (coupon.expiresAt && currentDateIso > coupon.expiresAt) {
+  if (coupon.expiresAt && now >= Date.parse(coupon.expiresAt)) {
     return { valid: false, discountPercent: 0, message: 'مهلت استفاده از این کد تخفیف به پایان رسیده است.' };
   }
 
@@ -150,11 +187,12 @@ export function validateCoupon(
     return { valid: false, discountPercent: 0, message: 'سقف استفاده از این کد تخفیف تکمیل شده است.' };
   }
 
-  if (coupon.minAmount !== undefined && coupon.minAmount > 0 && baseAccommodationAmount < coupon.minAmount) {
+  const minimum = coupon.minAmountAMD ?? coupon.minAmount ?? 0;
+  if (minimum > 0 && baseAccommodationAmount < minimum) {
     return {
       valid: false,
       discountPercent: 0,
-      message: `حداقل مبلغ اقامت برای این کد ${coupon.minAmount.toLocaleString()} درام است.`,
+      message: `حداقل مبلغ اقامت برای این کد ${minimum.toLocaleString()} درام است.`,
     };
   }
 

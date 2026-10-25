@@ -90,29 +90,38 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = appStore.login(email, password);
-    if (res.success && res.user) {
-      onSuccess(res.user);
-      onClose();
-    } else {
-      setError(res.error || tr.loginError);
-    }
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await appStore.login(email, password);
+      if (res.success && res.user) {
+        onSuccess(res.user);
+        onClose();
+      } else {
+        setError(res.error || tr.loginError);
+      }
+    } catch { setError(tr.loginError); } finally { setBusy(false); }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = appStore.registerTraveler(name, email, phone);
-    if (res.success && res.user) {
-      onSuccess(res.user);
-      onClose();
-    } else {
-      setError(res.error || tr.registerError);
-    }
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await appStore.registerTraveler(name, email, phone, password);
+      if (res.success && res.user) {
+        onSuccess(res.user);
+        onClose();
+      } else {
+        setError(res.error || tr.registerError);
+      }
+    } catch { setError(tr.registerError); } finally { setBusy(false); }
   };
 
   const fillQuickDemo = (role: 'admin' | 'manager' | 'traveler') => {
@@ -232,6 +241,7 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
 
             <button
               type="submit"
+              disabled={busy}
               className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-md transition-colors"
             >
               {tr.loginButton}
@@ -264,6 +274,13 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.passwordLabel}</label>
+              <input type="password" required minLength={8} autoComplete="new-password" value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left" />
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">{tr.phoneLabel}</label>
               <input
                 type="tel"
@@ -276,6 +293,7 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
 
             <button
               type="submit"
+              disabled={busy}
               className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer shadow-md transition-colors"
             >
               {tr.registerButton}

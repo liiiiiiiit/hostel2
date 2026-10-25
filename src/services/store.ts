@@ -1,3 +1,4 @@
+import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords';
 import {
   Hostel,
   RentalProperty,
@@ -29,13 +30,44 @@ import {
   calculateBookingPrice,
   validateCoupon,
   areDatesOverlapping,
+  peakBookedQuantity,
   analyzeArrivalHour,
 } from '../utils/pricing';
 
 const STORAGE_KEY = 'yerevanhub_store_v1';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+// Validate fields used by the UI before accepting an older or damaged snapshot.
+function validStoredItem(collection: string, value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const strings: Record<string, string[]> = {
+    users: ['id', 'email', 'name', 'role'], hostels: ['id', 'slug', 'city', 'district'],
+    rentals: ['id', 'slug', 'status', 'city', 'neighborhood'], coupons: ['code', 'startsAt', 'expiresAt'],
+    bookings: ['id', 'privateToken', 'trackingCode', 'hostelId', 'roomTypeId', 'guestName', 'guestContact', 'checkIn', 'checkOut', 'status', 'expiresAt'],
+    reviews: ['id', 'hostelId', 'status', 'comment'], rentalInquiries: ['id', 'privateToken', 'propertyId', 'status'],
+    articles: ['id', 'slug', 'title', 'category', 'content', 'status'], phrases: ['id', 'category', 'fa', 'en', 'ru', 'hy'],
+    auditLogs: ['id', 'timestamp', 'actorName', 'action', 'details'],
+  };
+  if (!strings[collection]?.every(key => typeof value[key] === 'string')) return false;
+  if (collection === 'hostels') {
+    return isRecord(value.name) && isRecord(value.address) && isRecord(value.amenities) && isRecord(value.rules) &&
+      Array.isArray(value.photos) && Array.isArray(value.languagesSpoken) && Array.isArray(value.roomTypes) &&
+      value.roomTypes.every(room => isRecord(room) && typeof room.id === 'string' && isRecord(room.name) &&
+        Number.isSafeInteger(room.totalBedsOrRooms) && Number.isFinite(room.pricePerNightAMD));
+  }
+  if (collection === 'rentals') return isRecord(value.title) && isRecord(value.amenities) && isRecord(value.utilitiesBreakdown) && Array.isArray(value.photos);
+  if (collection === 'articles') return Array.isArray(value.tags) && Array.isArray(value.sources);
+  if (collection === 'users') return typeof value.isActive === 'boolean' && ['admin', 'hostel_manager', 'traveler'].includes(value.role as string);
+  if (collection === 'bookings') return calculateNights(value.checkIn as string, value.checkOut as string) > 0 && Number.isSafeInteger(value.quantity) && (value.quantity as number) > 0;
+  return true;
+}
+
 interface AppStoreState {
   users: User[];
+  credentials: Record<string, PasswordCredential>;
   currentUser: User | null;
   hostels: Hostel[];
   rentals: RentalProperty[];
@@ -54,7 +86,7 @@ interface AppStoreState {
   };
 }
 
-class Store {
+export class Store {
   private state: AppStoreState;
   private listeners: (() => void)[] = [];
 
@@ -63,16 +95,8 @@ class Store {
   }
 
   private loadState(): AppStoreState {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.warn('Could not parse local store, using default seed:', e);
-    }
-
-    return {
+    const defaults: AppStoreState = structuredClone({
+      credentials: {},
       users: INITIAL_USERS,
       currentUser: null,
       hostels: INITIAL_HOSTELS,
@@ -90,7 +114,38 @@ class Store {
         supportWorkingHoursFa: 'پشتیبانی مقیم ایروان: شبانه‌روزی (۲۴/۷) برای ورودهای اضطراری، ساعت پاسخگویی عمومی ۸:۰۰ تا ۲۳:۰۰ به وقت ایروان',
         immediateTimeoutMinutes: 30,
       },
-    };
+    });
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return defaults;
+      const parsed = JSON.parse(stored);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return defaults;
+      for (const key of ['users', 'hostels', 'rentals', 'coupons', 'bookings', 'reviews', 'rentalInquiries', 'articles', 'phrases', 'auditLogs'] as const) {
+        if (Array.isArray(parsed[key]) && parsed[key].every((item: unknown) => validStoredItem(key, item))) {
+          (defaults[key] as unknown[]) = parsed[key];
+        }
+      }
+      if (parsed.settings && typeof parsed.settings === 'object') {
+        for (const key of Object.keys(defaults.settings) as (keyof AppStoreState['settings'])[]) {
+          const value = parsed.settings[key];
+          if (typeof value === typeof defaults.settings[key] &&
+              (typeof value !== 'number' || (Number.isFinite(value) && value > 0))) {
+            Object.assign(defaults.settings, { [key]: value });
+          }
+        }
+      }
+      if (parsed.credentials && typeof parsed.credentials === 'object' && !Array.isArray(parsed.credentials)) {
+        for (const [id, credential] of Object.entries(parsed.credentials)) {
+          const value = credential as PasswordCredential;
+          if (value && typeof value.salt === 'string' && value.salt.length > 0 && typeof value.hash === 'string' && /^[a-f0-9]{64}$/.test(value.hash)) defaults.credentials[id] = value;
+        }
+      }
+      defaults.currentUser = defaults.users.find(user => user.id === parsed.currentUser?.id && user.isActive) ?? null;
+      return defaults;
+    } catch (error) {
+      console.warn('Could not read local store, using default seed:', error);
+      return defaults;
+    }
   }
 
   private persist() {
@@ -202,7 +257,7 @@ class Store {
   }
 
   // Auth
-  public login(email: string, password?: string): { success: boolean; user?: User; error?: string } {
+  public async login(email: string, password = ''): Promise<{ success: boolean; user?: User; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
     const user = this.state.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!user) {
@@ -212,6 +267,12 @@ class Store {
       return { success: false, error: 'این حساب کاربری غیرفعال شده است.' };
     }
 
+    const credential = this.state.credentials[user.id];
+    // Only the shipped demo identities may use their documented demo password.
+    const seed = INITIAL_USERS.find(seed => seed.id === user.id && seed.email === user.email && seed.role === user.role);
+    const demoPassword = seed?.role === 'admin' ? 'Admin@2026' : seed?.role === 'hostel_manager' ? 'Hostel@2026' : seed ? 'Traveler@2026' : undefined;
+    const valid = credential ? await verifyPassword(password, credential) : Boolean(demoPassword && password === demoPassword);
+    if (!valid || !user.isActive) return { success: false, error: 'ایمیل یا رمز عبور نادرست است.' };
     this.state.currentUser = user;
     this.logAudit('LOGIN', 'USER', user.id, `ورود موفق کاربر با نقش ${user.role}`);
     this.persist();
@@ -226,14 +287,18 @@ class Store {
     this.persist();
   }
 
-  public registerTraveler(name: string, email: string, phone?: string): { success: boolean; user?: User; error?: string } {
+  public async registerTraveler(name: string, email: string, phone: string | undefined, password: string): Promise<{ success: boolean; user?: User; error?: string }> {
+    if (!name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || password.length < 8) {
+      return { success: false, error: 'نام، ایمیل و رمز عبور (حداقل ۸ کاراکتر) الزامی است.' };
+    }
+    const credential = await createPasswordCredential(password);
     const cleanEmail = email.trim().toLowerCase();
     if (this.state.users.some(u => u.email.toLowerCase() === cleanEmail)) {
       return { success: false, error: 'این ایمیل قبلاً ثبت‌نام شده است.' };
     }
 
     const newUser: User = {
-      id: `user-traveler-${Date.now()}`,
+      id: `user-traveler-${crypto.randomUUID()}`,
       email: cleanEmail,
       name: name.trim(),
       role: 'traveler',
@@ -242,6 +307,7 @@ class Store {
       isActive: true,
     };
 
+    this.state.credentials[newUser.id] = credential;
     this.state.users.push(newUser);
     this.state.currentUser = newUser;
     this.logAudit('REGISTER_TRAVELER', 'USER', newUser.id, `ثبت‌نام مسافر جدید: ${newUser.name}`);
@@ -267,7 +333,7 @@ class Store {
     couponCode?: string;
   }): { success: boolean; booking?: Booking; error?: string } {
     const hostel = this.state.hostels.find(h => h.id === data.hostelId);
-    if (!hostel) return { success: false, error: 'هاستل یافت نشد.' };
+    if (!hostel || !hostel.isPublished) return { success: false, error: 'هاستل یافت نشد.' };
 
     const roomType = hostel.roomTypes.find(rt => rt.id === data.roomTypeId);
     if (!roomType) return { success: false, error: 'نوع اتاق معتبر نیست.' };
@@ -275,9 +341,14 @@ class Store {
     const nights = calculateNights(data.checkIn, data.checkOut);
     if (nights <= 0) return { success: false, error: 'تاریخ خروج باید حداقل یک روز بعد از تاریخ ورود باشد.' };
 
-    const qty = Math.max(1, data.quantity || 1);
+    if (!Number.isInteger(data.quantity) || data.quantity < 1 ||
+        !Number.isInteger(data.guestsCount) || data.guestsCount < 1 ||
+        !data.guestName.trim() || !data.guestContact.trim()) {
+      return { success: false, error: 'نام، اطلاعات تماس و تعداد مهمانان باید معتبر باشد.' };
+    }
+    const qty = data.quantity;
 
-    // Atomic capacity check
+    // Check peak capacity in this local store. Production requires a server transaction.
     const activeConfirmed = this.state.bookings.filter(
       b =>
         b.hostelId === data.hostelId &&
@@ -285,7 +356,7 @@ class Store {
         b.status === 'confirmed' &&
         areDatesOverlapping(data.checkIn, data.checkOut, b.checkIn, b.checkOut)
     );
-    const currentlyBooked = activeConfirmed.reduce((sum, b) => sum + b.quantity, 0);
+    const currentlyBooked = peakBookedQuantity(data.checkIn, data.checkOut, activeConfirmed);
     if (currentlyBooked + qty > roomType.totalBedsOrRooms) {
       return {
         success: false,
@@ -299,19 +370,15 @@ class Store {
     let isOvernight = false;
 
     if (data.estimatedArrivalTime) {
-      const match = data.estimatedArrivalTime.match(/(\d{1,2})/);
-      if (match) {
-        const hour = parseInt(match[1], 10);
-        if (analyzeArrivalHour(hour).isOvernightArrival) {
-          isOvernight = true;
-          if (hostel.lateArrivalAvailable && hostel.lateArrivalFeeAMD) {
-            lateArrivalFee = hostel.lateArrivalFeeAMD;
-          }
-        }
-      }
+      const match = data.estimatedArrivalTime.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+      if (!match) return { success: false, error: 'ساعت ورود معتبر نیست.' };
+      const arrival = analyzeArrivalHour(Number(match[1]));
+      isOvernight = arrival.isOvernightArrival;
+      if (arrival.isEarlyMorning && hostel.earlyCheckInAvailable) earlyArrivalFee = hostel.earlyCheckInFeeAMD;
+      if (isOvernight && hostel.lateArrivalAvailable) lateArrivalFee = hostel.lateArrivalFeeAMD;
     }
 
-    // Coupon check & atomic reservation
+    // Validate the coupon before reserving its usage.
     let discountPercent = 0;
     let appliedCoupon: Coupon | null = null;
     if (data.couponCode && data.couponCode.trim()) {
@@ -321,7 +388,6 @@ class Store {
       if (vResult.valid && c) {
         discountPercent = vResult.discountPercent;
         appliedCoupon = c;
-        c.usedCount += 1;
       } else {
         return { success: false, error: vResult.message };
       }
@@ -337,15 +403,17 @@ class Store {
       lateCheckInFee: lateArrivalFee,
     });
 
-    const shortNum = Math.floor(1000 + Math.random() * 9000);
-    const trackingCode = `YVN-${shortNum}`;
-    const privateToken = `yvn-trk-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    if (!pricing.isValidDates) return { success: false, error: pricing.errorMessage };
+    if (appliedCoupon) appliedCoupon.usedCount += 1;
+    const bookingId = crypto.randomUUID();
+    const trackingCode = `YVN-${bookingId}`;
+    const privateToken = `yvn-trk-${crypto.randomUUID()}`;
 
     const timeoutMin = data.isImmediateArrival ? this.state.settings.immediateTimeoutMinutes : 180;
     const expiresAt = new Date(Date.now() + timeoutMin * 60 * 1000).toISOString();
 
     const booking: Booking = {
-      id: `book-${Date.now()}-${shortNum}`,
+      id: `book-${bookingId}`,
       trackingCode,
       privateToken,
       hostelId: hostel.id,
@@ -360,7 +428,7 @@ class Store {
       nights,
       guestsCount: Number(data.guestsCount) || qty,
       quantity: qty,
-      estimatedArrivalTime: data.estimatedArrivalTime || '۱۴:۰۰',
+      estimatedArrivalTime: data.estimatedArrivalTime || '14:00',
       specialRequests: data.specialRequests ? data.specialRequests.trim() : undefined,
       isLowerBunkRequested: Boolean(data.isLowerBunkRequested),
       isImmediateArrival: Boolean(data.isImmediateArrival),
@@ -387,7 +455,23 @@ class Store {
     return { success: true, booking };
   }
 
-  public updateBookingStatus(
+  public updateBookingStatus(bookingId: string, status: BookingStatus, reason?: string): { success: boolean; error?: string } {
+    const booking = this.state.bookings.find(item => item.id === bookingId);
+    if (!booking || !this.canManageHostel(booking.hostelId)) return { success: false, error: 'دسترسی مجاز نیست.' };
+    return this.transitionBookingStatus(bookingId, status, reason);
+  }
+
+  private canManageHostel(hostelId: string): boolean {
+    const user = this.state.currentUser;
+    return Boolean(user?.isActive && (user.role === 'admin' ||
+      (user.role === 'hostel_manager' && user.assignedHostelIds?.includes(hostelId))));
+  }
+
+  private requireAdmin() {
+    if (!this.state.currentUser?.isActive || this.state.currentUser.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+  }
+
+  private transitionBookingStatus(
     bookingId: string,
     status: BookingStatus,
     reason?: string
@@ -395,13 +479,23 @@ class Store {
     const booking = this.state.bookings.find(b => b.id === bookingId);
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
 
+    if (booking.status === status) return { success: true };
+    const transitions: Record<BookingStatus, BookingStatus[]> = {
+      pending: ['confirmed', 'rejected', 'cancelled', 'expired'],
+      confirmed: ['cancelled', 'completed', 'no_show'],
+      rejected: [], cancelled: [], expired: [], completed: [], no_show: [],
+    };
+    if (!transitions[booking.status]?.includes(status)) return { success: false, error: 'تغییر وضعیت رزرو مجاز نیست.' };
+    if (booking.status === 'pending' && status !== 'expired' && Date.parse(booking.expiresAt) <= Date.now()) {
+      this.transitionBookingStatus(booking.id, 'expired');
+      return { success: false, error: 'مهلت این درخواست رزرو به پایان رسیده است.' };
+    }
     const hostel = this.state.hostels.find(h => h.id === booking.hostelId);
-    if (!hostel) return { success: false, error: 'هاستل یافت نشد.' };
+    const roomType = hostel?.roomTypes.find(rt => rt.id === booking.roomTypeId);
 
-    const roomType = hostel.roomTypes.find(rt => rt.id === booking.roomTypeId);
-
+    if (status === 'confirmed' && !roomType) return { success: false, error: 'نوع اتاق معتبر نیست.' };
     if (status === 'confirmed' && roomType) {
-      // Re-verify capacity atomically before confirming
+      // Re-verify peak capacity before confirming
       const activeConfirmed = this.state.bookings.filter(
         b =>
           b.id !== booking.id &&
@@ -410,7 +504,7 @@ class Store {
           b.status === 'confirmed' &&
           areDatesOverlapping(booking.checkIn, booking.checkOut, b.checkIn, b.checkOut)
       );
-      const booked = activeConfirmed.reduce((sum, b) => sum + b.quantity, 0);
+      const booked = peakBookedQuantity(booking.checkIn, booking.checkOut, activeConfirmed);
       if (booked + booking.quantity > roomType.totalBedsOrRooms) {
         return {
           success: false,
@@ -421,7 +515,7 @@ class Store {
     }
 
     // Release coupon slot on reject/cancel
-    if (status === 'rejected' || status === 'cancelled') {
+    if (status === 'rejected' || status === 'cancelled' || status === 'expired') {
       if (status === 'rejected') booking.rejectionReason = reason;
       if (status === 'cancelled') booking.cancellationReason = reason;
 
@@ -441,16 +535,25 @@ class Store {
     return { success: true };
   }
 
+  public expirePendingBookings() {
+    for (const booking of this.state.bookings) {
+      if (booking.status === 'pending' && Date.parse(booking.expiresAt) <= Date.now()) {
+        this.transitionBookingStatus(booking.id, 'expired');
+      }
+    }
+  }
+
   public cancelBookingByGuest(token: string, reason: string): { success: boolean; error?: string } {
     const booking = this.getBookingByToken(token);
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
-    return this.updateBookingStatus(booking.id, 'cancelled', reason);
+    return this.transitionBookingStatus(booking.id, 'cancelled', reason);
   }
 
   public reportEntranceIssue(token: string, note: string): { success: boolean; error?: string } {
     const booking = this.getBookingByToken(token);
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
 
+    if (booking.status !== 'confirmed') return { success: false, error: 'رزرو باید تأیید شده باشد.' };
     booking.entranceIssueReported = true;
     booking.entranceIssueNote = note || 'مسافر اعلام کرد: در محل هستم اما هاستل پاسخگو نیست یا مشکلی در ورود وجود دارد.';
     booking.updatedAt = new Date().toISOString();
@@ -468,6 +571,10 @@ class Store {
     }
     if (booking.reviewId) {
       return { success: false, error: 'شما قبلاً برای این رزرو یک نظر ثبت کرده‌اید.' };
+    }
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5 || !comment.trim()) {
+      return { success: false, error: 'امتیاز و متن نظر معتبر نیست.' };
     }
 
     const review: Review = {
@@ -492,6 +599,7 @@ class Store {
 
   // Reviews Moderation (Admin)
   public moderateReview(reviewId: string, status: 'approved' | 'rejected', adminReply?: string) {
+    this.requireAdmin();
     const rev = this.state.reviews.find(r => r.id === reviewId);
     if (!rev) return;
     rev.status = status;
@@ -502,6 +610,7 @@ class Store {
 
   // Immediate Stay Toggle (Hostel Manager)
   public toggleImmediateStay(hostelId: string, enabled: boolean, hours = 6) {
+    if (!this.canManageHostel(hostelId)) throw new Error('دسترسی مجاز نیست.');
     const hostel = this.state.hostels.find(h => h.id === hostelId);
     if (!hostel) return;
     hostel.immediateStayEnabled = enabled;
@@ -528,14 +637,17 @@ class Store {
     notes?: string;
   }): { success: boolean; inquiry?: RentalInquiry; error?: string } {
     const rental = this.state.rentals.find(r => r.id === data.propertyId);
-    if (!rental) return { success: false, error: 'ملک یافت نشد.' };
+    if (!rental || rental.status !== 'published') return { success: false, error: 'ملک یافت نشد.' };
+    if (!data.guestName.trim() || !data.contact.trim() ||
+        (data.residentsCount !== undefined && (!Number.isInteger(data.residentsCount) || data.residentsCount < 1 || data.residentsCount > rental.maxResidents))) {
+      return { success: false, error: 'اطلاعات متقاضی یا تعداد ساکنین معتبر نیست.' };
+    }
 
-    const shortNum = Math.floor(100 + Math.random() * 900);
-    const trackingCode = `YVN-RNT-${shortNum}`;
-    const privateToken = `rnt-trk-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const trackingCode = `YVN-RNT-${crypto.randomUUID()}`;
+    const privateToken = `rnt-trk-${crypto.randomUUID()}`;
 
     const inquiry: RentalInquiry = {
-      id: `rinq-${Date.now()}`,
+      id: `rinq-${crypto.randomUUID()}`,
       trackingCode,
       privateToken,
       propertyId: rental.id,
@@ -561,6 +673,7 @@ class Store {
   }
 
   public updateRentalInquiryStatus(inquiryId: string, status: RentalInquiryStatus, adminNotes?: string) {
+    this.requireAdmin();
     const inq = this.state.rentalInquiries.find(i => i.id === inquiryId);
     if (!inq) return;
     inq.status = status;
@@ -572,6 +685,7 @@ class Store {
 
   // Admin Rentals Management
   public saveRental(property: RentalProperty) {
+    this.requireAdmin();
     const idx = this.state.rentals.findIndex(r => r.id === property.id);
     if (idx >= 0) {
       this.state.rentals[idx] = { ...property, updatedAt: new Date().toISOString(), lastCheckedAt: new Date().toISOString() };
@@ -588,6 +702,7 @@ class Store {
 
   // Admin Hostels Management
   public saveHostel(hostel: Hostel) {
+    this.requireAdmin();
     const idx = this.state.hostels.findIndex(h => h.id === hostel.id);
     if (idx >= 0) {
       this.state.hostels[idx] = { ...hostel, updatedAt: new Date().toISOString() };
@@ -602,6 +717,7 @@ class Store {
   }
 
   public toggleHostelPublished(id: string) {
+    this.requireAdmin();
     const h = this.state.hostels.find(item => item.id === id);
     if (!h) return;
     h.isPublished = !h.isPublished;
@@ -611,17 +727,26 @@ class Store {
   }
 
   public toggleRentalAvailability(id: string) {
+    this.requireAdmin();
     const r = this.state.rentals.find(item => item.id === id);
     if (!r) return;
-    r.isAvailable = !r.isAvailable;
+    r.status = r.status === 'published' ? 'hidden' : 'published';
     r.updatedAt = new Date().toISOString();
-    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.isAvailable ? 'موجود' : 'رزروشده'}`);
+    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.status === 'published' ? 'منتشرشده' : 'پنهان'}`);
     this.persist();
   }
 
   // Coupons
   public addCoupon(coupon: Coupon): { success: boolean; error?: string } {
+    this.requireAdmin();
     const clean = coupon.code.trim().toUpperCase();
+    if (!clean || !Number.isFinite(coupon.percent) || coupon.percent < 0 || coupon.percent > 100 ||
+        !Number.isFinite(coupon.minAmountAMD) || coupon.minAmountAMD < 0 ||
+        !Number.isInteger(coupon.maxUses) || coupon.maxUses < 0 ||
+        !Number.isFinite(Date.parse(coupon.startsAt)) || !Number.isFinite(Date.parse(coupon.expiresAt)) ||
+        Date.parse(coupon.expiresAt) <= Date.parse(coupon.startsAt)) {
+      return { success: false, error: 'اطلاعات کد تخفیف معتبر نیست.' };
+    }
     if (this.state.coupons.some(c => c.code.toUpperCase() === clean)) {
       return { success: false, error: 'این کد تخفیف قبلاً تعریف شده است.' };
     }
@@ -632,6 +757,7 @@ class Store {
   }
 
   public toggleCoupon(code: string) {
+    this.requireAdmin();
     const c = this.state.coupons.find(cp => cp.code.toUpperCase() === code.toUpperCase());
     if (!c) return;
     c.active = !c.active;
@@ -640,6 +766,7 @@ class Store {
   }
 
   public deleteCoupon(code: string) {
+    this.requireAdmin();
     this.state.coupons = this.state.coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
     this.logAudit('DELETE_COUPON', 'COUPON', code, `حذف کد تخفیف ${code}`);
     this.persist();
@@ -647,6 +774,7 @@ class Store {
 
   // Articles (Manual one-by-one by Admin)
   public saveArticle(article: Article) {
+    this.requireAdmin();
     const idx = this.state.articles.findIndex(a => a.id === article.id);
     if (idx >= 0) {
       this.state.articles[idx] = { ...article, updatedAt: new Date().toISOString() };
@@ -661,29 +789,38 @@ class Store {
   }
 
   public deleteArticle(id: string) {
+    this.requireAdmin();
     this.state.articles = this.state.articles.filter(a => a.id !== id);
     this.logAudit('DELETE_ARTICLE', 'ARTICLE', id, 'حذف مقاله');
     this.persist();
   }
 
   // Managers
-  public createHostelManager(data: { name: string; email: string; initialPassword?: string; phone?: string; assignedHostelIds: string[] }): { success: boolean; error?: string } {
+  public async createHostelManager(data: { name: string; email: string; initialPassword?: string; phone?: string; assignedHostelIds: string[] }): Promise<{ success: boolean; error?: string }> {
+    this.requireAdmin();
+    if (!data.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) || !data.initialPassword || data.initialPassword.length < 8 ||
+        !data.assignedHostelIds.length || data.assignedHostelIds.some(id => !this.state.hostels.some(hostel => hostel.id === id))) {
+      return { success: false, error: 'اطلاعات مدیر، هاستل یا رمز عبور معتبر نیست.' };
+    }
+    const credential = await createPasswordCredential(data.initialPassword);
     const clean = data.email.trim().toLowerCase();
     if (this.state.users.some(u => u.email.toLowerCase() === clean)) {
       return { success: false, error: 'کاربری با این ایمیل وجود دارد.' };
     }
 
     const newMgr: User = {
-      id: `user-manager-${Date.now()}`,
+      id: `user-manager-${crypto.randomUUID()}`,
       email: clean,
       name: data.name.trim(),
       role: 'hostel_manager',
       phone: data.phone?.trim(),
       assignedHostelIds: data.assignedHostelIds,
       createdAt: new Date().toISOString(),
-      mustChangePassword: true,
+      mustChangePassword: false,
       isActive: true,
     };
+    this.requireAdmin();
+    this.state.credentials[newMgr.id] = credential;
     this.state.users.push(newMgr);
     this.logAudit('CREATE_MANAGER', 'USER', newMgr.id, `ایجاد حساب هاستلدار برای ${newMgr.name}`);
     this.persist();
@@ -691,8 +828,10 @@ class Store {
   }
 
   public toggleManagerActive(userId: string) {
+    this.requireAdmin();
     const u = this.state.users.find(usr => usr.id === userId);
     if (!u) return;
+    if (u.role !== 'hostel_manager') return;
     u.isActive = !u.isActive;
     this.logAudit('TOGGLE_MANAGER_ACTIVE', 'USER', u.id, `تغییر وضعیت حساب ${u.name} به ${u.isActive ? 'فعال' : 'غیرفعال'}`);
     this.persist();
@@ -700,6 +839,7 @@ class Store {
 
   // Phrases
   public addPhrase(phrase: TravelPhrase) {
+    this.requireAdmin();
     phrase.id = `phr-${Date.now()}`;
     this.state.phrases.push(phrase);
     this.persist();

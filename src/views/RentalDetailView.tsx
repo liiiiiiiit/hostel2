@@ -1,3 +1,4 @@
+import { yerevanToday } from '../utils/dates';
 import React, { useState } from 'react';
 import { AppLanguage, RentalProperty } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -248,8 +249,8 @@ export const RentalDetailView: React.FC<Props> = ({
   const [requestType, setRequestType] = useState<'visit' | 'rent'>('visit');
   const [guestName, setGuestName] = useState('');
   const [contact, setContact] = useState('');
-  const [proposedVisitDate, setProposedVisitDate] = useState('2026-10-24 17:00');
-  const [desiredStartDate, setDesiredStartDate] = useState('2026-11-01');
+  const [proposedVisitDate, setProposedVisitDate] = useState(() => `${yerevanToday()} 17:00`);
+  const [desiredStartDate, setDesiredStartDate] = useState(yerevanToday);
   const [desiredDurationText, setDesiredDurationText] = useState('6 months');
   const [residentsCount, setResidentsCount] = useState(1);
   const [notes, setNotes] = useState('');

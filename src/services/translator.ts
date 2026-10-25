@@ -1,5 +1,4 @@
 import { AppLanguage } from '../types';
-import { GoogleGenAI } from '@google/genai';
 
 export interface TranslationResult {
   text: string;
@@ -135,6 +134,7 @@ export async function translateText(
   const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '');
   if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
     try {
+      const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey });
       const prompt = `You are a real-time translator on the YEREVANHUB travel website.
 Translate the following text accurately from ${getLanguageName(effectiveSource, 'en')} to ${getLanguageName(targetLang, 'en')}.

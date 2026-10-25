@@ -1,3 +1,4 @@
+import { addCalendarDays, yerevanToday } from '../utils/dates';
 import React, { useState } from 'react';
 import { AppLanguage, Hostel, RoomType, Review } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
@@ -27,6 +28,7 @@ import {
   calculateNights,
   calculateBookingPrice,
   analyzeArrivalHour,
+  validateCoupon,
 } from '../utils/pricing';
 import { getLocalized, getCityName } from '../utils/i18n';
 import { appStore } from '../services/store';
@@ -37,6 +39,7 @@ interface Props {
   hostel: Hostel;
   reviews: Review[];
   onNavigate: (view: string, params?: any) => void;
+  initialBooking?: { checkIn?: string; checkOut?: string; guests?: number };
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
@@ -305,6 +308,7 @@ export const HostelDetailView: React.FC<Props> = ({
   reviews,
   onNavigate,
   getHostelRating,
+  initialBooking,
 }) => {
   const t = UI_TRANSLATIONS[currentLang];
   const tr = DETAIL_TEXTS[currentLang] || DETAIL_TEXTS.fa;
@@ -317,10 +321,10 @@ export const HostelDetailView: React.FC<Props> = ({
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>(
     hostel.roomTypes[0]?.id || ''
   );
-  const [checkIn, setCheckIn] = useState('2026-10-23');
-  const [checkOut, setCheckOut] = useState('2026-10-25');
-  const [quantity, setQuantity] = useState(1);
-  const [guestsCount, setGuestsCount] = useState(1);
+  const [checkIn, setCheckIn] = useState(() => initialBooking?.checkIn || yerevanToday());
+  const [checkOut, setCheckOut] = useState(() => initialBooking?.checkOut || addCalendarDays(initialBooking?.checkIn || yerevanToday(), 1));
+  const [quantity, setQuantity] = useState(initialBooking?.guests || 1);
+  const [guestsCount, setGuestsCount] = useState(initialBooking?.guests || 1);
   const [guestName, setGuestName] = useState('');
   const [contactType, setContactType] = useState<'phone' | 'email'>('phone');
   const [guestContact, setGuestContact] = useState('');
@@ -350,7 +354,9 @@ export const HostelDetailView: React.FC<Props> = ({
   const currentCoupon = appStore.getState().coupons.find(
     c => c.code.toUpperCase() === appliedCouponCode.trim().toUpperCase() && c.active
   );
-  const discountPercent = currentCoupon ? currentCoupon.percent : 0;
+  const couponValidation = validateCoupon(appliedCouponCode,
+    (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights, currentCoupon);
+  const discountPercent = couponValidation.valid ? couponValidation.discountPercent : 0;
 
   const earlyFee = (arrivalAnalysis.isEarlyMorning && hostel.earlyCheckInAvailable) ? hostel.earlyCheckInFeeAMD : 0;
   const lateFee = (arrivalAnalysis.isOvernightArrival && hostel.lateArrivalAvailable) ? hostel.lateArrivalFeeAMD : 0;
@@ -373,17 +379,16 @@ export const HostelDetailView: React.FC<Props> = ({
     if (!clean) return;
 
     const coupon = appStore.getState().coupons.find(c => c.code.toUpperCase() === clean);
-    if (!coupon) {
-      setCouponError('Coupon not found');
-      return;
-    }
-    if (!coupon.active) {
-      setCouponError('Coupon inactive');
+    const result = validateCoupon(clean,
+      (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights, coupon);
+    if (!result.valid) {
+      setAppliedCouponCode('');
+      setCouponError(result.message);
       return;
     }
 
     setAppliedCouponCode(clean);
-    setCouponSuccess(`Coupon applied (${coupon.percent}% off)`);
+    setCouponSuccess(`Coupon applied (${result.discountPercent}% off)`);
   };
 
   const handleRemoveCoupon = () => {

@@ -96,3 +96,28 @@ test('areDatesOverlapping properly flags colliding date ranges', () => {
   // Booking 3: Oct 25 to Oct 30 -> does NOT overlap with Oct 20-25 because Oct 25 is checkout
   assert.equal(areDatesOverlapping('2026-10-20', '2026-10-25', '2026-10-25', '2026-10-30'), false);
 });
+
+test('invalid calendar dates never pass validation or produce NaN prices', () => {
+  for (const checkIn of ['invalid', '2026-02-30', '2026-13-01', '2026-1-1']) {
+    assert.equal(calculateNights(checkIn, '2027-01-01'), 0);
+    assert.equal(validateBookingDates(checkIn, '2027-01-01').valid, false);
+    const price = calculateBookingPrice({ checkIn, checkOut: '2027-01-01', quantity: 1, pricePerNight: 100 });
+    assert.equal(price.isValidDates, false);
+    assert.equal(price.finalAmountToPayOnArrival, 0);
+  }
+  assert.equal(calculateNights('2028-02-29', '2028-03-01'), 1);
+});
+
+test('invalid prices and quantities are rejected rather than generating a charge', () => {
+  const input = { checkIn: '2030-01-01', checkOut: '2030-01-02', quantity: 1, pricePerNight: 100 };
+  for (const changes of [{ quantity: 1.5 }, { quantity: Infinity }, { pricePerNight: NaN }, { lateCheckInFee: -10 }]) {
+    assert.equal(calculateBookingPrice({ ...input, ...changes }).isValidDates, false);
+  }
+});
+
+test('coupon date comparisons use instants rather than string order', () => {
+  const coupon = { code: 'TEST', percent: 10, active: true, usedCount: 0,
+    expiresAt: '2030-01-01T12:00:00+04:00' };
+  assert.equal(validateCoupon('TEST', 100, coupon, '2030-01-01T09:00:00Z').valid, false);
+  assert.equal(validateCoupon('TEST', 100, { ...coupon, expiresAt: 'invalid' }).valid, false);
+});
