@@ -18,13 +18,11 @@ import { ManagerPanelView } from './views/ManagerPanelView';
 import { TravelerAccountView } from './views/TravelerAccountView';
 import { AuthModal } from './views/AuthModal';
 import { StaticPages } from './views/StaticPages';
+import { useLanguage } from './context/LanguageContext';
 
 export default function App() {
   const [storeState, setStoreState] = useState(() => appStore.getState());
-  const [currentLang, setCurrentLang] = useState<AppLanguage>(() => {
-    const saved = localStorage.getItem('yerevanhub_lang');
-    return (saved as AppLanguage) || 'fa'; // Default Persian on first visit
-  });
+  const { currentLang, setLanguage } = useLanguage();
 
   const [activeView, setActiveView] = useState<string>('home');
   const [viewParams, setViewParams] = useState<any>({});
@@ -37,13 +35,6 @@ export default function App() {
     });
     return unsubscribe;
   }, []);
-
-  // Update HTML lang & dir based on selected language
-  useEffect(() => {
-    document.documentElement.lang = currentLang;
-    document.documentElement.dir = currentLang === 'fa' ? 'rtl' : 'ltr';
-    localStorage.setItem('yerevanhub_lang', currentLang);
-  }, [currentLang]);
 
   // Handle URL hash or direct parameter initialization
   useEffect(() => {
@@ -263,7 +254,7 @@ export default function App() {
       {/* Top Header */}
       <Header
         currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
+        onLanguageChange={setLanguage}
         activeView={activeView}
         onNavigate={handleNavigate}
         currentUser={currentUser}

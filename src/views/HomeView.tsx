@@ -48,26 +48,6 @@ export const HomeView: React.FC<Props> = ({
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
 
-  // Live Yerevan Clock
-  const [yerevanTime, setYerevanTime] = useState<string>('');
-
-  useEffect(() => {
-    const updateTime = () => {
-      try {
-        const now = new Date();
-        const yerevanDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Yerevan' }));
-        const hh = String(yerevanDate.getHours()).padStart(2, '0');
-        const mm = String(yerevanDate.getMinutes()).padStart(2, '0');
-        setYerevanTime(`${hh}:${mm}`);
-      } catch {
-        setYerevanTime('15:30');
-      }
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 30000);
-    return () => clearInterval(timer);
-  }, []);
-
   const AMD_TO_TOMAN = 160;
 
   const handleSearch = (e: React.FormEvent) => {
@@ -102,22 +82,6 @@ export const HomeView: React.FC<Props> = ({
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-6">
-            
-            {/* Live Status Ribbon */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>🇦🇲 {t.yerevanLiveStatus}</span>
-              {yerevanTime && (
-                <>
-                  <span className="text-slate-300" aria-hidden="true">|</span>
-                  <span className="font-mono font-bold text-slate-900">{yerevanTime}</span>
-                </>
-              )}
-            </div>
-
             {/* Header Kicker Tag */}
             <div className="flex items-center justify-center gap-2 text-xs font-black tracking-widest text-amber-700 uppercase">
               <span className="brand-name">YEREVANHUB</span>

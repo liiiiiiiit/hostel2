@@ -37,64 +37,66 @@ import {
   X,
 } from 'lucide-react';
 import { appStore } from '../services/store';
+import { useLanguage } from '../context/LanguageContext';
 
 export const ARMENIA_PHOTO_PRESETS = [
   {
     id: 'republic-sq',
-    title: 'میدان جمهوری ایروان',
-    desc: 'معماری سنگ توف و قلب پایتخت',
+    title: { fa: 'میدان جمهوری ایروان', en: 'Republic Square Yerevan', ru: 'Площадь Республики Ереван', hy: 'Հանրապետության հրապարակ Երևան' },
+    desc: { fa: 'معماری سنگ توف و قلب پایتخت', en: 'Tuff stone architecture & capital heart', ru: 'Архитектура из туфа и центр столицы', hy: 'Տուֆե ճարտարապետություն' },
     url: 'https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'cascade',
-    title: 'مجموعه پله‌های کاسکاد',
-    desc: 'نمای پانورامای شهر و هنر مدرن',
+    title: { fa: 'مجموعه پله‌های کاسکاد', en: 'The Cascade Complex', ru: 'Комплекс Каскад', hy: 'Կասկադ համալիր' },
+    desc: { fa: 'نمای پانورامای شهر و هنر مدرن', en: 'City panorama & contemporary arts', ru: 'Панорама города и современное искусство', hy: 'Քաղաքի համայնապատկեր' },
     url: 'https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'ararat-view',
-    title: 'چشم‌انداز کوه آرارات',
-    desc: 'نماد طبیعی ارمنستان و هوای مطبوع',
+    title: { fa: 'چشم‌انداز کوه آرارات', en: 'Mount Ararat Scenic View', ru: 'Вид на гору Арарат', hy: 'Արարատ լեռան տեսարան' },
+    desc: { fa: 'نماد طبیعی ارمنستان و هوای مطبوع', en: 'Historic mountain & fresh climate', ru: 'Символ Армении и чистый воздух', hy: 'Հայաստանի բնական խորհրդանիշ' },
     url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'dilijan',
-    title: 'طبیعت کوهستانی دیلیجان',
-    desc: 'جنگل‌های سرسبز و آب‌وهوای کوهستانی',
+    title: { fa: 'طبیعت کوهستانی دیلیجان', en: 'Dilijan Mountain Resort', ru: 'Горная природа Дилижана', hy: 'Դիլիջանի լեռնային բնություն' },
+    desc: { fa: 'جنگل‌های سرسبز و آب‌وهوای کوهستانی', en: 'Green forests & alpine climate', ru: 'Зеленые леса и чистый горный воздух', hy: 'Կանաչ անտառներ և մաքուր օդ' },
     url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'kilikia-bus',
-    title: 'پایانه مسافربری و اتوبوس',
-    desc: 'ترمینال مرکزی کیلیکیا و ورود شبانه',
+    title: { fa: 'پایانه مسافربری و اتوبوس', en: 'Kilikia Bus Station & Transit', ru: 'Автовокзал Киликия и трансфер', hy: 'Կիլիկիա ավտոկայան' },
+    desc: { fa: 'ترمینال مرکزی کیلیکیا و ورود شبانه', en: 'Central terminal & night arrivals', ru: 'Центральный вокзал и ночные заезды', hy: 'Կենտրոնական ավտոկայան' },
     url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'money-dram',
-    title: 'صرافی، پول و درام ارمنستان',
-    desc: 'تبدیل ارز، سوپرمارکت‌های ۲۴ ساعته ساس',
+    title: { fa: 'صرافی، پول و درام ارمنستان', en: 'Currency Exchange & Armenian Dram', ru: 'Обмен валют и армянский драм', hy: 'Տարադրամի փոխանակում և դրամ' },
+    desc: { fa: 'تبدیل ارز، سوپرمارکت‌های ۲۴ ساعته ساس', en: 'Currency rates & 24h SAS markets', ru: 'Курсы валют и круглосуточный SAS', hy: 'Արժույթի փոխանակում' },
     url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'sim-telecom',
-    title: 'سیم‌کارت و اینترنت پرسرعت',
-    desc: 'اپراتورهای Viva و Ucom و بسته‌های دیتا',
+    title: { fa: 'سیم‌کارت و اینترنت پرسرعت', en: 'SIM Cards & High-Speed Mobile Data', ru: 'Сим-карты и мобильный интернет', hy: 'SIM քարտեր և արագ ինտերնետ' },
+    desc: { fa: 'اپراتورهای Viva و Ucom و بسته‌های دیتا', en: 'Viva & Ucom 5G/4G connectivity', ru: 'Операторы связи Viva, Ucom и тарифы', hy: 'Կապի օպերատորներ Viva և Ucom' },
     url: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?auto=format&fit=crop&w=1200&q=80',
   },
   {
     id: 'apartment-interior',
-    title: 'اجاره آپارتمان و نکات قرارداد',
-    desc: 'املاک، نکات کاداستر و هزینه‌های کومونال',
+    title: { fa: 'اجاره آپارتمان و نکات قرارداد', en: 'Apartment Rentals & Contracts', ru: 'Аренда квартир и договор', hy: 'Բնակարանների վարձակալություն' },
+    desc: { fa: 'املاک، نکات کاداستر و هزینه‌های کومونال', en: 'Real estate, utilities & lease tips', ru: 'Недвижимость, коммунальные услуги', hy: 'Անշարժ գույք և կոմունալ ծախսեր' },
     url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
   },
 ];
 
 interface Props {
-  currentLang: AppLanguage;
+  currentLang?: AppLanguage;
   onNavigate: (view: string, params?: any) => void;
 }
 
-export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => {
+export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
+  const { currentLang, tAdmin, getLocalized } = useLanguage();
   const store = appStore.getState();
   const [activeTab, setActiveTab] = useState<
     'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
@@ -120,13 +122,10 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
   const [artSummary, setArtSummary] = useState('');
   const [artTags, setArtTags] = useState('');
   const [artStatus, setArtStatus] = useState<'published' | 'draft'>('published');
-  const [artLanguage, setArtLanguage] = useState<AppLanguage>('fa');
+  const [artLanguage, setArtLanguage] = useState<AppLanguage>(currentLang);
   const [artImage, setArtImage] = useState<string>(ARMENIA_PHOTO_PRESETS[0].url);
   const [artImageMode, setArtImageMode] = useState<'preset' | 'upload' | 'url'>('preset');
   const [artCustomUrl, setArtCustomUrl] = useState('');
-
-  // Review reply state
-  const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
 
   // KPIs
   const pendingBookings = store.bookings.filter(b => b.status === 'pending');
@@ -196,11 +195,11 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       tags: tagsList,
       featuredImage: finalImage,
       content: artContent.trim(),
-      author: 'مدیریت YEREVANHUB',
+      author: 'YEREVANHUB',
       language: artLanguage,
       status: artStatus,
       lastVerifiedDate: new Date().toISOString().split('T')[0],
-      sources: ['تحقیقات و انتشارات YEREVANHUB'],
+      sources: ['YEREVANHUB Official Field Research'],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -211,6 +210,31 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
     setArtTags('');
     setArtCustomUrl('');
   };
+
+  const statusLabels: Record<string, Record<AppLanguage, string>> = {
+    confirmed: { fa: 'تأییدشده', en: 'Confirmed', ru: 'Подтверждено', hy: 'Հաստատված' },
+    pending: { fa: 'در انتظار بررسی', en: 'Pending', ru: 'В ожидании', hy: 'Սպասվող' },
+    completed: { fa: 'تکمیل‌شده', en: 'Completed', ru: 'Завершено', hy: 'Ավարտված' },
+    rejected: { fa: 'ردشده', en: 'Rejected', ru: 'Отклонено', hy: 'Մերժված' },
+    cancelled: { fa: 'لغوشده', en: 'Cancelled', ru: 'Отменено', hy: 'Չեղարկված' },
+    no_show: { fa: 'عدم حضور', en: 'No Show', ru: 'Не заехал', hy: 'Չներկայացավ' },
+  };
+
+  const getStatusText = (status: string) => {
+    return statusLabels[status]?.[currentLang] || status;
+  };
+
+  const tabsConfig = [
+    { id: 'kpi', label: tAdmin.tabKpi, icon: Shield, badge: urgentUnanswered.length + entranceIssues.length },
+    { id: 'bookings', label: tAdmin.tabBookings, icon: Clock, badge: pendingBookings.length },
+    { id: 'hostels', label: tAdmin.tabHostels, icon: Building2 },
+    { id: 'managers', label: tAdmin.tabManagers, icon: Key },
+    { id: 'coupons', label: tAdmin.tabCoupons, icon: Tag },
+    { id: 'reviews', label: tAdmin.tabReviews, icon: Star, badge: pendingReviews.length },
+    { id: 'rentals', label: tAdmin.tabRentals, icon: Home, badge: pendingRentalInquiries.length },
+    { id: 'articles', label: tAdmin.tabArticles, icon: BookOpen },
+    { id: 'audit', label: tAdmin.tabAudit, icon: FileText },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -224,11 +248,11 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
             <div className="flex items-center gap-2">
               <span className="brand-name text-lg font-black text-slate-900">YEREVANHUB</span>
               <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 text-xs font-bold">
-                پنل مدیریت کل
+                {tAdmin.panelTitle}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              مدیریت یکپارچه هاستل‌ها، املاک، رزروها، تخفیف‌ها، نظرات و مقالات
+            <p className="text-xs text-slate-500 mt-0.5">
+              {tAdmin.panelSubtitle}
             </p>
           </div>
         </div>
@@ -236,17 +260,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1.5 border-b border-slate-200 pb-3">
-        {[
-          { id: 'kpi', label: 'داشبورد و آمار اصلی', icon: Shield, badge: urgentUnanswered.length + entranceIssues.length },
-          { id: 'bookings', label: 'مدیریت رزروها', icon: Clock, badge: pendingBookings.length },
-          { id: 'hostels', label: 'هاستل‌ها و تخت‌ها', icon: Building2 },
-          { id: 'managers', label: 'حساب‌های هاستلدار', icon: Key },
-          { id: 'coupons', label: 'کدهای تخفیف درصدی', icon: Tag },
-          { id: 'reviews', label: 'بررسی نظرات مسافران', icon: Star, badge: pendingReviews.length },
-          { id: 'rentals', label: 'املاک و استعلام‌ها', icon: Home, badge: pendingRentalInquiries.length },
-          { id: 'articles', label: 'افزودن و انتشار مقالات', icon: BookOpen },
-          { id: 'audit', label: 'گزارش وقایع و امنیت', icon: FileText },
-        ].map(tab => {
+        {tabsConfig.map(tab => {
           const Icon = tab.icon;
           return (
             <button
@@ -276,27 +290,58 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">رزروهای در انتظار تأیید</span>
+              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiPendingBookings}</span>
               <div className="text-3xl font-black text-slate-900">{pendingBookings.length}</div>
-              <span className="text-[11px] text-amber-600 font-bold block">نیازمند بررسی سریع</span>
+              <span className="text-[11px] text-amber-600 font-bold block">{pendingBookings.length > 0 ? 'Action required' : 'All clear'}</span>
             </div>
 
             <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">درخواست‌های ورود فوری</span>
+              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiUrgentImmediate}</span>
               <div className="text-3xl font-black text-red-600">{urgentUnanswered.length}</div>
-              <span className="text-[11px] text-red-600 font-bold block">مسافر تازه از راه رسیده</span>
+              <span className="text-[11px] text-red-600 font-bold block">{urgentUnanswered.length > 0 ? tAdmin.urgentArrivalsAlert : '0'}</span>
             </div>
 
             <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">گزارش مشکل در ورود / درب</span>
+              <span className="text-xs text-slate-500 font-medium">{tAdmin.kpiEntranceIssues}</span>
               <div className="text-3xl font-black text-rose-600">{entranceIssues.length}</div>
-              <span className="text-[11px] text-rose-600 font-bold block">نیازمند تماس اضطراری با هاستل</span>
+              <span className="text-[11px] text-rose-600 font-bold block">{entranceIssues.length > 0 ? tAdmin.entranceIssuesAlert : '0'}</span>
             </div>
 
             <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-1">
-              <span className="text-xs text-slate-500 font-medium">نظرات نیازمند بررسی</span>
+              <span className="text-xs text-slate-500 font-medium">{tAdmin.tabReviews}</span>
               <div className="text-3xl font-black text-indigo-600">{pendingReviews.length}</div>
-              <span className="text-[11px] text-indigo-600 font-bold block">تأیید قبل از انتشار عمومی</span>
+              <span className="text-[11px] text-indigo-600 font-bold block">{pendingReviews.length} {tAdmin.pendingReviewsCount}</span>
+            </div>
+          </div>
+
+          {/* Quick Shortcuts */}
+          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-slate-900">{tAdmin.quickActionsTitle}</h3>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('bookings')}
+                className="px-4 py-2.5 rounded-xl bg-purple-50 text-purple-900 hover:bg-purple-100 font-bold text-xs cursor-pointer flex items-center gap-2"
+              >
+                <Clock className="w-4 h-4 text-purple-700" />
+                <span>{tAdmin.manageBookingsAction}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('coupons')}
+                className="px-4 py-2.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-100 font-bold text-xs cursor-pointer flex items-center gap-2"
+              >
+                <Tag className="w-4 h-4 text-amber-700" />
+                <span>{tAdmin.createCouponAction}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('articles')}
+                className="px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-900 hover:bg-emerald-100 font-bold text-xs cursor-pointer flex items-center gap-2"
+              >
+                <BookOpen className="w-4 h-4 text-emerald-700" />
+                <span>{tAdmin.publishArticleAction}</span>
+              </button>
             </div>
           </div>
 
@@ -305,21 +350,21 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
             <div className="p-5 rounded-3xl bg-red-50 border border-red-200 space-y-3">
               <div className="flex items-center gap-2 text-red-900 font-bold text-sm">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
-                <span>گزارش‌های فوری عدم پاسخگویی یا مشکل ورود مسافران در محل هاستل:</span>
+                <span>{tAdmin.entranceIssuesDesc}</span>
               </div>
               <div className="space-y-2">
                 {entranceIssues.map(b => (
                   <div key={b.id} className="p-3 bg-white rounded-2xl border border-red-200 text-xs flex justify-between items-center">
                     <div>
-                      <strong>{b.guestName}</strong> ({b.guestContact}) در هاستل <strong>{b.hostelName}</strong>
+                      <strong>{b.guestName}</strong> ({b.guestContact}) - {b.hostelName}
                       <div className="text-slate-500">{b.entranceIssueNote}</div>
                     </div>
                     <button
                       type="button"
                       onClick={() => onNavigate('booking-track', { token: b.privateToken })}
-                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-xs"
+                      className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold text-xs cursor-pointer"
                     >
-                      مشاهده پیوند مسافر
+                      {tAdmin.btnPassengerLink}
                     </button>
                   </div>
                 ))}
@@ -332,41 +377,49 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {/* TAB 2: ALL BOOKINGS */}
       {activeTab === 'bookings' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-black text-slate-900">تمام رزروهای هاستل‌ها در سامانه</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-slate-900">{tAdmin.tabBookings} ({store.bookings.length})</h2>
+          </div>
           <div className="space-y-3">
             {store.bookings.map(b => (
               <div key={b.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-sm font-bold text-purple-700">{b.trackingCode}</span>
                     <span className="font-bold text-slate-900 text-sm">{b.guestName}</span>
                     <span className="text-xs text-slate-500 ltr-isolate">{b.guestContact}</span>
+                    {b.isImmediateArrival && (
+                      <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
+                        {tAdmin.immediateArrivalBadge}
+                      </span>
+                    )}
                   </div>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                     b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
                     b.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                     b.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                    b.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
                     'bg-slate-100 text-slate-700'
                   }`}>
-                    {b.status}
+                    {getStatusText(b.status)}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600">
-                  <div>هاستل: <strong className="text-slate-800">{b.hostelName}</strong></div>
-                  <div>اتاق: <strong className="text-slate-800">{b.roomTypeName}</strong></div>
-                  <div>تاریخ: <strong className="text-slate-800">{b.checkIn} تا {b.checkOut}</strong></div>
-                  <div>مبلغ در محل: <strong className="text-slate-900">{b.finalAmountAMD.toLocaleString()} AMD</strong></div>
+                  <div>{tAdmin.tableColHostel}: <strong className="text-slate-800">{b.hostelName}</strong></div>
+                  <div>{tAdmin.tableColRoom}: <strong className="text-slate-800">{b.roomTypeName}</strong></div>
+                  <div>{tAdmin.tableColDates}: <strong className="text-slate-800 ltr-isolate">{b.checkIn} → {b.checkOut}</strong></div>
+                  <div>{tAdmin.tableColAmount}: <strong className="text-slate-900">{b.finalAmountAMD.toLocaleString()} AMD</strong></div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
                   <button
                     type="button"
                     onClick={() => onNavigate('booking-track', { token: b.privateToken })}
-                    className="px-3 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <ExternalLink className="w-3 h-3" />
-                    <span>پیوند مسافر</span>
+                    <span>{tAdmin.btnPassengerLink}</span>
                   </button>
 
                   {b.status === 'pending' && (
@@ -374,16 +427,16 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       <button
                         type="button"
                         onClick={() => appStore.updateBookingStatus(b.id, 'confirmed')}
-                        className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
                       >
-                        تأیید رزرو
+                        {tAdmin.btnConfirm}
                       </button>
                       <button
                         type="button"
                         onClick={() => appStore.updateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
-                        className="px-3 py-1 rounded-lg bg-rose-600 text-white font-bold text-xs cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
                       >
-                        رد درخواست
+                        {tAdmin.btnReject}
                       </button>
                     </>
                   )}
@@ -392,9 +445,9 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                     <button
                       type="button"
                       onClick={() => appStore.updateBookingStatus(b.id, 'completed')}
-                      className="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold text-xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
                     >
-                      ثبت پایان اقامت (تکمیل)
+                      {tAdmin.btnComplete}
                     </button>
                   )}
                 </div>
@@ -408,38 +461,38 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {activeTab === 'hostels' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-slate-900">فهرست هاستل‌ها و موجودی تخت‌ها</h2>
+            <h2 className="text-lg font-black text-slate-900">{tAdmin.hostelsListTitle}</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {store.hostels.map(h => (
               <div key={h.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-900 text-base">{h.name.fa}</h3>
+                  <h3 className="font-bold text-slate-900 text-base">{getLocalized(h.name, h.name.fa)}</h3>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${h.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                    {h.isPublished ? 'منتشر شده' : 'پیش‌نویس'}
+                    {h.isPublished ? tAdmin.activeStatus : tAdmin.inactiveStatus}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{h.address.fa}</p>
+                <p className="text-xs text-slate-500">{getLocalized(h.address, h.address.fa)}</p>
 
                 <div className="space-y-1.5 text-xs">
-                  <span className="font-bold text-slate-700 block">انواع اتاق‌ها:</span>
+                  <span className="font-bold text-slate-700 block">{tAdmin.tableColRoom}:</span>
                   {h.roomTypes.map(rt => (
                     <div key={rt.id} className="p-2 rounded-lg bg-slate-50 flex justify-between items-center">
-                      <span>{rt.name.fa}</span>
-                      <span className="font-bold text-slate-900">{rt.pricePerNightAMD.toLocaleString()} AMD (ظرفیت: {rt.totalBedsOrRooms})</span>
+                      <span>{getLocalized(rt.name, rt.name.fa)}</span>
+                      <span className="font-bold text-slate-900">{rt.pricePerNightAMD.toLocaleString()} AMD ({rt.totalBedsOrRooms})</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="pt-2 flex justify-between items-center text-xs text-slate-500">
-                  <span>پذیرش ۲۴ ساعته: {h.reception24h ? 'بله' : 'خیر'}</span>
+                  <span>{tAdmin.receptionLabel} {h.reception24h ? '24/7' : h.checkInStandardTime}</span>
                   <button
                     type="button"
                     onClick={() => onNavigate('hostel-detail', { id: h.id })}
-                    className="text-amber-700 font-bold hover:underline"
+                    className="text-purple-700 font-bold hover:underline cursor-pointer"
                   >
-                    مشاهده صفحه عمومی
+                    {tAdmin.viewOnSiteBtn}
                   </button>
                 </div>
               </div>
@@ -452,44 +505,44 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {activeTab === 'managers' && (
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">ایجاد حساب مسئول هاستل (هاستل‌دار جدید)</h2>
+            <h2 className="text-base font-bold text-slate-900">{tAdmin.createManagerTitle}</h2>
             <form onSubmit={handleCreateManager} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <input
                 type="text"
                 required
-                placeholder="نام مسئول هاستل"
+                placeholder={tAdmin.managerNameLabel}
                 value={mgrName}
                 onChange={e => setMgrName(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
               />
               <input
                 type="email"
                 required
-                placeholder="ایمیل ورود"
+                placeholder={tAdmin.managerEmailLabel}
                 value={mgrEmail}
                 onChange={e => setMgrEmail(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 ltr-isolate text-left"
               />
               <select
                 value={mgrHostelId}
                 onChange={e => setMgrHostelId(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
               >
                 {store.hostels.map(h => (
-                  <option key={h.id} value={h.id}>{h.name.fa}</option>
+                  <option key={h.id} value={h.id}>{getLocalized(h.name, h.name.fa)}</option>
                 ))}
               </select>
               <button
                 type="submit"
-                className="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer transition-colors"
               >
-                ایجاد حساب هاستل‌دار
+                {tAdmin.createManagerBtn}
               </button>
             </form>
           </div>
 
           <div className="space-y-3">
-            <h3 className="font-bold text-sm text-slate-900">مسئولین فعال در سیستم:</h3>
+            <h3 className="font-bold text-sm text-slate-900">{tAdmin.activeManagersTitle}:</h3>
             {store.users.filter(u => u.role === 'hostel_manager').map(mgr => (
               <div key={mgr.id} className="p-4 rounded-2xl bg-white border border-slate-200 flex justify-between items-center text-xs">
                 <div>
@@ -498,14 +551,14 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full font-bold ${mgr.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                    {mgr.isActive ? 'فعال' : 'غیرفعال'}
+                    {mgr.isActive ? tAdmin.activeStatus : tAdmin.inactiveStatus}
                   </span>
                   <button
                     type="button"
                     onClick={() => appStore.toggleManagerActive(mgr.id)}
-                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
                   >
-                    تغییر وضعیت
+                    Toggle
                   </button>
                 </div>
               </div>
@@ -521,99 +574,96 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
           <div className="bg-purple-50/90 border border-purple-200/90 rounded-2xl p-4 text-xs text-purple-950 space-y-2">
             <div className="font-bold flex items-center gap-2 text-purple-900 text-sm">
               <Tag className="w-4 h-4 text-purple-700" />
-              <span>درباره ۳ کد تخفیف پیش‌فرض سامانه:</span>
+              <span>{tAdmin.couponsNoticeTitle}</span>
             </div>
             <p className="text-purple-800 leading-relaxed font-normal">
-              سه کد تخفیفی که در ابتدا مشاهده می‌کنید، نمونه‌های پیش‌فرض سامانه برای تست و آزمایش فرآیند رزرو هستند:
+              {tAdmin.couponsNoticeDesc}
             </p>
-            <ul className="list-disc list-inside space-y-1 text-purple-900 pr-2 font-medium">
-              <li><strong className="font-mono text-purple-950">WELCOME10</strong>: ۱۰٪ تخفیف خوش‌آمدگویی مسافران جدید (فعال)</li>
-              <li><strong className="font-mono text-purple-950">SUMMER20</strong>: ۲۰٪ تخفیف برای سفارش‌های بالای ۲۵٬۰۰۰ درام (فعال)</li>
-              <li><strong className="font-mono text-purple-950">EXPIRED50</strong>: کد آزمایشی منقضی‌شده جهت سنجش رفتار سامانه در مواجهه با کدهای منقضی (غیرفعال)</li>
+            <ul className="list-disc list-inside space-y-1 text-purple-900 font-medium">
+              <li><strong className="font-mono text-purple-950">WELCOME10</strong> (10%)</li>
+              <li><strong className="font-mono text-purple-950">SUMMER20</strong> (20%)</li>
+              <li><strong className="font-mono text-purple-950">EXPIRED50</strong> (50% expired)</li>
             </ul>
-            <p className="text-purple-700 text-[11px] pt-1 border-t border-purple-200/70">
-              💡 شما به عنوان مدیر سایت می‌توانید هر یک از این کدها را با دکمه سطل زباله (<Trash2 className="w-3 h-3 inline text-rose-600" />) به طور کامل حذف کنید، وضعیت آن را تغییر دهید یا کدهای تخفیف جدید با درصد و سقف استفاده دلخواه خود تعریف نمایید.
-            </p>
           </div>
 
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">تعریف کد تخفیف درصدی سراسری هاستل‌ها</h2>
+            <h2 className="text-base font-bold text-slate-900">{tAdmin.createCouponTitle}</h2>
             <form onSubmit={handleCreateCoupon} className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <input
                 type="text"
                 required
-                placeholder="کد (مثلاً AUTUMN25)"
+                placeholder={tAdmin.couponCodeLabel}
                 value={couponCode}
                 onChange={e => setCouponCode(e.target.value)}
-                className="uppercase bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono"
+                className="uppercase bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-mono text-slate-900"
               />
               <input
                 type="number"
                 min={1}
                 max={100}
                 required
-                placeholder="درصد (۱-۱۰۰)"
+                placeholder={tAdmin.couponPercentLabel}
                 value={couponPercent}
                 onChange={e => setCouponPercent(Number(e.target.value))}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
               />
               <input
                 type="number"
-                placeholder="سقف استفاده کل"
+                placeholder={tAdmin.couponMaxUsesLabel}
                 value={couponMaxUses}
                 onChange={e => setCouponMaxUses(Number(e.target.value))}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
               />
               <input
                 type="text"
-                placeholder="توضیحات"
+                placeholder={tAdmin.couponDescLabel}
                 value={couponDesc}
                 onChange={e => setCouponDesc(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
               />
               <button
                 type="submit"
-                className="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer transition-colors"
               >
-                ثبت کد تخفیف
+                {tAdmin.createCouponBtn}
               </button>
             </form>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-slate-900">کدهای تخفیف موجود در سیستم ({store.coupons.length}):</h3>
+              <h3 className="font-bold text-sm text-slate-900">{tAdmin.existingCouponsTitle} ({store.coupons.length}):</h3>
             </div>
             {store.coupons.map(c => (
               <div key={c.code} className="p-4 rounded-2xl bg-white border border-slate-200 flex justify-between items-center text-xs">
                 <div>
                   <span className="font-mono text-base font-black text-purple-700 block">{c.code}</span>
-                  <span className="text-slate-600">{c.percent}٪ تخفیف اقامت • {c.description}</span>
+                  <span className="text-slate-600">{c.percent}% • {c.description}</span>
                   <div className="text-slate-400 text-[11px] mt-0.5">
-                    استفاده‌شده: {c.usedCount} از {c.maxUses || 'نامحدود'}
+                    {c.usedCount} / {c.maxUses || '∞'}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full font-bold ${c.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
-                    {c.active ? 'فعال' : 'غیرفعال'}
+                    {c.active ? tAdmin.activeStatus : tAdmin.inactiveStatus}
                   </span>
                   <button
                     type="button"
                     onClick={() => appStore.toggleCoupon(c.code)}
-                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer font-medium"
+                    className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer font-medium transition-colors"
                   >
-                    تغییر وضعیت
+                    Toggle
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm(`آیا از حذف کد تخفیف ${c.code} اطمینان دارید؟`)) {
+                      if (confirm(`Delete coupon ${c.code}?`)) {
                         appStore.deleteCoupon(c.code);
                       }
                     }}
                     className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"
-                    title="حذف کامل این کد تخفیف"
+                    title={tAdmin.deleteCouponBtn}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -627,18 +677,18 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {/* TAB 6: REVIEWS MODERATION */}
       {activeTab === 'reviews' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-black text-slate-900">بررسی و تأیید نظرات مسافران (پیش از انتشار)</h2>
+          <h2 className="text-lg font-black text-slate-900">{tAdmin.reviewsTitle}</h2>
           <div className="space-y-3">
             {store.reviews.map(rev => (
               <div key={rev.id} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="font-bold text-slate-900 text-sm">{rev.guestName}</span>
-                    <span className="text-xs text-slate-400 mr-2">برای {rev.hostelName}</span>
+                    <span className="text-xs text-slate-400 mr-2"> - {rev.hostelName}</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs font-bold text-amber-600">
                     <Star className="w-3.5 h-3.5 fill-amber-500" />
-                    <span>{rev.rating} از ۵</span>
+                    <span>{rev.rating} / 5</span>
                   </div>
                 </div>
 
@@ -646,7 +696,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
 
                 {rev.adminReply && (
                   <div className="text-xs text-purple-900 bg-purple-50 p-2.5 rounded-xl border border-purple-200">
-                    <strong>پاسخ مدیر YEREVANHUB:</strong> {rev.adminReply}
+                    <strong>{tAdmin.replyToGuestLabel}</strong> {rev.adminReply}
                   </div>
                 )}
 
@@ -656,7 +706,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                     rev.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                     'bg-rose-100 text-rose-800'
                   }`}>
-                    وضعیت: {rev.status === 'approved' ? 'تأییدشده و عمومی' : rev.status === 'pending' ? 'در انتظار بررسی' : 'رد شده'}
+                    {rev.status === 'approved' ? tAdmin.activeStatus : rev.status === 'pending' ? tAdmin.filterPending : tAdmin.filterRejected}
                   </span>
 
                   <div className="flex gap-2">
@@ -664,18 +714,18 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       <button
                         type="button"
                         onClick={() => appStore.moderateReview(rev.id, 'approved')}
-                        className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold cursor-pointer"
+                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer transition-colors"
                       >
-                        تأیید و انتشار عمومی
+                        {tAdmin.btnApprove}
                       </button>
                     )}
                     {rev.status !== 'rejected' && (
                       <button
                         type="button"
                         onClick={() => appStore.moderateReview(rev.id, 'rejected')}
-                        className="px-3 py-1 rounded-lg bg-rose-600 text-white font-bold cursor-pointer"
+                        className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer transition-colors"
                       >
-                        رد نظر
+                        {tAdmin.btnReject}
                       </button>
                     )}
                   </div>
@@ -689,14 +739,14 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {/* TAB 7: RENTALS & INQUIRIES */}
       {activeTab === 'rentals' && (
         <div className="space-y-6">
-          <h2 className="text-lg font-black text-slate-900">درخواست‌های اجاره و بازدید املاک (هماهنگی با مالک)</h2>
+          <h2 className="text-lg font-black text-slate-900">{tAdmin.rentalsInquiriesTitle}</h2>
           <div className="space-y-3">
             {store.rentalInquiries.map(inq => (
               <div key={inq.id} className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3">
                 <div className="flex justify-between items-center text-xs">
                   <div>
                     <span className="font-mono font-bold text-blue-700">{inq.trackingCode}</span>
-                    <strong className="text-slate-900 text-sm mr-2">{inq.guestName}</strong>
+                    <strong className="text-slate-900 text-sm mr-2"> {inq.guestName}</strong>
                     <span className="text-slate-400 mr-2 ltr-isolate">{inq.contact}</span>
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 font-bold">
@@ -706,23 +756,23 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
 
                 <p className="text-xs text-slate-700 font-semibold">{inq.propertyTitle}</p>
                 <div className="text-xs text-slate-500">
-                  نوع: {inq.requestType === 'visit' ? `بازدید در تاریخ ${inq.proposedVisitDate}` : `اجاره شروع ${inq.desiredStartDate} برای ${inq.desiredDurationText}`}
+                  {inq.requestType === 'visit' ? `Visit: ${inq.proposedVisitDate}` : `Rent: ${inq.desiredStartDate} (${inq.desiredDurationText})`}
                 </div>
 
                 <div className="flex gap-2 justify-end pt-2 border-t border-slate-100 text-xs">
                   <button
                     type="button"
-                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'coordinating', 'با مالک تماس گرفته شد')}
+                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'coordinating', 'Contacted owner')}
                     className="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold cursor-pointer"
                   >
-                    هماهنگی با مالک
+                    {tAdmin.statusContacted}
                   </button>
                   <button
                     type="button"
-                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'agreed', 'توافق نهایی صورت گرفت')}
+                    onClick={() => appStore.updateRentalInquiryStatus(inq.id, 'agreed', 'Final agreement reached')}
                     className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold cursor-pointer"
                   >
-                    ثبت توافق نهایی
+                    {tAdmin.statusClosed}
                   </button>
                 </div>
               </div>
@@ -738,13 +788,13 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase tracking-wider mb-1">
                 <BookOpen className="w-4 h-4" />
-                <span>تحریریه و محتوای راهنما</span>
+                <span>{tAdmin.articlesTitle}</span>
               </div>
               <h2 className="text-lg font-black text-slate-900">
-                افزودن و انتشار مقاله با تصویر شاخص (مشابه مقالات استاندارد پلتفرم)
+                {tAdmin.createArticleTitle}
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                می‌توانید از تصاویر آماده باکیفیت ارمنستان انتخاب کنید، عکس دلخواه خود را آپلود نمایید یا آدرس اینترنتی وارد کنید.
+                {tAdmin.imageStudioDesc}
               </p>
             </div>
 
@@ -754,7 +804,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                 <input
                   type="text"
                   required
-                  placeholder="عنوان مقاله (مثلاً: راهنمای گام‌به‌گام سیم‌کارت و اینترنت پرسرعت در ایروان)"
+                  placeholder={tAdmin.articleTitleLabel}
                   value={artTitle}
                   onChange={e => setArtTitle(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:outline-hidden transition-all"
@@ -762,24 +812,24 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">دسته‌بندی موضوعی</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">{tAdmin.articleCategoryLabel}</label>
                     <select
                       value={artCategory}
                       onChange={e => setArtCategory(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
                     >
-                      <option value="ویزا و اقامت">ویزا و اقامت</option>
-                      <option value="هزینه‌های سفر و زندگی">هزینه‌های سفر و زندگی</option>
-                      <option value="راهنمای اولین سفر و تازهواردها">راهنمای اولین سفر و تازهواردها</option>
-                      <option value="تاکسی و حمل‌ونقل عمومی">تاکسی و حمل‌ونقل عمومی</option>
-                      <option value="پول و صرافی">پول و صرافی</option>
-                      <option value="سیم‌کارت و اینترنت">سیم‌کارت و اینترنت</option>
-                      <option value="اجارهٔ خانه و نکات سکونت">اجارهٔ خانه و نکات سکونت</option>
+                      <option value="ویزا و اقامت">Visa & Residency / ویزا و اقامت</option>
+                      <option value="هزینه‌های سفر و زندگی">Travel & Living Costs / هزینه‌ها</option>
+                      <option value="راهنمای اولین سفر و تازهواردها">First Arrival Guide / راهنمای ورود</option>
+                      <option value="تاکسی و حمل‌ونقل عمومی">Transit & Taxi / حمل‌ونقل و تاکسی</option>
+                      <option value="پول و صرافی">Money & Exchange / صرافی و ارز</option>
+                      <option value="سیم‌کارت و اینترنت">SIM Cards & Telecom / سیم‌کارت و دیتا</option>
+                      <option value="اجارهٔ خانه و نکات سکونت">Apartment Rental / اجاره خانه</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">زبان مقاله</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">{tAdmin.articleLangLabel}</label>
                     <select
                       value={artLanguage}
                       onChange={e => setArtLanguage(e.target.value as AppLanguage)}
@@ -793,14 +843,14 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">وضعیت انتشار</label>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">{tAdmin.articleStatusLabel}</label>
                     <select
                       value={artStatus}
                       onChange={e => setArtStatus(e.target.value as 'published' | 'draft')}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-semibold"
                     >
-                      <option value="published">منتشرشده (نمایش عمومی در سایت)</option>
-                      <option value="draft">پیش‌نویس (فقط قابل رویت مدیر)</option>
+                      <option value="published">{tAdmin.statusPublished}</option>
+                      <option value="draft">{tAdmin.statusDraft}</option>
                     </select>
                   </div>
                 </div>
@@ -808,14 +858,14 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
-                    placeholder="خلاصه کوتاه مطلب (۱ الی ۲ جمله برای کارت مقاله)"
+                    placeholder={tAdmin.articleSummaryLabel}
                     value={artSummary}
                     onChange={e => setArtSummary(e.target.value)}
                     className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
                   />
                   <input
                     type="text"
-                    placeholder="برچسب‌ها (با ویرگول جدا کنید: ایروان، تاکسی، صرافی)"
+                    placeholder={tAdmin.articleTagsLabel}
                     value={artTags}
                     onChange={e => setArtTags(e.target.value)}
                     className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
@@ -829,7 +879,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                   <div className="flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-purple-700" />
                     <span className="font-bold text-xs text-slate-900">
-                      تصویر شاخص مقاله (کاور باکیفیت)
+                      {tAdmin.imageStudioTitle}
                     </span>
                   </div>
 
@@ -845,7 +895,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       }`}
                     >
                       <Sparkles className="w-3 h-3" />
-                      <span>گالری عکس‌های ارمنستان</span>
+                      <span>{tAdmin.modePreset}</span>
                     </button>
                     <button
                       type="button"
@@ -857,7 +907,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       }`}
                     >
                       <Upload className="w-3 h-3" />
-                      <span>آپلود از سیستم</span>
+                      <span>{tAdmin.modeUpload}</span>
                     </button>
                     <button
                       type="button"
@@ -869,7 +919,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       }`}
                     >
                       <LinkIcon className="w-3 h-3" />
-                      <span>لینک مستقیم URL</span>
+                      <span>{tAdmin.modeUrl}</span>
                     </button>
                   </div>
                 </div>
@@ -877,18 +927,17 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                 {/* Sub-mode 1: Preset Gallery */}
                 {artImageMode === 'preset' && (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      یکی از تصاویر شاخص زیر را که متناسب با موضوع مقاله شماست با یک کلیک انتخاب کنید:
-                    </p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                       {ARMENIA_PHOTO_PRESETS.map(preset => {
                         const isSelected = artImage === preset.url;
+                        const titleText = preset.title[currentLang] || preset.title.fa;
+                        const descText = preset.desc[currentLang] || preset.desc.fa;
                         return (
                           <button
                             type="button"
                             key={preset.id}
                             onClick={() => setArtImage(preset.url)}
-                            className={`group relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all text-right p-0 ${
+                            className={`group relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all p-0 ${
                               isSelected
                                 ? 'border-purple-600 ring-2 ring-purple-500/30 shadow-md scale-101'
                                 : 'border-white/80 hover:border-purple-300 opacity-80 hover:opacity-100'
@@ -897,14 +946,14 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                             <div className="aspect-16/10 bg-slate-200 overflow-hidden">
                               <img
                                 src={preset.url}
-                                alt={preset.title}
+                                alt={titleText}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 loading="lazy"
                               />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-2 text-white pointer-events-none">
-                              <span className="text-[10px] font-bold line-clamp-1">{preset.title}</span>
-                              <span className="text-[9px] text-slate-300 line-clamp-1">{preset.desc}</span>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col justify-end p-2 text-white pointer-events-none text-left">
+                              <span className="text-[10px] font-bold line-clamp-1">{titleText}</span>
+                              <span className="text-[9px] text-slate-300 line-clamp-1">{descText}</span>
                             </div>
                             {isSelected && (
                               <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-xs pointer-events-none">
@@ -926,10 +975,10 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                         <Upload className="w-6 h-6" />
                       </div>
                       <span className="text-xs font-bold text-slate-800">
-                        برای انتخاب عکس مقاله از روی دستگاه کلیک کنید
+                        {tAdmin.uploadBtn}
                       </span>
                       <span className="text-[11px] text-slate-400 mt-1">
-                        فرمت‌های JPG، PNG، WebP یا GIF (پیش‌نمایش بلادرنگ ایجاد می‌شود)
+                        JPG, PNG, WebP
                       </span>
                       <input
                         type="file"
@@ -947,7 +996,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                     <div className="flex gap-2">
                       <input
                         type="url"
-                        placeholder="https://images.unsplash.com/... آدرس مستقیم اینترنتی عکس"
+                        placeholder={tAdmin.customUrlPlaceholder}
                         value={artCustomUrl}
                         onChange={e => setArtCustomUrl(e.target.value)}
                         className="flex-1 bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 ltr-isolate text-left"
@@ -961,7 +1010,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                         }}
                         className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs cursor-pointer"
                       >
-                        تأیید و پیش‌نمایش
+                        OK
                       </button>
                     </div>
                   </div>
@@ -973,23 +1022,22 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                     <div className="flex items-center justify-between text-[11px] font-bold text-purple-900 mb-2">
                       <span className="flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>پیش‌نمایش تصویر انتخابی برای این مقاله:</span>
+                        <span>{tAdmin.selectedImagePreview}:</span>
                       </span>
                       <button
                         type="button"
                         onClick={() => setArtImage(ARMENIA_PHOTO_PRESETS[0].url)}
                         className="text-slate-400 hover:text-purple-700 text-[10px] cursor-pointer"
                       >
-                        بازنشانی به پیش‌فرض
+                        Reset
                       </button>
                     </div>
                     <div className="relative aspect-21/9 sm:aspect-24/7 rounded-2xl overflow-hidden bg-slate-900 shadow-md">
                       <img
                         src={artImage}
-                        alt="پیش‌نمایش تصویر مقاله"
+                        alt="Article preview"
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          // Fallback to first preset if url is broken
                           (e.target as HTMLImageElement).src = ARMENIA_PHOTO_PRESETS[0].url;
                         }}
                       />
@@ -999,12 +1047,9 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                             {artCategory}
                           </span>
                           <span className="text-xs sm:text-sm font-bold line-clamp-1">
-                            {artTitle || 'عنوان نمونه مقاله شما'}
+                            {artTitle || 'Article Title'}
                           </span>
                         </div>
-                      </div>
-                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-mono">
-                        کاور فعال ✓
                       </div>
                     </div>
                   </div>
@@ -1014,17 +1059,12 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
               {/* Full Content */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  متن کامل مقاله (پشتیبانی از سرفصل، شماره‌گذاری و نکات کاربردی)
+                  {tAdmin.articleContentLabel}
                 </label>
                 <textarea
                   rows={8}
                   required
-                  placeholder="متن کامل مقاله را اینجا بنویسید...
-می‌توانید از عناوین ### و نشانه‌گذاری‌های متنی استفاده کنید.
-مثال:
-### ۱. نکات کلیدی
-- مدارک لازم: فقط گذرنامه
-- هزینه متوسط: ۲٬۰۰۰ درام"
+                  placeholder="### 1. Key Information..."
                   value={artContent}
                   onChange={e => setArtContent(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 leading-relaxed focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 focus:outline-hidden transition-all"
@@ -1038,9 +1078,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                   className="px-6 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold text-xs shadow-md shadow-purple-600/20 transition-all cursor-pointer flex items-center gap-2 hover:-translate-y-0.5"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>
-                    {artStatus === 'published' ? 'انتشار رسمی مقاله در سایت با این عکس' : 'ذخیره مقاله به صورت پیش‌نویس'}
-                  </span>
+                  <span>{tAdmin.saveArticleBtn}</span>
                 </button>
               </div>
             </form>
@@ -1050,7 +1088,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-slate-900">
-                مقالات و راهنماهای موجود در سایت ({store.articles.length}):
+                {tAdmin.publishedArticlesTitle} ({store.articles.length}):
               </h3>
             </div>
 
@@ -1061,7 +1099,6 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                   className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-all text-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {/* Thumbnail */}
                     <div className="w-16 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200/80 shadow-2xs">
                       <img
                         src={art.featuredImage}
@@ -1086,7 +1123,7 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                       <div className="text-slate-400 text-[11px] mt-0.5 flex items-center gap-2">
                         <span className="text-purple-700 font-semibold">{art.category}</span>
                         <span>•</span>
-                        <span>آخرین بررسی: {art.lastVerifiedDate}</span>
+                        <span>{tAdmin.colVerifiedDate}: {art.lastVerifiedDate}</span>
                       </div>
                     </div>
                   </div>
@@ -1099,28 +1136,28 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {art.status === 'published' ? 'منتشرشده' : 'پیش‌نویس'}
+                      {art.status === 'published' ? tAdmin.statusPublished : tAdmin.statusDraft}
                     </span>
 
                     <button
                       type="button"
                       onClick={() => onNavigate('article-detail', { slug: art.slug })}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold flex items-center gap-1 cursor-pointer"
-                      title="مشاهده مقاله در سایت"
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      title="View"
                     >
                       <Eye className="w-3.5 h-3.5 text-slate-500" />
-                      <span>مشاهده</span>
+                      <span>View</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm(`آیا از حذف مقاله «${art.title}» مطمئن هستید؟`)) {
+                        if (confirm(`Delete article "${art.title}"?`)) {
                           appStore.deleteArticle(art.id);
                         }
                       }}
                       className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 cursor-pointer transition-colors"
-                      title="حذف مقاله"
+                      title="Delete"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1135,14 +1172,15 @@ export const AdminPanelView: React.FC<Props> = ({ currentLang, onNavigate }) => 
       {/* TAB 9: AUDIT LOGS */}
       {activeTab === 'audit' && (
         <div className="space-y-4">
-          <h2 className="text-lg font-black text-slate-900">گزارش لحظه‌ای عملیات مدیران و سامانه</h2>
+          <h2 className="text-lg font-black text-slate-900">{tAdmin.auditTitle}</h2>
+          <p className="text-xs text-slate-500">{tAdmin.auditSubtitle}</p>
           <div className="space-y-2">
             {store.auditLogs.map(log => (
               <div key={log.id} className="p-3 rounded-xl bg-white border border-slate-200 text-xs flex justify-between items-center">
                 <div>
                   <span className="font-bold text-purple-700 mr-2">[{log.action}]</span>
                   <span className="text-slate-800">{log.details}</span>
-                  <span className="text-[11px] text-slate-400 mr-2">توسط {log.actorName} ({log.actorRole})</span>
+                  <span className="text-[11px] text-slate-400 mr-2">by {log.actorName} ({log.actorRole})</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-mono ltr-isolate">{log.timestamp.split('.')[0]}</span>
               </div>
