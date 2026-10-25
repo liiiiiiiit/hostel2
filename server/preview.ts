@@ -1,5 +1,5 @@
-import { Store } from './domain';
-import { publicState } from './public-state';
+import { Store } from './domain.js';
+import { publicState } from './public-state.js';
 export function readOnlyPreview() {
   const state = new Store(undefined, true).getState();
   state.users = []; state.credentials = {}; state.bookings = []; state.rentalInquiries = []; state.reviews = []; state.auditLogs = [];

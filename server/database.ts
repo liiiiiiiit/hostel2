@@ -1,7 +1,7 @@
 import { createClient, type Client, type Transaction } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
-import { Store, type AppStoreState } from './domain';
-import { createPasswordCredential } from './passwords';
+import { Store, type AppStoreState } from './domain.js';
+import { createPasswordCredential } from './passwords.js';
 
 export interface DatabaseOptions { url?: string; authToken?: string; demo?: boolean; adminEmail?: string; adminPassword?: string }
 export class Database {

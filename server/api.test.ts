@@ -4,11 +4,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
-import { Database } from './database';
-import { createApi } from './api';
-import { addCalendarDays, yerevanToday } from '../src/utils/dates';
-import { deliverNotifications } from './notifications';
-import type { ClientState } from '../src/types/index';
+import { Database } from './database.js';
+import { createApi } from './api.js';
+import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
+import { deliverNotifications } from './notifications.js';
+import type { ClientState } from '../src/types/index.js';
 
 async function fixture(t: TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), 'yh-api-'));
@@ -158,7 +158,7 @@ test('persistent database can be reopened and bootstrap does not reset an existi
 });
 
 test('unconfigured hosted preview is explicitly read-only and contains no private seeded data', async () => {
-  const { readOnlyPreview }=await import('./preview');
+  const { readOnlyPreview }=await import('./preview.js');
   const state=readOnlyPreview();
   assert.equal(state.previewMode,true);assert.equal(state.demoMode,false);
   assert.equal(state.bookings.length,0);assert.equal(state.users.length,0);assert.equal(state.reviews.length,0);
@@ -167,14 +167,15 @@ test('unconfigured hosted preview is explicitly read-only and contains no privat
 
 test('Vercel API adapter serves read-only browsing and rejects writes without a database', async t => {
   const previous=process.env.DATABASE_URL;delete process.env.DATABASE_URL;
-  const {default:endpoint}=await import('../api/app');
-  const {default:express}=await import('express');
-  const app=express();app.all('/api/app',endpoint);
-  const server=app.listen(0,'127.0.0.1');await once(server,'listening');
+  const {default:endpoint}=await import('../api/app.js');
+  const {createServer}=await import('node:http');
+  // Vercel invokes the entrypoint before Express has augmented the response.
+  const server=createServer(endpoint).listen(0,'127.0.0.1');await once(server,'listening');
   const base=`http://127.0.0.1:${(server.address() as {port:number}).port}/api/app`;
   try {
     const response=await fetch(base);const result=await response.json();
     assert.equal(response.status,200);assert.equal(result.state.previewMode,true);
+    assert.equal(response.headers.get('cache-control'),'no-store');
     assert.equal((await fetch(base,{method:'POST'})).status,503);
   } finally {
     server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));

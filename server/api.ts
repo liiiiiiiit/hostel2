@@ -1,14 +1,14 @@
 import express from 'express';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
-import { Database } from './database';
-import { Store } from './domain';
-import { verifyPassword } from './passwords';
-import { publicState } from './public-state';
-import { enqueueBookingNotification, deliverNotifications } from './notifications';
-import type { ActionResult, User } from '../src/types/index';
-import { addCalendarDays, yerevanToday } from '../src/utils/dates';
-import { calculateNights } from '../src/utils/pricing';
+import { Database } from './database.js';
+import { Store } from './domain.js';
+import { verifyPassword } from './passwords.js';
+import { publicState } from './public-state.js';
+import { enqueueBookingNotification, deliverNotifications } from './notifications.js';
+import type { ActionResult, User } from '../src/types/index.js';
+import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
+import { calculateNights } from '../src/utils/pricing.js';
 
 const text = z.string().trim().min(1).max(500);
 const optionalText = z.string().max(5000).optional();
@@ -55,7 +55,7 @@ export function createApi(database: Database) {
   const cookieName = production ? '__Host-yh_session' : 'yh_session';
   app.use(['/api','/api/app'], (_req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' }); next(); });
   const paths = ['/api', '/api/app'];
-  const session = async (req: express.Request, state: import('./domain').AppStoreState, tx: import('@libsql/client').Transaction): Promise<User | null> => {
+  const session = async (req: express.Request, state: import('./domain.js').AppStoreState, tx: import('@libsql/client').Transaction): Promise<User | null> => {
     const token = parseCookies(req.headers.cookie)[cookieName];
     if (!token) return null;
     const result = await tx.execute({ sql: 'SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?', args: [digest(token), Date.now()] });
@@ -111,7 +111,7 @@ export function createApi(database: Database) {
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 0 });
         } else if (envelope.action === 'checkCoupon') {
-          const { validateCoupon } = await import('../src/utils/pricing');
+          const { validateCoupon } = await import('../src/utils/pricing.js');
           const coupon = state.coupons.find(c => c.code.toUpperCase() === String(args[0]).trim().toUpperCase());
           const checked = validateCoupon(String(args[0]), Number(args[1]), coupon);
           actionResult = { success: checked.valid, error: checked.valid ? undefined : checked.message, coupon: checked.valid ? coupon : undefined };

@@ -1,7 +1,7 @@
-import type { AppStoreState } from './domain';
-import type { ClientState, User } from '../src/types/index';
-import { addCalendarDays, yerevanToday } from '../src/utils/dates';
-import { peakBookedQuantity } from '../src/utils/pricing';
+import type { AppStoreState } from './domain.js';
+import type { ClientState, User } from '../src/types/index.js';
+import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
+import { peakBookedQuantity } from '../src/utils/pricing.js';
 
 export function publicState(state: AppStoreState, actor: User | null, demoMode: boolean, bookingToken = '', inquiryToken = ''): ClientState {
   const admin = actor?.role === 'admin';

@@ -1,5 +1,5 @@
-import { addCalendarDays } from '../src/utils/dates';
-import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords';
+import { addCalendarDays } from '../src/utils/dates.js';
+import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords.js';
 import {
   Hostel,
   RentalProperty,
@@ -13,7 +13,7 @@ import {
   AuditLog,
   BookingStatus,
   RentalInquiryStatus,
-} from '../src/types/index';
+} from '../src/types/index.js';
 import {
   INITIAL_HOSTELS,
   INITIAL_RENTALS,
@@ -25,7 +25,7 @@ import {
   INITIAL_PHRASES,
   INITIAL_USERS,
   INITIAL_AUDIT_LOGS,
-} from './seed';
+} from './seed.js';
 import {
   calculateNights,
   calculateBookingPrice,
@@ -33,7 +33,7 @@ import {
   areDatesOverlapping,
   peakBookedQuantity,
   analyzeArrivalHour,
-} from '../src/utils/pricing';
+} from '../src/utils/pricing.js';
 
 const STORAGE_KEY = 'yerevanhub_store_v1';
 
@@ -68,7 +68,7 @@ function validStoredItem(collection: string, value: unknown): boolean {
 
 export interface AppStoreState {
   users: User[];
-  capacities: import('../src/types/index').CapacityOverride[];
+  capacities: import('../src/types/index.js').CapacityOverride[];
   credentials: Record<string, PasswordCredential>;
   currentUser: User | null;
   hostels: Hostel[];
@@ -614,7 +614,7 @@ export class Store {
     return { success: true };
   }
 
-  public submitReview(token: string, rating: number, comment: string, scores?: import('../src/types/index').Review['scores']): { success: boolean; error?: string } {
+  public submitReview(token: string, rating: number, comment: string, scores?: import('../src/types/index.js').Review['scores']): { success: boolean; error?: string } {
     const booking = this.getBookingByToken(token);
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
     if (booking.status !== 'completed') {

@@ -1,6 +1,6 @@
 import type { Transaction } from '@libsql/client';
-import type { AppStoreState } from './domain';
-import type { Booking } from '../src/types/index';
+import type { AppStoreState } from './domain.js';
+import type { Booking } from '../src/types/index.js';
 
 export async function enqueueBookingNotification(tx: Transaction, state: AppStoreState, booking: Booking) {
   const subject = `YEREVANHUB · ${booking.trackingCode} · ${booking.status}`;
@@ -18,7 +18,7 @@ export async function enqueueBookingNotification(tx: Transaction, state: AppStor
 
 // Durable outbox: no external network calls while the booking transaction holds a lock.
 // The worker is explicitly invoked by an authorized admin or an authenticated scheduler.
-export async function deliverNotifications(database: import('./database').Database, send: typeof fetch = fetch) {
+export async function deliverNotifications(database: import('./database.js').Database, send: typeof fetch = fetch) {
   const claimed = await database.transaction(async (_state, tx) => {
     const channels = [process.env.RESEND_API_KEY && process.env.NOTIFICATION_FROM ? 'email' : '', process.env.TELEGRAM_BOT_TOKEN ? 'telegram' : ''].filter(Boolean);
     if (!channels.length) return [];
