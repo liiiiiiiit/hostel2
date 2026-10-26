@@ -1,3 +1,4 @@
+import { pricingText } from '../i18n/pricing';
 import { requiredUnits, occupancyIsValid } from '../utils/occupancy';
 import { propertyText } from '../i18n/properties';
 import { ListingDisclosure } from '../components/ListingDisclosure';
@@ -62,7 +63,7 @@ const DETAIL_TEXTS = {
     ownLock: '(نیاز به قفل شخصی)',
     codeLock: '(رمزی)',
     overnightTitle: 'راهنمای ویژه ورود در نیمه‌شب یا صبح زود (اتوبوس تهران - ایروان)',
-    overnightDesc: 'اگر ساعت رسیدن شما بین نیمه‌شب تا ۶ صبح است: تحویل استاندارد اتاق ساعت ۱۴:۰۰ است. چنانچه می‌خواهید به محض رسیدن در بامداد روی تخت بخوابید، رزرو باید از شب قبل آغاز شود. در غیر این صورت، پذیرش هاستل چمدان شما را رایگان تحویل گرفته و می‌توانید تا زمان تحویل تخت (۱۴:۰۰) از لابی و آشپزخانه استفاده کنید.',
+    overnightDesc: 'برای خوابیدن بلافاصله پس از ورود بامداد، معمولاً باید شب قبل را رزرو کنید. ساعت تحویل و پذیرش همین اقامتگاه را بررسی کنید. ورود زودهنگام، نگهداری چمدان و فضای انتظار فقط در صورت اعلام اقامتگاه قابل استفاده\u200cاند.',
     standardCheckIn: 'ساعت تحویل استاندارد:',
     standardCheckOut: 'ساعت تخلیه:',
     receptionHours: 'ساعت کار پذیرش:',
@@ -126,7 +127,7 @@ const DETAIL_TEXTS = {
     ownLock: '(own padlock needed)',
     codeLock: '(combination lock)',
     overnightTitle: 'Special Midnight & Early Morning Arrival Advisor',
-    overnightDesc: 'If your arrival time is between midnight and 06:00 AM: Standard check-in is at 14:00. To sleep on a bed immediately upon arrival in the early hours, your booking must begin the previous night. Otherwise, reception offers free luggage drop and access to common spaces.',
+    overnightDesc: 'To sleep immediately after arriving before dawn, you usually need the previous night. Check this property’s reception and check-in times. Early check-in, luggage storage and waiting areas are available only when stated by the property.',
     standardCheckIn: 'Standard check-in:',
     standardCheckOut: 'Standard check-out:',
     receptionHours: 'Front desk hours:',
@@ -190,7 +191,7 @@ const DETAIL_TEXTS = {
     ownLock: '(нужен свой замок)',
     codeLock: '(кодовый замок)',
     overnightTitle: 'Советы при ночном или раннем заезде (автобус Тегеран/Тбилиси)',
-    overnightDesc: 'Если вы прибываете ночью (между 00:00 и 06:00): Стандартное время заселения — 14:00. Чтобы сразу лечь спать, бронируйте с предыдущих суток. В противном случае хостел бесплатно примет ваш багаж в лобби.',
+    overnightDesc: 'Чтобы лечь спать сразу после прибытия до рассвета, обычно нужна предыдущая ночь. Проверьте часы ресепшена и заезда этого объекта. Ранний заезд, хранение багажа и зона ожидания доступны только если указаны объектом.',
     standardCheckIn: 'Стандартный заезд:',
     standardCheckOut: 'Стандартный выезд:',
     receptionHours: 'Часы работы стойки:',
@@ -254,7 +255,7 @@ const DETAIL_TEXTS = {
     ownLock: '(անձնական կողպեքով)',
     codeLock: '(կոդով)',
     overnightTitle: 'Խորհրդատվություն գիշերային կամ վաղ ժամանման դեպքում',
-    overnightDesc: 'Եթե ժամանում եք գիշերը (00:00 - 06:00): Ստանդարտ մուտքը 14:00-ին է: Անմիջապես քնելու համար անհրաժեշտ է ամրագրել նախորդ օրվանից: Այլապես կարող եք անվճար թողնել ուղեբեռը ընդունարանում:',
+    overnightDesc: 'Լուսաբացից առաջ ժամանելիս անմիջապես քնելու համար սովորաբար անհրաժեշտ է նախորդ գիշերը։ Ստուգեք այս օբյեկտի ընդունարանի և մուտքի ժամերը։ Վաղ մուտքը, ուղեբեռի պահոցն ու սպասասրահը հասանելի են միայն եթե նշված են։',
     standardCheckIn: 'Ստանդարտ մուտք՝',
     standardCheckOut: 'Ստանդարտ ելք՝',
     receptionHours: 'Ընդունարանի աշխատաժամերը՝',
@@ -375,15 +376,15 @@ export const HostelDetailView: React.FC<Props> = ({
   const currentCoupon = appStore.getState().coupons.find(
     c => c.code.toUpperCase() === appliedCouponCode.trim().toUpperCase() && c.active
   );
-  const couponValidation = validateCoupon(appliedCouponCode,
-    (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights, currentCoupon);
+  const accommodationQuote=calculateBookingPrice({pricePerNight:selectedRoom?.pricePerNightAMD??hostel.minPricePerNightAMD,checkIn,checkOut,quantity,rules:selectedRoom?.pricingRules});
+  const couponValidation = validateCoupon(appliedCouponCode,accommodationQuote.baseAmount,currentCoupon);
   const discountPercent = couponValidation.valid ? couponValidation.discountPercent : 0;
 
   const earlyFee = (arrivalAnalysis.isEarlyMorning && hostel.earlyCheckInAvailable) ? hostel.earlyCheckInFeeAMD : 0;
   const lateFee = (arrivalAnalysis.isOvernightArrival && hostel.lateArrivalAvailable) ? hostel.lateArrivalFeeAMD : 0;
 
   const pricing = calculateBookingPrice({
-    pricePerNight: selectedRoom?.pricePerNightAMD || hostel.minPricePerNightAMD,
+    pricePerNight: selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD,rules:selectedRoom?.pricingRules,
     checkIn,
     checkOut,
     quantity,
@@ -402,7 +403,7 @@ export const HostelDetailView: React.FC<Props> = ({
     if (couponBusy) return;
     setCouponBusy(true);
     const response = await appStore.checkCoupon(clean,
-      (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights);
+      accommodationQuote.baseAmount);
     setCouponBusy(false);
     if (!response.success || !response.coupon) {
       setAppliedCouponCode(''); setCouponError(response.error || 'کد معتبر نیست.'); return;
@@ -531,14 +532,16 @@ export const HostelDetailView: React.FC<Props> = ({
           <form onSubmit={handleSubmitBooking} className="space-y-4" aria-busy={isSubmitting}>
             <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-in" className="text-sm font-medium">{ft.checkIn}<input id="booking-in" className="field mt-2" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value&&event.target.value>=checkOut)setCheckOut(addCalendarDays(event.target.value,1));}}/></label><label htmlFor="booking-out" className="text-sm font-medium">{ft.checkOut}<input id="booking-out" className="field mt-2" type="date" required min={addCalendarDays(checkIn||yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event=>setCheckOut(event.target.value)}/></label></div>
             <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<select aria-label={tr.guestsCount} id="booking-guests" className="field mt-2" value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<select aria-label={tr.bedQuantity} id="booking-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} disabled={n>selectedCapacity}>{n}</option>)}</select></label></div>
+            {!pricing.isValidDates&&nights>0&&<p role="alert" className="text-sm text-amber-900">{pricingText(currentLang).unknown}</p>}
             {!canBook && <p role="status" className="text-sm text-amber-900">{ft.noCapacity}</p>}
             <label htmlFor="booking-arrival" className="block text-sm font-medium">{tr.approxArrival}<select id="booking-arrival" className="field mt-2" value={arrivalTime} onChange={event=>setArrivalTime(event.target.value)}><option value="14:00">{tr.arrival14}</option><option value="18:00">{tr.arrival18}</option><option value="22:00">{tr.arrival22}</option><option value="03:00">{tr.arrival03}</option><option value="07:00">{tr.arrival07}</option></select></label>
             {arrivalAnalysis.isEarlyMorning && <details className="rounded-xl p-3 bg-amber-50 text-sm text-amber-950"><summary className="cursor-pointer font-medium">{tr.overnightTitle}</summary><p className="pt-2 leading-relaxed">{tr.overnightDesc}</p></details>}
             <div className="border-t border-slate-100 pt-4 space-y-3"><h3 className="font-medium text-sm">{copy.guestInfo}</h3><label htmlFor="booking-name" className="block text-sm">{tr.fullName}<input id="booking-name" autoComplete="name" className="field mt-2" required placeholder="Ali / John" value={guestName} onChange={event=>setGuestName(event.target.value)}/></label><div className="flex justify-between gap-2 text-sm"><label htmlFor="booking-contact">{copy.contact}</label><div className="flex gap-3"><button type="button" aria-pressed={contactType==='phone'} className={contactType==='phone'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('phone')}>{tr.phoneTab}</button><button type="button" aria-pressed={contactType==='email'} className={contactType==='email'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('email')}>{tr.emailTab}</button></div></div><input id="booking-contact" className="field ltr-isolate" autoComplete={contactType==='phone'?'tel':'email'} required type={contactType==='phone'?'tel':'email'} placeholder={contactType==='phone'?'+374 91 ...':'name@example.com'} value={guestContact} onChange={event=>setGuestContact(event.target.value)}/></div>
             <details className="border-t border-slate-100 pt-4"><summary className="text-sm cursor-pointer font-medium">{copy.requests} <span className="text-slate-400 font-normal">· {copy.optional}</span></summary><div className="pt-4 space-y-3"><label className="flex gap-2 text-sm"><input type="checkbox" checked={isLowerBunkRequested} onChange={event=>setIsLowerBunkRequested(event.target.checked)}/>{tr.lowerBunk}</label><label className="block text-sm" htmlFor="booking-note">{tr.specialRequests}<textarea id="booking-note" className="field mt-2" rows={2} value={specialRequests} onChange={event=>setSpecialRequests(event.target.value)}/></label></div></details>
             <details className="border-t border-slate-100 pt-4"><summary className="text-sm cursor-pointer font-medium">{copy.coupon}</summary><div className="pt-3 space-y-2">{!appliedCouponCode ? <div className="flex gap-2"><label htmlFor="booking-coupon" className="sr-only">{copy.coupon}</label><input id="booking-coupon" className="field min-w-0 uppercase" placeholder="WELCOME10" value={couponInput} onChange={event=>setCouponInput(event.target.value)}/><button type="button" disabled={couponBusy} onClick={handleApplyCoupon} className="button-secondary">{couponBusy?'…':tr.apply}</button></div> : <div className="flex justify-between gap-3 text-sm text-emerald-800"><span>{appliedCouponCode} · {discountPercent}%</span><button type="button" className="underline" onClick={handleRemoveCoupon}>{tr.removeCoupon}</button></div>}{couponError && <p role="alert" className="text-xs text-red-700">{couponError}</p>}{appliedCouponCode && !couponValidation.valid && <p role="alert" className="text-xs text-red-700">{couponValidation.message}</p>}</div></details>
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 text-sm"><div className="flex justify-between text-slate-500"><span>{nights} {copy.nights} × {quantity}</span><span className="ltr-isolate">{pricing.baseAmount.toLocaleString()} AMD</span></div>{pricing.discountAmount>0&&<div className="flex justify-between text-emerald-800"><span>{copy.discount}</span><span className="ltr-isolate">−{pricing.discountAmount.toLocaleString()} AMD</span></div>}{pricing.extraFees>0&&<div className="flex justify-between text-slate-600"><span>{copy.extra}</span><span className="ltr-isolate">{pricing.extraFees.toLocaleString()} AMD</span></div>}<div className="flex justify-between gap-3 font-semibold text-base border-t border-slate-200 pt-3"><span>{copy.total}</span><span className="ltr-isolate">{pricing.finalAmountToPayOnArrival.toLocaleString()} AMD</span></div></div>
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 text-sm"><div className="flex justify-between text-slate-500"><span>{nights} {copy.nights} × {quantity}</span><span className="ltr-isolate">{pricing.baseAmount.toLocaleString()} AMD</span></div>{pricing.discountAmount>0&&<div className="flex justify-between text-emerald-800"><span>{copy.discount} · {pricing.discountSource==='weekly'?pricingText(currentLang).weekly:pricing.discountSource==='monthly'?pricingText(currentLang).monthly:appliedCouponCode}</span><span className="ltr-isolate">−{pricing.discountAmount.toLocaleString()} AMD</span></div>}{pricing.extraFees>0&&<div className="flex justify-between text-slate-600"><span>{copy.extra}</span><span className="ltr-isolate">{pricing.extraFees.toLocaleString()} AMD</span></div>}<div className="flex justify-between gap-3 font-semibold text-base border-t border-slate-200 pt-3"><span>{copy.total}</span><span className="ltr-isolate">{pricing.finalAmountToPayOnArrival.toLocaleString()} AMD</span></div></div>
             <label className="flex gap-2 items-start text-sm text-slate-600"><input className="mt-1" type="checkbox" required checked={acceptedTerms} onChange={event=>setAcceptedTerms(event.target.checked)}/>{copy.terms}</label>
+            {pricing.nightlyLines&&<details className="text-sm"><summary className="cursor-pointer">{pricingText(currentLang).breakdown}</summary><ul className="max-h-60 overflow-auto space-y-2 py-3">{pricing.nightlyLines.map(line=><li key={line.date} className="flex justify-between gap-3"><time dateTime={line.date}>{new Date(line.date+'T00:00:00Z').toLocaleDateString(currentLang,{timeZone:'UTC'})}</time><span className="ltr-isolate">{line.quantity} × {line.unitPriceAMD.toLocaleString(currentLang)} = {line.totalAMD.toLocaleString(currentLang)} AMD</span></li>)}</ul></details>}
             <button type="submit" disabled={isSubmitting || !canBook || Boolean(appliedCouponCode&&!couponValidation.valid) || Boolean(appStore.getState().previewMode)} className="button-primary w-full">{isSubmitting ? ft.processing : copy.book}<ArrowIcon size={17}/></button>
             <p className="text-xs text-slate-500 leading-relaxed text-center">{copy.pending}</p>
           </form>

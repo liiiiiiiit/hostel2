@@ -84,6 +84,12 @@ try {
     await room.getByLabel('Bookable units',{exact:true}).fill(String(units));if(type==='private')await room.getByLabel('Guests per unit',{exact:true}).fill(String(guests));
     await room.getByLabel('Nightly price / unit · AMD',{exact:true}).fill(type==='private'?'18000':'5000');
     await room.getByLabel('Physical bed or room labels (one per line)',{exact:true}).fill(labels);
+    if(type==='private'){
+      await room.getByRole('button',{name:'Add pricing rules',exact:true}).click();await room.getByLabel('Minimum stay nights',{exact:true}).fill('1');
+      await room.getByLabel('Discount from 7 nights · %',{exact:true}).fill('10');await room.getByLabel('Discount from 28 nights · %',{exact:true}).fill('20');
+      await room.getByRole('button',{name:'Add date range',exact:true}).click();await room.getByLabel('From night',{exact:true}).fill(checkIn);await room.getByLabel('Until date (exclusive)',{exact:true}).fill(checkOut);
+      await room.getByLabel('Nightly price per unit · AMD',{exact:true}).fill('20000');
+    }
   }
   await addRoom('dorm_female',2,1,'F1\nF2');await addRoom('private',1,2,'P1');
   await editor.getByRole('button',{name:'4. Images',exact:true}).click();
@@ -101,7 +107,11 @@ try {
   console.log('PASS administrator creates and publishes female beds and a double private room through the complete editor');
   const publicHostels=(await (await otherPage.request.get(origin+'/api/app')).json()).state.hostels;
   const managedHostel=publicHostels.find(item=>item.slug==='browser-hostel');const privateRoom=managedHostel.roomTypes.find(item=>item.type==='private');
-  await otherPage.goto(origin+`/#/hostel/browser-hostel?guests=2&roomTypeId=${privateRoom.id}`);
+  await otherPage.goto(origin+'/#/hostels?guests=2');
+  await otherPage.getByLabel('Check-out',{exact:true}).fill(new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10));
+  await otherPage.getByRole('button',{name:'More filters',exact:true}).click();await otherPage.locator('#stay-room-type').selectOption('private');
+  await otherPage.getByRole('button',{name:'Details & Booking',exact:true}).first().click();
+  assert.ok(otherPage.url().includes(privateRoom.id));
   await otherPage.getByLabel('Number of Guests',{exact:true}).waitFor();
   assert.equal(await otherPage.getByLabel('Number of Guests',{exact:true}).inputValue(),'2');assert.equal(await otherPage.getByLabel('Beds / Rooms',{exact:true}).inputValue(),'1');
   await otherPage.getByPlaceholder('Ali / John').fill('Double Room Guest');await otherPage.getByPlaceholder('+374 91 ...').fill('+37491123456');await otherPage.locator('input[type=checkbox]').last().check();

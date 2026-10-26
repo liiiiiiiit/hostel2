@@ -21,7 +21,16 @@ export interface PropertyImage {
   alt: Record<AppLanguage, string>;
   roomTypeId?: string;
 }
+export interface RoomPricingRules {
+  minimumNights: number;
+  weekendDays: number[];
+  weekendPriceAMD?: number;
+  overrides: { id:string; from:string; to:string; priceAMD:number }[];
+  weeklyDiscountPercent: number;
+  monthlyDiscountPercent: number;
+}
 export interface RoomType {
+  pricingRules?: RoomPricingRules;
   id: string;
   name: Record<AppLanguage, string>;
   type: 'dorm_mixed' | 'dorm_female' | 'dorm_male' | 'private';
@@ -127,7 +136,7 @@ export interface Booking {
   language?: AppLanguage;
   agreement?: {
     currency: 'AMD'; bookingUnit: 'bed' | 'room'; guestsPerUnit: number;
-    nightlyPriceAMD: number; cancellationPolicy: string;
+    nightlyPriceAMD: number; nightlyLines?: {date:string;unitPriceAMD:number;quantity:number;totalAMD:number;source:'base'|'weekend'|'override'}[]; discountSource?:'none'|'coupon'|'weekly'|'monthly'; cancellationPolicy: string;
     cancellationPolicyLocalized?: Record<AppLanguage,string>;
     paymentMethodsOnArrival: string[]; acceptedAt: string;
     breakdown: { accommodationAMD:number; discountAMD:number; earlyArrivalAMD:number; lateArrivalAMD:number; optionalServicesAMD:number; totalAMD:number };

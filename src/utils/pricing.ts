@@ -1,9 +1,11 @@
+import type { RoomPricingRules } from '../types/index.js';
 /**
  * YEREVANHUB - Pure Booking, Pricing, Discount, and Arrival Logic
  * Decoupled for fast, deterministic unit testing with node:test
  */
 
 export interface PricingInput {
+  rules?: RoomPricingRules;
   pricePerNight: number;
   checkIn: string; // YYYY-MM-DD
   checkOut: string; // YYYY-MM-DD
@@ -15,6 +17,8 @@ export interface PricingInput {
 }
 
 export interface PricingResult {
+  nightlyLines?: {date:string;unitPriceAMD:number;quantity:number;totalAMD:number;source:'base'|'weekend'|'override'}[];
+  discountSource?:'none'|'coupon'|'weekly'|'monthly';
   nights: number;
   baseAmount: number;
   discountPercent: number;
@@ -85,7 +89,9 @@ export function validateBookingDates(checkIn: string, checkOut: string): { valid
  */
 export function calculateBookingPrice(input: PricingInput): PricingResult {
   const nights = calculateNights(input.checkIn, input.checkOut);
-  if (nights <= 0 || !Number.isFinite(input.pricePerNight) || input.pricePerNight < 0 ||
+  const rules=input.rules;
+  const rulesValid=!rules||(Number.isInteger(rules.minimumNights)&&rules.minimumNights>=1&&rules.minimumNights<=90&&rules.weekendDays.every(day=>Number.isInteger(day)&&day>=0&&day<=6)&&(rules.weekendPriceAMD===undefined||Number.isFinite(rules.weekendPriceAMD)&&rules.weekendPriceAMD>=0)&&rules.overrides.every(rate=>parseCalendarDate(rate.from)!==null&&parseCalendarDate(rate.to)!==null&&rate.to>rate.from&&Number.isFinite(rate.priceAMD)&&rate.priceAMD>=0)&&[rules.weeklyDiscountPercent,rules.monthlyDiscountPercent].every(percent=>Number.isFinite(percent)&&percent>=0&&percent<=100));
+  if (nights <= 0 || nights>90 || !rulesValid || (rules&&nights<rules.minimumNights) || !Number.isFinite(input.pricePerNight) || input.pricePerNight < 0 ||
       !Number.isInteger(input.quantity) || input.quantity < 1 ||
       [input.discountPercent, input.earlyCheckInFee, input.lateCheckInFee, input.extraServicesFee]
         .some(value => value !== undefined && (!Number.isFinite(value) || value < 0))) {
@@ -98,14 +104,27 @@ export function calculateBookingPrice(input: PricingInput): PricingResult {
       extraFees: 0,
       finalAmountToPayOnArrival: 0,
       isValidDates: false,
-      errorMessage: 'تاریخ، تعداد یا مبلغ اقامت معتبر نیست.',
+      errorMessage: rules&&nights<rules.minimumNights?'حداقل مدت اقامت رعایت نشده است.':'تاریخ، تعداد یا مبلغ اقامت معتبر نیست.',
     };
   }
 
-  const quantity = Math.max(1, input.quantity || 1);
-  const baseAmount = Math.round(input.pricePerNight * quantity * nights);
-
-  const discountPercent = Math.min(100, Math.max(0, input.discountPercent || 0));
+  const quantity = input.quantity;
+  const nightlyLines:NonNullable<PricingResult['nightlyLines']>=[];
+  for(let offset=0;offset<nights;offset++){
+    const timestamp=Date.parse(`${input.checkIn}T00:00:00Z`)+offset*86400000;
+    const date=new Date(timestamp).toISOString().slice(0,10);
+    let price=input.pricePerNight;let source:'base'|'weekend'|'override'='base';
+    if(rules?.weekendPriceAMD!==undefined&&rules.weekendDays.includes(new Date(timestamp).getUTCDay())){price=rules.weekendPriceAMD;source='weekend';}
+    // Last matching override wins. Range end is exclusive, as with check-out.
+    for(const override of rules?.overrides??[])if(date>=override.from&&date<override.to){price=override.priceAMD;source='override';}
+    const unitPriceAMD=Math.round(price);nightlyLines.push({date,unitPriceAMD,quantity,totalAMD:unitPriceAMD*quantity,source});
+  }
+  const baseAmount=nightlyLines.reduce((total,line)=>total+line.totalAMD,0);
+  const discounts=[{source:'none' as const,value:0},...(nights>=7?[{source:'weekly' as const,value:rules?.weeklyDiscountPercent??0}]:[]),...(nights>=28?[{source:'monthly' as const,value:rules?.monthlyDiscountPercent??0}]:[]),{source:'coupon' as const,value:Math.min(100,input.discountPercent??0)}];
+  // Discounts never stack; highest eligible percentage wins, coupon wins ties.
+  const best=discounts.reduce((chosen,next)=>next.value>=chosen.value?next:chosen);
+  const discountPercent=best.value;
+  const discountSource=discountPercent>0?best.source:'none';
   const discountAmount = Math.round((baseAmount * discountPercent) / 100);
   const stayAmountAfterDiscount = Math.max(0, baseAmount - discountAmount);
 
@@ -118,6 +137,7 @@ export function calculateBookingPrice(input: PricingInput): PricingResult {
   const finalAmountToPayOnArrival = stayAmountAfterDiscount + extraFees;
 
   return {
+    nightlyLines,discountSource,
     nights,
     baseAmount,
     discountPercent,

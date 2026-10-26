@@ -118,9 +118,9 @@ export class Store {
       phrases: INITIAL_PHRASES,
       auditLogs: INITIAL_AUDIT_LOGS,
       settings: {
-        emergencyHotline: '+374 91 999 000',
-        telegramSupport: '@YerevanHubSupport',
-        supportWorkingHoursFa: 'پشتیبانی مقیم ایروان: شبانه‌روزی (۲۴/۷) برای ورودهای اضطراری، ساعت پاسخگویی عمومی ۸:۰۰ تا ۲۳:۰۰ به وقت ایروان',
+        emergencyHotline: '',
+        telegramSupport: '',
+        supportWorkingHoursFa: '',
         immediateTimeoutMinutes: 30,
       },
     });
@@ -405,7 +405,7 @@ export class Store {
     let appliedCoupon: Coupon | null = null;
     if (data.couponCode && data.couponCode.trim()) {
       const c = this.state.coupons.find(cp => cp.code.toUpperCase() === data.couponCode!.trim().toUpperCase());
-      const baseStay = roomType.pricePerNightAMD * qty * nights;
+      const baseStay = calculateBookingPrice({pricePerNight:roomType.pricePerNightAMD,checkIn:data.checkIn,checkOut:data.checkOut,quantity:qty,rules:roomType.pricingRules}).baseAmount;
       const vResult = validateCoupon(data.couponCode, baseStay, c);
       if (vResult.valid && c) {
         discountPercent = vResult.discountPercent;
@@ -416,7 +416,7 @@ export class Store {
     }
 
     const pricing = calculateBookingPrice({
-      pricePerNight: roomType.pricePerNightAMD,
+      pricePerNight: roomType.pricePerNightAMD,rules:roomType.pricingRules,
       checkIn: data.checkIn,
       checkOut: data.checkOut,
       quantity: qty,
@@ -426,6 +426,7 @@ export class Store {
     });
 
     if (!pricing.isValidDates) return { success: false, error: pricing.errorMessage };
+    if(pricing.discountSource!=='coupon')appliedCoupon=null;
     if (appliedCoupon) appliedCoupon.usedCount += 1;
     const bookingId = crypto.randomUUID();
     const trackingCode = `YVN-${bookingId}`;
@@ -437,7 +438,7 @@ export class Store {
     const booking: Booking = {
       id: `book-${bookingId}`,
       idempotencyKey:data.idempotencyKey, requestFingerprint, language:data.language??'fa',
-      agreement:{currency:'AMD',bookingUnit:roomType.type==='private'?'room':'bed',guestsPerUnit:guestsPerUnit(roomType)!,nightlyPriceAMD:roomType.pricePerNightAMD,cancellationPolicy:hostel.rules.cancellationPolicy,cancellationPolicyLocalized:structuredClone(hostel.rules.cancellationPolicyLocalized),paymentMethodsOnArrival:[...hostel.rules.acceptedPaymentMethodsOnArrival],acceptedAt:new Date().toISOString(),breakdown:{accommodationAMD:pricing.baseAmount,discountAMD:pricing.discountAmount,earlyArrivalAMD:earlyArrivalFee,lateArrivalAMD:lateArrivalFee,optionalServicesAMD:0,totalAMD:pricing.finalAmountToPayOnArrival}},
+      agreement:{currency:'AMD',bookingUnit:roomType.type==='private'?'room':'bed',guestsPerUnit:guestsPerUnit(roomType)!,nightlyPriceAMD:roomType.pricePerNightAMD,nightlyLines:pricing.nightlyLines,discountSource:pricing.discountSource,cancellationPolicy:hostel.rules.cancellationPolicy,cancellationPolicyLocalized:structuredClone(hostel.rules.cancellationPolicyLocalized),paymentMethodsOnArrival:[...hostel.rules.acceptedPaymentMethodsOnArrival],acceptedAt:new Date().toISOString(),breakdown:{accommodationAMD:pricing.baseAmount,discountAMD:pricing.discountAmount,earlyArrivalAMD:earlyArrivalFee,lateArrivalAMD:lateArrivalFee,optionalServicesAMD:0,totalAMD:pricing.finalAmountToPayOnArrival}},
       trackingCode,
       privateToken,
       hostelId: hostel.id,
@@ -510,6 +511,7 @@ export class Store {
     if (data.verified && this.state.currentUser?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
     if (data.verified && !data.note?.trim()) throw new Error('برای تأیید موقعیت، مرجع بررسی را ثبت کنید.');
     hostel.coordinates = { lat: data.lat, lng: data.lng };
+    hostel.coordinatesProvided = true;
     hostel.locationVerification = {
       status: data.verified ? 'verified' : 'unverified',
       checkedAt: data.verified ? new Date().toISOString() : undefined,
@@ -783,7 +785,7 @@ export class Store {
     if (property.media) property.photos = property.media.map(image => image.url);
     if (property.status === 'published' && (!property.slug || publicationIssues(property).length)) throw new Error('اطلاعات انتشار ملک کامل نیست.');
     const now = new Date().toISOString();
-    const saved = { ...property, verifiedBadge: previous?.verifiedBadge ?? false, verifiedExplanation: previous?.verifiedExplanation ?? '', lastCheckedAt: previous?.lastCheckedAt ?? '', createdAt: previous?.createdAt ?? now, updatedAt: now };
+    const saved = { ...property, verifiedBadge: false, verifiedExplanation: '', lastCheckedAt: '', createdAt: previous?.createdAt ?? now, updatedAt: now };
     const index = this.state.rentals.findIndex(item => item.id === saved.id);
     if (index >= 0) this.state.rentals[index] = saved;
     else this.state.rentals.unshift(saved);
@@ -809,13 +811,14 @@ export class Store {
       const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
       if (active.length && (!room || room.type !== oldRoom.type || room.bookingUnit !== oldRoom.bookingUnit || room.maxGuestsPerUnit !== oldRoom.maxGuestsPerUnit || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
     }
+    if(hostel.roomTypes.some(room=>this.state.capacities.some(day=>day.hostelId===hostel.id&&day.roomTypeId===room.id&&day.date>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})&&day.capacity>room.totalBedsOrRooms)))throw new Error('ابتدا ظرفیت‌های روزانه را با تعداد واحدهای جدید هماهنگ کنید.');
     if (hostel.media) hostel.photos = hostel.media.map(image => image.url);
     hostel.listingStatus ??= hostel.isPublished ? 'published' : 'draft';
     hostel.isPublished = hostel.listingStatus === 'published';
     if (hostel.isPublished && (!hostel.slug || publicationIssues(hostel).length)) throw new Error('اطلاعات انتشار هاستل کامل نیست.');
-    const sameLocation = previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng;
+    const sameLocation = previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng && previous.city === hostel.city && JSON.stringify(previous.address) === JSON.stringify(hostel.address) && hostel.coordinatesProvided !== false;
     const now = new Date().toISOString();
-    hostel = { ...hostel, minPricePerNightAMD: hostel.roomTypes.length ? Math.min(...hostel.roomTypes.map(room => room.pricePerNightAMD)) : 0, verification: previous?.verification ?? { status: 'unverified' }, locationVerification: sameLocation ? previous.locationVerification : { status: 'unverified' }, createdAt: previous?.createdAt ?? now, updatedAt: now };
+    hostel = { ...hostel, minPricePerNightAMD: hostel.roomTypes.length ? Math.min(...hostel.roomTypes.map(room => room.pricePerNightAMD)) : 0, verification: { status: 'unverified' }, locationVerification: sameLocation ? previous.locationVerification : { status: 'unverified' }, createdAt: previous?.createdAt ?? now, updatedAt: now };
     const index = this.state.hostels.findIndex(item => item.id === hostel.id);
     if (index >= 0) this.state.hostels[index] = hostel;
     else this.state.hostels.push(hostel);

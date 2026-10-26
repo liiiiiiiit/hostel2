@@ -1,3 +1,4 @@
+import { appStore } from '../services/store';
 import React from 'react';
 import { AppLanguage } from '../types';
 import { ShieldCheck, Phone, Send, MapPin, Clock, HelpCircle, CheckCircle2 } from 'lucide-react';
@@ -199,6 +200,8 @@ const STATIC_CONTENT = {
 
 export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
   const content = STATIC_CONTENT[currentLang] || STATIC_CONTENT.fa;
+  const settings=appStore.getState().settings;
+  const unconfigured={fa:'هنوز اعلام نشده است.',en:'Not provided yet.',ru:'Пока не указано.',hy:'Դեռ նշված չէ։'}[currentLang];
 
   if (pageType === 'about') {
     return (
@@ -241,15 +244,15 @@ export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
             <Phone className="w-8 h-8 text-emerald-600 mx-auto" />
             <h3 className="font-bold text-sm text-slate-900">{content.emergencyPhoneTitle}</h3>
-            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">+374 91 999 000</p>
-            <span className="text-[11px] text-slate-400 block">{content.emergencyPhoneHours}</span>
+            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.emergencyHotline||unconfigured}</p>
+            <span className="text-[11px] text-slate-400 block">{currentLang==='fa'&&settings.supportWorkingHoursFa||unconfigured}</span>
           </div>
 
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
             <Send className="w-8 h-8 text-sky-500 mx-auto" />
             <h3 className="font-bold text-sm text-slate-900">{content.telegramTitle}</h3>
-            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">@YerevanHubSupport</p>
-            <span className="text-[11px] text-slate-400 block">{content.telegramHours}</span>
+            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.telegramSupport||unconfigured}</p>
+            <span className="text-[11px] text-slate-400 block">{currentLang==='fa'&&settings.supportWorkingHoursFa||unconfigured}</span>
           </div>
 
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">

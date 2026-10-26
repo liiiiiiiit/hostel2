@@ -13,6 +13,8 @@ const base = {
   description: localizedPropertyText.optional(), city: short, photos: z.array(imageUrl).max(60), media: z.array(image).max(60).optional(),
   factsConfirmed: z.boolean().optional(), sampleContent: z.boolean().optional(), createdAt: short, updatedAt: short,
 };
+const calendarDate=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value);
+const pricingRules=z.object({minimumNights:z.number().int().min(1).max(90),weekendDays:z.array(z.number().int().min(0).max(6)).max(7),weekendPriceAMD:money.optional(),overrides:z.array(z.object({id,from:calendarDate,to:calendarDate,priceAMD:money}).refine(rate=>rate.to>rate.from)).max(100),weeklyDiscountPercent:z.number().min(0).max(100),monthlyDiscountPercent:z.number().min(0).max(100)});
 export const hostelSchema = z.object({
   ...base, name: localizedPropertyText, listingStatus: status.optional(), address: localizedPropertyText,
   district: short, addressArmenianForTaxi: short, coordinates: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }), coordinatesProvided: z.boolean().optional(),
@@ -25,7 +27,7 @@ export const hostelSchema = z.object({
   languagesSpoken: z.array(z.enum(['fa','en','ru','hy'])).max(4),
   amenities: z.object({ wifi: z.boolean(), lockers: z.boolean(), requiresPersonalPadlock: z.boolean(), kitchen: z.boolean(), hotWater24h: z.boolean(), linenIncluded: z.boolean(), elevator: z.boolean(), stairsCount: count.optional(), airConditioning: z.boolean(), breakfastAvailable: z.boolean(), breakfastPriceAMD: money.optional(), laundry: z.boolean(), coworking: z.boolean() }),
   rules: z.object({ quietHours: short, smokingAllowed: z.boolean(), petsAllowed: z.boolean(), cancellationPolicy: long, cancellationPolicyLocalized: localizedPropertyText.optional(), acceptedPaymentMethodsOnArrival: z.array(short).max(20) }),
-  roomTypes: z.array(z.object({ id, name: localizedPropertyText, description: localizedPropertyText, type: z.enum(['dorm_mixed','dorm_female','dorm_male','private']), bookingUnit: z.enum(['bed','room']).optional(), maxGuestsPerUnit: z.number().int().min(1).max(30).optional(), physicalUnits: z.array(z.object({ id, label: short })).max(1000).optional(), totalBedsOrRooms: count, pricePerNightAMD: money, hasCurtain: z.boolean().optional(), hasBedsidePlug: z.boolean().optional(), hasPersonalLocker: z.boolean().optional(), requiresOwnLock: z.boolean().optional() })).max(50),
+  roomTypes: z.array(z.object({ pricingRules:pricingRules.optional(), id, name: localizedPropertyText, description: localizedPropertyText, type: z.enum(['dorm_mixed','dorm_female','dorm_male','private']), bookingUnit: z.enum(['bed','room']).optional(), maxGuestsPerUnit: z.number().int().min(1).max(30).optional(), physicalUnits: z.array(z.object({ id, label: short })).max(1000).optional(), totalBedsOrRooms: count, pricePerNightAMD: money, hasCurtain: z.boolean().optional(), hasBedsidePlug: z.boolean().optional(), hasPersonalLocker: z.boolean().optional(), requiresOwnLock: z.boolean().optional() })).max(50),
   isPublished: z.boolean(),
 });
 export const rentalSchema = z.object({

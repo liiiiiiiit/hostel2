@@ -121,3 +121,20 @@ test('coupon date comparisons use instants rather than string order', () => {
   assert.equal(validateCoupon('TEST', 100, coupon, '2030-01-01T09:00:00Z').valid, false);
   assert.equal(validateCoupon('TEST', 100, { ...coupon, expiresAt: 'invalid' }).valid, false);
 });
+
+test('date rates override weekend then base; last matching override wins and checkout is excluded',()=>{
+  const rules={minimumNights:1,weekendDays:[6,0],weekendPriceAMD:1200,weeklyDiscountPercent:0,monthlyDiscountPercent:0,overrides:[{id:'first',from:'2030-01-05',to:'2030-01-07',priceAMD:1700},{id:'second',from:'2030-01-06',to:'2030-01-07',priceAMD:2000}]};
+  const result=calculateBookingPrice({pricePerNight:1000,quantity:2,checkIn:'2030-01-04',checkOut:'2030-01-08',rules});
+  assert.equal(result.isValidDates,true);assert.deepEqual(result.nightlyLines?.map(line=>line.unitPriceAMD),[1000,1700,2000,1000]);assert.equal(result.baseAmount,11400);
+  assert.deepEqual(result.nightlyLines?.map(line=>line.source),['base','override','override','base']);
+  const weekend=calculateBookingPrice({pricePerNight:1000,quantity:1,checkIn:'2030-01-05',checkOut:'2030-01-06',rules:{...rules,overrides:[]}});assert.equal(weekend.baseAmount,1200);
+});
+
+test('long-stay and coupon discounts never stack, fees are excluded and AMD rounding is consistent',()=>{
+  const rules={minimumNights:3,weekendDays:[],weeklyDiscountPercent:10,monthlyDiscountPercent:20,overrides:[]};
+  assert.equal(calculateBookingPrice({pricePerNight:1001,quantity:1,checkIn:'2030-01-01',checkOut:'2030-01-03',rules}).isValidDates,false);
+  const weekly=calculateBookingPrice({pricePerNight:1001,quantity:1,checkIn:'2030-01-01',checkOut:'2030-01-08',rules,discountPercent:5,earlyCheckInFee:500});
+  assert.equal(weekly.discountSource,'weekly');assert.equal(weekly.discountAmount,701);assert.equal(weekly.finalAmountToPayOnArrival,6806);
+  const monthly=calculateBookingPrice({pricePerNight:1001,quantity:1,checkIn:'2030-01-01',checkOut:'2030-01-29',rules,discountPercent:20});assert.equal(monthly.discountSource,'coupon');assert.equal(monthly.discountPercent,20);
+  const withoutCoupon=calculateBookingPrice({pricePerNight:1001,quantity:1,checkIn:'2030-01-01',checkOut:'2030-01-29',rules});assert.equal(withoutCoupon.discountSource,'monthly');
+});

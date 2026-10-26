@@ -1,3 +1,4 @@
+import { calculateBookingPrice } from '../utils/pricing';
 import { requiredUnits } from '../utils/occupancy';
 import React, { useMemo, useState } from 'react';
 import { Building2, MapPin, SlidersHorizontal, Star, Wifi, Lock, ArrowUpRight } from 'lucide-react';
@@ -34,11 +35,10 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
   const [sort, setSort] = useState('recommended');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const nights = calculateNights(checkIn, checkOut);
-  const rooms = (hostel: Hostel) => hostel.roomTypes.filter(room =>
-    (roomType === 'all' || room.type === roomType) && room.pricePerNightAMD * (requiredUnits(room,quantity)??Infinity) <= maxPrice &&
-    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= (requiredUnits(room,quantity)??Infinity));
-  const bestRoom = (hostel:Hostel) => rooms(hostel).sort((a,b)=>a.pricePerNightAMD*(requiredUnits(a,quantity)??Infinity)-b.pricePerNightAMD*(requiredUnits(b,quantity)??Infinity))[0];
-  const nightly = (hostel: Hostel) => {const room=bestRoom(hostel);return room?room.pricePerNightAMD*(requiredUnits(room,quantity)??Infinity):Infinity;};
+  const quote=(room:Hostel['roomTypes'][number])=>calculateBookingPrice({pricePerNight:room.pricePerNightAMD,checkIn,checkOut,quantity:requiredUnits(room,quantity)??0,rules:room.pricingRules});
+  const rooms=(hostel:Hostel)=>hostel.roomTypes.filter(room=>(roomType==='all'||room.type===roomType)&&quote(room).isValidDates&&quote(room).finalAmountToPayOnArrival/nights<=maxPrice&&appStore.remainingCapacity(hostel,room.id,checkIn,checkOut)>=(requiredUnits(room,quantity)??Infinity));
+  const bestRoom=(hostel:Hostel)=>rooms(hostel).sort((a,b)=>quote(a).finalAmountToPayOnArrival-quote(b).finalAmountToPayOnArrival)[0];
+  const nightly=(hostel:Hostel)=>{const room=bestRoom(hostel);return room?quote(room).finalAmountToPayOnArrival/nights:Infinity;};
   const filtered = useMemo(() => hostels.filter(h => {
     if (nights < 1 || quantity < 1 || !Number.isInteger(quantity) || !rooms(h).length) return false;
     if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;

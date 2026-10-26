@@ -325,3 +325,18 @@ test('free-text translation is server-only, validates length and rate limits eve
   for(let count=0;count<9;count++)await visitor.action('translateText',['Another phrase','en','hy']);
   assert.equal((await visitor.action('translateText',['Another phrase','en','hy'])).response.status,429);
 });
+
+test('calendar pricing and minimum stays are enforced and an unused inferior coupon is not consumed',async t=>{
+  const {completeHostel}=await import('./property-fixtures.js');
+  const {client,visitor,booking,database}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';
+  hostel.roomTypes[1].pricingRules={minimumNights:3,weekendDays:[],weeklyDiscountPercent:20,monthlyDiscountPercent:30,overrides:[{id:crypto.randomUUID(),from:booking.checkIn,to:booking.checkOut,priceAMD:20000}]};
+  assert.equal((await admin.action('saveHostel',[hostel])).data.success,true);
+  const payload={...booking,hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,guestsCount:2,quantity:1};
+  assert.equal((await visitor.action('createBooking',[payload])).data.success,false);
+  await database.transaction(async state=>state.coupons.push({code:'LOWER',percent:5,minAmountAMD:0,maxUses:10,usedCount:0,active:true,startsAt:new Date(Date.now()-60000).toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString(),description:'Test coupon'}));
+  const result=await visitor.action('createBooking',[{...payload,checkOut:addCalendarDays(booking.checkIn,7),couponCode:'LOWER'}]);
+  assert.equal(result.data.success,true);const saved=result.data.booking;assert.equal(saved.baseAmountAMD,2*20000+5*18000);assert.equal(saved.finalAmountAMD,104000);assert.equal(saved.couponCode,undefined);assert.equal(saved.agreement.discountSource,'weekly');assert.equal(saved.agreement.nightlyLines.length,7);
+  await database.transaction(async state=>assert.equal(state.coupons.find(item=>item.code==='LOWER')!.usedCount,0));
+  const old=hostel.updatedAt;const stale=await visitor.action('createBooking',[{...payload,checkOut:addCalendarDays(booking.checkIn,7),expectedHostelUpdatedAt:old}]);assert.equal(stale.data.success,false);assert.match(stale.data.error,/تغییر/);
+});
