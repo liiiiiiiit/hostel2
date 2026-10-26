@@ -1,3 +1,4 @@
+import {sessionCookiePolicy} from './session-config.js';
 import {scheduledWork} from './jobs.js';
 import {accountSchemas,accountAction} from './accounts.js';
 import {operationSchemas,operate} from './operations.js';
@@ -61,9 +62,9 @@ export function createApi(database: Database) {
   const app = express();
   app.disable('x-powered-by');
   if (process.env.VERCEL) app.set('trust proxy', 1);
+  else if (process.env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
   app.use(express.json({ limit: '1mb' }));
-  const production = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
-  const cookieName = production ? '__Host-yh_session' : 'yh_session';
+  const {secure: secureCookie, name: cookieName} = sessionCookiePolicy();
   app.use(['/api','/api/app'], (_req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' }); next(); });
   const paths = ['/api', '/api/app'];
   const session = async (req: express.Request, state: import('./domain.js').AppStoreState, tx: import('@libsql/client').Transaction): Promise<User | null> => {
@@ -168,10 +169,10 @@ export function createApi(database: Database) {
           actor = null; store.getState().currentUser = null;
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
-          res.cookie(cookieName, '', { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 0 });
+          res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
         } else if(envelope.action in accountSchemas){
           actionResult=await accountAction(store.getState(),tx,envelope.action as keyof typeof accountSchemas,args);actor=store.getState().currentUser;
-          if(!actor)res.cookie(cookieName,'',{httpOnly:true,secure:production,sameSite:'lax',path:'/',maxAge:0});
+          if(!actor)res.cookie(cookieName,'',{httpOnly:true,secure:secureCookie,sameSite:'lax',path:'/',maxAge:0});
         } else if(envelope.action in operationSchemas){
           actionResult=await operate(store,envelope.action as keyof typeof operationSchemas,args);
         } else if(envelope.action==='translateText'){
@@ -208,7 +209,7 @@ export function createApi(database: Database) {
           if (previous) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(previous)] });
           await tx.execute({ sql: 'DELETE FROM sessions WHERE expires_at<?', args: [now] });
           await tx.execute({ sql: 'INSERT INTO sessions VALUES(?,?,?)', args: [digest(token), actor.id, now + 7 * 86400000] });
-          res.cookie(cookieName, token, { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 7 * 86400000 });
+          res.cookie(cookieName, token, { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 7 * 86400000 });
         }
         if(actionResult.error)actionResult.error=localizeError(actionResult.error,req.headers['x-app-language']);
         Object.assign(state, store.getState());
