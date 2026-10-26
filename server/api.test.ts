@@ -315,3 +315,13 @@ test('two independent API/database instances cannot confirm the last private roo
   assert.equal(result.filter(item=>item.success).length,1);
   await database.transaction(async state=>assert.equal(state.bookings.filter(item=>item.hostelId===hostel.id&&item.status==='confirmed').reduce((total,item)=>total+item.quantity,0),1));
 });
+
+test('free-text translation is server-only, validates length and rate limits even without a configured provider',async t=>{
+  const saved=process.env.GEMINI_API_KEY;delete process.env.GEMINI_API_KEY;t.after(()=>{if(saved===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=saved;});
+  const {visitor}=await fixture(t);
+  const unavailable=await visitor.action('translateText',['An unknown phrase','en','hy'],{'X-App-Language':'en'});
+  assert.equal(unavailable.response.status,503);assert.match(unavailable.data.error,/not configured/);assert.equal(unavailable.data.translation,undefined);
+  assert.equal((await visitor.action('translateText',['x'.repeat(2001),'en','hy'])).response.status,400);
+  for(let count=0;count<9;count++)await visitor.action('translateText',['Another phrase','en','hy']);
+  assert.equal((await visitor.action('translateText',['Another phrase','en','hy'])).response.status,429);
+});

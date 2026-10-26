@@ -116,9 +116,11 @@ export function detectLanguage(text: string): AppLanguage {
 export async function translateText(
   text: string,
   sourceLang: AppLanguage | 'auto',
-  targetLang: AppLanguage
+  targetLang: AppLanguage,
+  uiLang: AppLanguage = 'fa'
 ): Promise<TranslationResult> {
   const clean = text.trim();
+  if(clean.length>2000)throw new Error({fa:'متن باید حداکثر ۲۰۰۰ نویسه باشد.',en:'Maximum 2,000 characters.',ru:'Максимум 2000 символов.',hy:'Առավելագույնը՝ 2000 նիշ։'}[uiLang]);
   if (!clean) {
     return { text: '', sourceLang: 'fa', targetLang, isAiGenerated: false };
   }
@@ -130,73 +132,23 @@ export async function translateText(
     return { text: clean, sourceLang: effectiveSource, targetLang, isAiGenerated: false };
   }
 
-  // 1. Try Gemini AI if API key is provided
-  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '');
-  if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-    try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey });
-      const prompt = `You are a real-time translator on the YEREVANHUB travel website.
-Translate the following text accurately from ${getLanguageName(effectiveSource, 'en')} to ${getLanguageName(targetLang, 'en')}.
-Keep names, numbers, brand names (YEREVANHUB), and addresses intact.
-Do not include commentary or markdown formatting. Output only the pure translation.
-
-Text to translate:
-"""
-${clean}
-"""`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-
-      const translated = response.text?.trim();
-      if (translated) {
-        return {
-          text: translated,
-          sourceLang: effectiveSource,
-          targetLang,
-          isAiGenerated: true,
-        };
-      }
-    } catch (e) {
-      console.warn('Gemini translation error, falling back to local dictionary:', e);
-    }
-  }
-
   // 2. Check built-in phrasebook dictionary
   const normalized = clean.toLowerCase();
   for (const entry of Object.values(DICTIONARY)) {
     const srcVal = entry[effectiveSource]?.toLowerCase();
-    if (srcVal && (srcVal === normalized || normalized.includes(srcVal))) {
+    if (srcVal && srcVal === normalized) {
       return {
         text: entry[targetLang],
         sourceLang: effectiveSource,
         targetLang,
         isAiGenerated: false,
-        notes: 'ترجمه از عبارات استاندارد سفر YEREVANHUB',
+        notes: {fa:'از عبارت‌های آماده',en:'Offline phrasebook',ru:'Офлайн-разговорник',hy:'Անցանց զրուցարան'}[uiLang],
       };
     }
   }
 
-  // 3. Realistic structured transliteration / fallback dictionary
-  const words = clean.split(/\s+/);
-  const translatedWords = words.map(w => {
-    const cleanWord = w.replace(/[.,?!:;]/g, '').toLowerCase();
-    for (const entry of Object.values(DICTIONARY)) {
-      if (entry[effectiveSource]?.toLowerCase() === cleanWord) {
-        return entry[targetLang];
-      }
-    }
-    return w;
-  });
-
-  return {
-    text: translatedWords.join(' '),
-    sourceLang: effectiveSource,
-    targetLang,
-    isAiGenerated: false,
-    notes: 'ترجمه پایگاه داده محلی (برای فعال‌سازی هوش مصنوعی، کلید GEMINI_API_KEY را تنظیم کنید).',
-  };
+  const response = await fetch('/api/app', {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'YerevanHub','X-App-Language':uiLang},body:JSON.stringify({action:'translateText',args:[clean,effectiveSource,targetLang]})});
+  const data=await response.json();
+  if(!response.ok||!data.success||!data.translation?.text)throw new Error(data.error||'Translation unavailable');
+  return data.translation as TranslationResult;
 }

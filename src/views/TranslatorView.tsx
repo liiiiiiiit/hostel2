@@ -28,6 +28,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   const [copied, setCopied] = useState(false);
   const [showLargeModal, setShowLargeModal] = useState(false);
   const [selectedPhraseCategory, setSelectedPhraseCategory] = useState('all');
+  const [translationError,setTranslationError]=useState('');
   const [translatorNote, setTranslatorNote] = useState<string>('');
 
   const categories = useMemo(() => [
@@ -52,30 +53,29 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
     setIsTranslating(true);
-    setTranslatorNote('');
+    setTranslatorNote('');setTranslationError('');setOutputText('');
 
     try {
-      const res = await translateText(inputText, sourceLang, targetLang);
+      const res = await translateText(inputText, sourceLang, targetLang,currentLang);
       setOutputText(res.text);
       if (res.notes) setTranslatorNote(res.notes);
-    } catch {
-      setOutputText(currentLang === 'fa' ? 'خطا در ترجمه. لطفاً مجدداً امتحان کنید.' : 'Translation error. Please try again.');
+    } catch(error) {
+      setTranslationError(error instanceof Error?error.message:{fa:'ترجمه انجام نشد.',en:'Translation failed.',ru:'Не удалось перевести.',hy:'Թարգմանությունը չհաջողվեց։'}[currentLang]);
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async (text: string) => {
+    try {if(!navigator.clipboard)throw new Error();await navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),2000);}
+    catch {setTranslationError({fa:'کپی نشد؛ متن را دستی انتخاب کنید.',en:'Copy failed. Select the text manually.',ru:'Не удалось скопировать. Выделите текст вручную.',hy:'Չհաջողվեց պատճենել։ Ընտրեք տեքստը ձեռքով։'}[currentLang]);}
   };
 
   const handleSelectPhrase = (phrase: TravelPhrase) => {
-    const inputPhrase = currentLang === 'en' ? phrase.en : currentLang === 'ru' ? phrase.ru : phrase.fa;
+    const inputPhrase = phrase[currentLang];
     setInputText(inputPhrase);
-    setOutputText(phrase.hy);
-    setSourceLang(currentLang === 'hy' ? 'en' : currentLang);
+    setOutputText(phrase.hy);setTranslationError('');setTranslatorNote('');
+    setSourceLang(currentLang);
     setTargetLang('hy');
   };
 
@@ -197,6 +197,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
                 {translatorNote}
               </span>
 
+              {translationError&&<p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{translationError}</p>}
               {outputText && (
                 <div className="flex items-center gap-1.5">
                   <button

@@ -1,4 +1,5 @@
 import express from 'express';
+import { translateOnServer } from './translator.js';
 import { localizeError } from './locale.js';
 import { optimizeImage, storeImage, deleteStoredImage, readStoredImage, MAX_IMAGE_BYTES } from './media.js';
 import { hostelSchema, rentalSchema } from './property-schemas.js';
@@ -26,6 +27,7 @@ const entity = z.object({ id: text }).passthrough();
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
+  translateText:z.tuple([z.string().trim().min(1).max(2000),z.enum(['auto','fa','en','ru','hy']),z.enum(['fa','en','ru','hy'])]),
   login: z.tuple([email, password]), logout: z.tuple([]),
   registerTraveler: z.tuple([text, email, optionalText.nullable(), password]),
   createBooking: z.tuple([z.object({ acceptedTerms:z.literal(true), expectedHostelUpdatedAt:z.string().min(1).max(100), idempotencyKey:z.uuid(), language:z.enum(['fa','en','ru','hy']).optional(), hostelId: text, roomTypeId: text, guestName: text, contactType: z.enum(['phone','email']), guestContact: text, checkIn: date, checkOut: date, guestsCount: positive, quantity: positive, estimatedArrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), specialRequests: optionalText, isLowerBunkRequested: z.boolean().optional(), isImmediateArrival: z.boolean().optional(), couponCode: optionalText }).refine(value => calculateNights(value.checkIn, value.checkOut) >= 1 && calculateNights(value.checkIn, value.checkOut) <= 90 && value.checkIn >= yerevanToday() && value.checkOut <= addCalendarDays(yerevanToday(),89), 'Invalid stay dates').refine(value => value.contactType !== 'email' || z.email().safeParse(value.guestContact).success, 'Invalid contact')]),
@@ -143,7 +145,7 @@ export function createApi(database: Database) {
         await tx.execute({ sql: 'DELETE FROM rate_limits WHERE expires_at<?', args: [now] });
         await tx.execute({ sql: 'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', args: [bucket, now + 60_000] });
         const rate = await tx.execute({ sql: 'SELECT count FROM rate_limits WHERE key=?', args: [bucket] });
-        const max = ['login','registerTraveler'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+        const max = ['login','registerTraveler','translateText'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
         if (Number(rate.rows[0].count) > max) return { success: false, error: 'تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', rateLimited: true };
         let actor = await session(req, state, tx);
         const store = new Store(state, true); store.getState().currentUser = actor;
@@ -163,6 +165,9 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action==='translateText'){
+          const [text,source,target]=args as [string,'auto'|'fa'|'en'|'ru'|'hy','fa'|'en'|'ru'|'hy'];
+          return {success:true,translationInput:{text,source,target}};
         } else if (envelope.action === 'checkCoupon') {
           const { validateCoupon } = await import('../src/utils/pricing.js');
           const coupon = state.coupons.find(c => c.code.toUpperCase() === String(args[0]).trim().toUpperCase());
@@ -208,6 +213,7 @@ export function createApi(database: Database) {
         if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; actionResult={...actionResult,booking:safe}; }
         return { ...actionResult, dispatch: changed.length > 0 && !database.demo, state: publicState(state, actor, database.demo, bookingToken, inquiryToken) };
       });
+      if('translationInput' in result&&result.translationInput){res.json({success:true,translation:await translateOnServer(result.translationInput)});return;}
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }
       if ('dispatch' in result && result.dispatch) {
         // Failure to deliver never rolls back an accepted booking; retries remain in the durable outbox.
@@ -219,7 +225,7 @@ export function createApi(database: Database) {
   app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large') { res.status(413).json({success:false,error:localizeError('حجم فایل بیش از حد مجاز است.',req.headers['x-app-language'])}); return; }
     if (error instanceof z.ZodError) { res.status(400).json({ success: false, error: localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language']) }); return; }
-    if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : 400).json({ success: false, error: localizeError(error.message,req.headers['x-app-language']) }); return; }
+    if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : error.message.includes('ترجمه') ? 503 : 400).json({ success: false, error: localizeError(error.message,req.headers['x-app-language']) }); return; }
     const forbidden = error instanceof Error && error.message === 'دسترسی مجاز نیست.';
     res.status(forbidden ? 403 : 500).json({ success: false, error: forbidden ? 'دسترسی مجاز نیست.' : 'سرویس در دسترس نیست. تنظیمات سرور را بررسی کنید.' });
   });
