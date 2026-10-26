@@ -1,0 +1,7 @@
+# Example only. Install on a persistent worker with Node.js, dependencies and secure environment settings.
+# Change /srv/hostel2 and /usr/bin/npm to your actual installation paths.
+CRON_TZ=Asia/Yerevan
+* * * * * cd /srv/hostel2 && /usr/bin/flock -n /tmp/yerevanhub-worker.lock /usr/bin/npm run worker:once
+15 3 * * * cd /srv/hostel2 && /usr/bin/flock -n /tmp/yerevanhub-backup.lock /usr/bin/npm run backup
+# Copy encrypted .yhbak files to separate protected storage after backup.
+# Keep BACKUP_ENCRYPTION_KEY separately. Never place credentials in a crontab or source control.

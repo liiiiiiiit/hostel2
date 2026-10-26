@@ -28,7 +28,7 @@ Browser tests start an isolated server/database and use system Chromium (`BROWSE
 - Shared reservations, rental inquiries, reviews, coupons and audit records in a persistent SQL database. Each state mutation runs in a write transaction, including confirmation/capacity and coupon accounting.
 - Manager daily capacity calendar, closure to new bookings with capacity zero, and rejection of capacity reductions below confirmed reservations.
 - Ninety-day availability search, date/quantity selection, base stay totals, female/private-room filters, late arrival, kitchen, metro and monthly-stay filters. Metro/monthly flags require actual admin entry; they are not inferred from marketing descriptions.
-- Saved stays and comparison of up to three hostels/rentals. Favourites persist locally on that browser; they are not account-synchronized.
+- Saved stays and comparison of up to three hostels/rentals. Guest favourites persist in that browser; authenticated favourites synchronize across devices and merge guest selections at login.
 - Explicit admin property verification with notes and timestamps. Sample properties start unverified; editing a property does not certify it.
 - Private arrival guide and door code for the matching confirmed reservation, with Armenian taxi address, entrance photo, directions and reception contact. Public responses omit door codes, exact internal rental addresses, internal notes, guest records and credentials.
 - Category reviews (cleanliness, safety, staff and location) only for completed past stays, one review per booking, with moderation before publication.
@@ -54,8 +54,10 @@ After a production booking/status change, up to two eligible queued notification
 
 The existing browser-local demo data is not imported automatically: it was user-editable and is not trusted production data. The legacy `server/db.ts` implementation is unused; the active persistence layer is `server/database.ts`.
 
-This is a small-site foundation using one transactional JSON state row plus SQL session/outbox/rate-limit tables. It serializes writes; use normalized tables/pagination and retention policies before large-scale use. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
+This is a small-site foundation using SQL property and operational-record tables alongside a transactional JSON state row and session/outbox/rate-limit/token tables. Versioned migrations preserve existing data; rollback instructions are in the Persian guides. It serializes writes; use normalized tables/pagination and retention policies before large-scale use. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
 
-Password reset, email ownership verification, multi-factor authentication and automated backups are not part of this release. Live hosted-database/provider delivery requires your own configuration and has not been validated using real credentials. The phrasebook works offline; live Gemini remains optional and untested. Never embed production API secrets in `VITE_` variables.
+Single-use password recovery, email ownership verification, encrypted full backups and separate-target restoration are implemented. Configure the email provider and install the worker/backup schedule before relying on them operationally. Multi-factor authentication is not implemented. Live hosted-database/provider delivery requires your own configuration and has not been validated using real credentials. The phrasebook works offline; live Gemini remains optional and untested. Never embed production API secrets in `VITE_` variables.
 
 Property management, media storage and migration/rollback guide (Persian): [PROPERTY_MANAGEMENT_FA.md](PROPERTY_MANAGEMENT_FA.md). Implementation status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md).
+
+Reception, secure accounts, financial records, public SEO routes, workers and encrypted backup/restore (Persian): [OPERATIONS_GUIDE_FA.md](OPERATIONS_GUIDE_FA.md).
