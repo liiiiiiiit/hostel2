@@ -56,9 +56,10 @@ try {
   await page.getByPlaceholder('name@example.com').fill('admin@yerevanhub.com');await page.locator('input[type=password]').fill('wrong-password');
   await page.locator('form button[type=submit]').last().click();await page.getByText('ایمیل یا رمز عبور نادرست است.',{exact:true}).waitFor();
   await page.locator('input[type=password]').fill('Admin@2026');await page.locator('form button[type=submit]').last().click();
-  await page.getByRole('heading',{name:'Capacity & property reviews'}).waitFor();
+  await page.getByTestId('admin-dashboard').waitFor();
+  await page.getByRole('button',{name:'Property settings',exact:true}).first().click();
   await page.getByLabel('Date',{exact:true}).fill(checkIn);await page.getByLabel('Daily capacity',{exact:true}).fill('0');
-  await page.getByRole('button',{name:'Save capacity',exact:true}).click();await page.getByText('Capacity saved.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByText('Changes saved.',{exact:true}).waitFor();
   assert.ok((await context.cookies()).some(cookie=>cookie.httpOnly && cookie.name==='yh_session'));
   console.log('PASS password checks, HttpOnly session and manager daily-capacity UI');
   assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');

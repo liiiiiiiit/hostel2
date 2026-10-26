@@ -20,7 +20,8 @@ const status = z.enum(['pending','confirmed','rejected','cancelled','expired','c
 const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z.number().int().min(1).max(5), staff: z.number().int().min(1).max(5), location: z.number().int().min(1).max(5) });
 const localized = z.object({ fa: z.string(), en: z.string(), ru: z.string(), hy: z.string() });
 const entity = z.object({ id: text }).passthrough();
-const hostel = entity.extend({ name: localized, slug: text, roomTypes: z.array(entity.extend({ name: localized, pricePerNightAMD: z.number().min(0), totalBedsOrRooms: positive })).min(1), amenities: z.record(z.string(), z.union([z.boolean(), z.number()])), rules: z.object({ quietHours: z.string(), cancellationPolicy: z.string(), acceptedPaymentMethodsOnArrival: z.array(z.string()) }).passthrough(), photos: z.array(z.string().url()), address: localized }).passthrough();
+const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
+const hostel = entity.extend({ coordinates, name: localized, slug: text, roomTypes: z.array(entity.extend({ name: localized, pricePerNightAMD: z.number().min(0), totalBedsOrRooms: positive })).min(1), amenities: z.record(z.string(), z.union([z.boolean(), z.number()])), rules: z.object({ quietHours: z.string(), cancellationPolicy: z.string(), acceptedPaymentMethodsOnArrival: z.array(z.string()) }).passthrough(), photos: z.array(z.string().url()), address: localized }).passthrough();
 const schemas = {
   login: z.tuple([email, password]), logout: z.tuple([]),
   registerTraveler: z.tuple([text, email, optionalText.nullable(), password]),
@@ -41,6 +42,7 @@ const schemas = {
   updateRentalInquiryStatus: z.tuple([text, z.enum(['pending_review','coordinating','proposed_terms','agreed','rejected','cancelled','completed']), optionalText]),
   saveArticle: z.tuple([entity.extend({ title: text, slug: text, content: z.string().max(100000), tags: z.array(z.string()), sources: z.array(z.string()), status: z.enum(['draft','published']) }).passthrough()]),
   deleteArticle: z.tuple([text]), notificationStatus: z.tuple([]), sendNotifications: z.tuple([]),
+  updateHostelLocation: z.tuple([text, coordinates.extend({ verified: z.boolean(), note: z.string().trim().max(1000).optional() })]),
   updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), entrancePhoto: z.union([z.literal(''),z.string().url()]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
 };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');

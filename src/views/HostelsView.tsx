@@ -1,500 +1,87 @@
-import { appStore } from '../services/store';
+import React, { useMemo, useState } from 'react';
+import { Building2, MapPin, SlidersHorizontal, Star, Wifi, Lock, ArrowUpRight } from 'lucide-react';
+import type { AppLanguage, Hostel } from '../types';
+import { UI_TRANSLATIONS } from '../i18n/translations';
+import { featureText } from '../i18n/features';
+import { getLocalized, getCityName, getAmenityLabel, getRoomTypeFilterName } from '../utils/i18n';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
 import { calculateNights } from '../utils/pricing';
-import { featureText } from '../i18n/features';
-import { VerificationInfo } from '../components/VerificationInfo';
+import { appStore } from '../services/store';
 import { PlaceActions } from '../components/PlaceActions';
-import React, { useState, useMemo } from 'react';
-import { AppLanguage, Hostel } from '../types';
-import { UI_TRANSLATIONS } from '../i18n/translations';
-import { getLocalized, getCityName, getAmenityLabel, getRoomTypeFilterName } from '../utils/i18n';
-import {
-  Building2,
-  Filter,
-  Star,
-  Zap,
-  Shield,
-  Wifi,
-  Lock,
-  X,
-  SlidersHorizontal,
-  MapPin,
-} from 'lucide-react';
 
 interface Props {
-  currentLang: AppLanguage;
-  hostels: Hostel[];
-  onNavigate: (view: string, params?: any) => void;
-  getHostelRating: (hostelId: string) => { avg: number; count: number };
-  initialFilter?: any;
+  currentLang: AppLanguage; hostels: Hostel[]; onNavigate: (view: string, params?: any) => void;
+  getHostelRating: (id: string) => { avg: number; count: number }; initialFilter?: any;
 }
+const TEXT = {
+  fa: { title: 'اقامت مناسب سفر شما', subtitle: 'تاریخ و نیازتان را انتخاب کنید؛ گزینه‌های موجود را ببینید.', results: 'اقامتگاه موجود', empty: 'اقامتگاهی با این شرایط پیدا نشد', emptyHint: 'تاریخ یا فیلترها را تغییر دهید.', perNight: 'هر شب', room: 'نوع اقامت', maxNightly: 'بودجهٔ هر شب', tonight: 'ظرفیت امشب', noReviews: 'بدون نظر ثبت‌شده', filters: 'فیلترهای بیشتر', less: 'بستن فیلترها', nights: 'شب', invalid: 'تاریخ خروج باید بعد از تاریخ ورود باشد.' },
+  en: { title: 'Find your place in Armenia', subtitle: 'Choose your dates and find a stay that fits.', results: 'stays available', empty: 'No stays match these choices', emptyHint: 'Try different dates or fewer filters.', perNight: 'per night', room: 'Stay type', maxNightly: 'Nightly budget', tonight: 'Available tonight', noReviews: 'No reviews yet', filters: 'More filters', less: 'Hide filters', nights: 'nights', invalid: 'Check-out must be after check-in.' },
+  ru: { title: 'Ваше место в Армении', subtitle: 'Выберите даты и подходящий вариант проживания.', results: 'вариантов доступно', empty: 'Нет подходящих вариантов', emptyHint: 'Измените даты или фильтры.', perNight: 'за ночь', room: 'Тип проживания', maxNightly: 'Бюджет за ночь', tonight: 'Есть места сегодня', noReviews: 'Пока нет отзывов', filters: 'Все фильтры', less: 'Скрыть фильтры', nights: 'ночей', invalid: 'Выезд должен быть позже заезда.' },
+  hy: { title: 'Գտեք ձեր տեղը Հայաստանում', subtitle: 'Ընտրեք ամսաթվերն ու ձեզ հարմար տարբերակը։', results: 'հասանելի տարբերակ', empty: 'Հարմար տարբերակ չկա', emptyHint: 'Փոխեք ամսաթվերը կամ ֆիլտրերը։', perNight: 'մեկ գիշեր', room: 'Կացության տեսակ', maxNightly: 'Գիշերվա բյուջե', tonight: 'Հասանելի է այսօր', noReviews: 'Կարծիքներ դեռ չկան', filters: 'Այլ ֆիլտրեր', less: 'Թաքցնել ֆիլտրերը', nights: 'գիշեր', invalid: 'Ելքը պետք է լինի մուտքից հետո։' },
+};
 
-export const HostelsView: React.FC<Props> = ({
-  currentLang,
-  hostels,
-  onNavigate,
-  getHostelRating,
-  initialFilter,
-}) => {
-  const t = UI_TRANSLATIONS[currentLang];
-
-  const ft = featureText(currentLang);
+export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate, getHostelRating, initialFilter }) => {
+  const t = UI_TRANSLATIONS[currentLang], ft = featureText(currentLang), copy = TEXT[currentLang];
   const [checkIn, setCheckIn] = useState(initialFilter?.checkIn || yerevanToday());
   const [checkOut, setCheckOut] = useState(initialFilter?.checkOut || addCalendarDays(initialFilter?.checkIn || yerevanToday(), 2));
   const [quantity, setQuantity] = useState(initialFilter?.guests || 1);
-  const [kitchen, setKitchen] = useState(false); const [metro, setMetro] = useState(false); const [monthly, setMonthly] = useState(false);
-  const nights = calculateNights(checkIn, checkOut);
-  const eligibleRooms = (hostel: Hostel) => hostel.roomTypes.filter(room =>
-    (roomTypeFilter === 'all' || room.type === roomTypeFilter) &&
-    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= quantity);
-  const stayTotal = (hostel: Hostel) => {
-    const prices = eligibleRooms(hostel).map(room => room.pricePerNightAMD);
-    return prices.length && nights > 0 ? Math.min(...prices) * quantity * nights : 0;
-  };
-
-  // Filters
   const [city, setCity] = useState(initialFilter?.city || 'all');
   const [district, setDistrict] = useState(initialFilter?.district || 'all');
-  const [roomTypeFilter, setRoomTypeFilter] = useState<'all' | 'dorm_mixed' | 'dorm_female' | 'private'>('all');
-  const [maxPrice, setMaxPrice] = useState<number>(30000);
-  const [onlyTonightCapacity, setOnlyTonightCapacity] = useState(false);
-  const [only24hReception, setOnly24hReception] = useState(false);
-  const [onlyElevator, setOnlyElevator] = useState(false);
-  const [onlyCoworking, setOnlyCoworking] = useState(false);
-  const [sortBy, setSortBy] = useState<'recommended' | 'price_asc' | 'price_desc' | 'rating'>('recommended');
-  const [showMobileFilterModal, setShowMobileFilterModal] = useState(false);
-
-  const filteredHostels = useMemo(() => {
-    return hostels
-      .filter(h => {
-        if (nights < 1 || !eligibleRooms(h).length) return false;
-        if (kitchen && !h.amenities.kitchen) return false;
-        if (metro && !h.nearMetro) return false;
-        if (monthly && !h.monthlyStayAvailable) return false;
-        if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
-        if (district !== 'all' && h.district !== district) return false;
-        if (h.minPricePerNightAMD > maxPrice) return false;
-        if (onlyTonightCapacity && !h.roomTypes.some(room => appStore.remainingCapacity(h, room.id, yerevanToday(), addCalendarDays(yerevanToday(), 1)) >= quantity)) return false;
-        if (only24hReception && !h.reception24h) return false;
-        if (onlyElevator && !h.amenities.elevator) return false;
-        if (onlyCoworking && !h.amenities.coworking) return false;
-        if (roomTypeFilter !== 'all') {
-          const hasType = h.roomTypes.some(rt => rt.type === roomTypeFilter);
-          if (!hasType) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'price_asc') return a.minPricePerNightAMD - b.minPricePerNightAMD;
-        if (sortBy === 'price_desc') return b.minPricePerNightAMD - a.minPricePerNightAMD;
-        if (sortBy === 'rating') {
-          return getHostelRating(b.id).avg - getHostelRating(a.id).avg;
-        }
-        return 0; // recommended order
-      });
-  }, [
-    hostels,
-    city,
-    district,
-    roomTypeFilter,
-    maxPrice,
-    onlyTonightCapacity,
-    only24hReception,
-    onlyElevator,
-    onlyCoworking,
-    sortBy,
-    getHostelRating, checkIn, checkOut, quantity, kitchen, metro, monthly,
-  ]);
-
-  const clearFilters = () => {
-    setKitchen(false); setMetro(false); setMonthly(false);
-    setCity('all');
-    setDistrict('all');
-    setRoomTypeFilter('all');
-    setMaxPrice(30000);
-    setOnlyTonightCapacity(false);
-    setOnly24hReception(false);
-    setOnlyElevator(false);
-    setOnlyCoworking(false);
-    setSortBy('recommended');
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <div className="bg-white border rounded-2xl p-4 space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <label>{ft.checkIn}<input aria-label={ft.checkIn} className="block p-2 border rounded-xl" type="date" min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} /></label>
-          <label>{ft.checkOut}<input aria-label={ft.checkOut} className="block p-2 border rounded-xl" type="date" min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event => setCheckOut(event.target.value)} /></label>
-          <label>{ft.guests}<input aria-label={ft.guests} className="block p-2 border rounded-xl w-24" type="number" min={1} max={6} value={quantity} onChange={event => setQuantity(Number(event.target.value))} /></label>
-        </div>
-        <div className="flex gap-4 flex-wrap text-sm"><label><input type="checkbox" checked={kitchen} onChange={event => setKitchen(event.target.checked)} /> {ft.kitchen}</label><label><input type="checkbox" checked={metro} onChange={event => setMetro(event.target.checked)} /> {ft.metro}</label><label><input type="checkbox" checked={monthly} onChange={event => setMonthly(event.target.checked)} /> {ft.monthlyStay}</label></div>
-        <p className="text-xs text-slate-500">{ft.horizon} · {ft.feesNotice}</p>
+  const [roomType, setRoomType] = useState('all');
+  const [maxPrice, setMaxPrice] = useState(30000);
+  const [amenities, setAmenities] = useState<string[]>([]);
+  const [sort, setSort] = useState('recommended');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const nights = calculateNights(checkIn, checkOut);
+  const rooms = (hostel: Hostel) => hostel.roomTypes.filter(room =>
+    (roomType === 'all' || room.type === roomType) && room.pricePerNightAMD <= maxPrice &&
+    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= quantity);
+  const nightly = (hostel: Hostel) => Math.min(...rooms(hostel).map(room => room.pricePerNightAMD));
+  const filtered = useMemo(() => hostels.filter(h => {
+    if (nights < 1 || quantity < 1 || !Number.isInteger(quantity) || !rooms(h).length) return false;
+    if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
+    if (district !== 'all' && h.district !== district) return false;
+    return amenities.every(key => key === 'kitchen' ? h.amenities.kitchen : key === 'metro' ? h.nearMetro : key === 'monthly' ? h.monthlyStayAvailable : key === '24h' ? h.reception24h : key === 'elevator' ? h.amenities.elevator : key === 'coworking' ? h.amenities.coworking : h.roomTypes.some(room => appStore.remainingCapacity(h, room.id, yerevanToday(), addCalendarDays(yerevanToday(),1)) >= quantity));
+  }).sort((a,b) => sort === 'price_asc' ? nightly(a)-nightly(b) : sort === 'price_desc' ? nightly(b)-nightly(a) : sort === 'rating' ? getHostelRating(b.id).avg-getHostelRating(a.id).avg : 0),
+  [hostels, checkIn, checkOut, quantity, city, district, roomType, maxPrice, amenities, sort, getHostelRating]);
+  const clear = () => { setCity('all'); setDistrict('all'); setRoomType('all'); setMaxPrice(30000); setAmenities([]); };
+  const filterCount = amenities.length + Number(city !== 'all') + Number(district !== 'all') + Number(roomType !== 'all') + Number(maxPrice !== 30000);
+  const toggle = (key: string) => setAmenities(items => items.includes(key) ? items.filter(item => item !== key) : [...items,key]);
+  const options = [['kitchen',ft.kitchen],['metro',ft.metro],['monthly',ft.monthlyStay],['24h',t.reception24hBadge],['elevator',getAmenityLabel('elevator',currentLang)],['coworking',getAmenityLabel('coworking',currentLang)],['tonight',copy.tonight]];
+  return <div className="page-shell py-8 sm:py-12 space-y-7">
+    <header className="max-w-2xl space-y-3"><p className="eyebrow">{t.navHostels}</p><h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{copy.title}</h1><p className="text-slate-500 text-base leading-relaxed">{copy.subtitle}</p></header>
+    <section className="surface p-4 sm:p-5 space-y-4" aria-label={t.searchButton}>
+      <div className="grid grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_0.7fr_auto] gap-3 items-end">
+        <label htmlFor="stay-city" className="text-sm font-medium">{t.cityLabel}<select id="stay-city" className="field mt-2" value={city} onChange={event => { setCity(event.target.value); setDistrict('all'); }}><option value="all">{t.allCities}</option>{[...new Set(hostels.map(h=>h.city))].map(item=><option key={item} value={item}>{getCityName(item,currentLang)}</option>)}</select></label>
+        <label htmlFor="stay-check-in" className="text-sm font-medium">{ft.checkIn}<input id="stay-check-in" aria-label={ft.checkIn} type="date" min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} className="field mt-2" value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value && event.target.value >= checkOut)setCheckOut(addCalendarDays(event.target.value,1));}} /></label>
+        <label htmlFor="stay-check-out" className="text-sm font-medium">{ft.checkOut}<input id="stay-check-out" aria-label={ft.checkOut} type="date" min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} className="field mt-2" value={checkOut} onChange={event=>setCheckOut(event.target.value)} /></label>
+        <label htmlFor="stay-quantity" className="text-sm font-medium">{ft.guests}<select id="stay-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label>
+        <button type="button" className="button-secondary col-span-2 lg:col-span-1" aria-expanded={filtersOpen} aria-controls="stay-extra-filters" onClick={()=>setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17}/>{filtersOpen ? copy.less : copy.filters}{filterCount > 0 && <span className="rounded-full bg-slate-100 px-2">{filterCount}</span>}</button>
       </div>
-      {/* Title & Top Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-amber-700 uppercase tracking-wider">
-            <Building2 className="w-4 h-4" />
-            <span>{t.navHostels}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
-            {t.featuredHostelsTitle}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            {t.payOnArrivalText}
-          </p>
+      {filtersOpen && <div id="stay-extra-filters" className="border-t border-slate-100 pt-5 space-y-5">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <label htmlFor="stay-district" className="text-sm">{ft.location}<select id="stay-district" className="field mt-2" value={district} onChange={event=>setDistrict(event.target.value)}><option value="all">{t.allCities}</option>{[...new Set(hostels.filter(h=>city==='all'||h.city===city).map(h=>h.district))].map(value=><option key={value}>{value}</option>)}</select></label>
+          <label htmlFor="stay-room-type" className="text-sm">{copy.room}<select id="stay-room-type" className="field mt-2" value={roomType} onChange={event=>setRoomType(event.target.value)}>{['all','dorm_mixed','dorm_female','dorm_male','private'].map(value=><option key={value} value={value}>{getRoomTypeFilterName(value,currentLang)}</option>)}</select></label>
+          <label htmlFor="stay-budget" className="text-sm">{copy.maxNightly}<div className="mt-3 font-semibold ltr-isolate">{maxPrice.toLocaleString()} AMD</div><input id="stay-budget" className="w-full accent-emerald-700 mt-3" type="range" min={0} max={30000} step={1000} value={maxPrice} onChange={event=>setMaxPrice(Number(event.target.value))}/></label>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Mobile Filter Button */}
-          <button
-            type="button"
-            onClick={() => setShowMobileFilterModal(true)}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs cursor-pointer"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
-            <span>{t.filtersLabel} ({filteredHostels.length})</span>
-          </button>
-
-          {/* Sort Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 hidden sm:inline">{t.sortByLabel}</span>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
-            >
-              <option value="recommended">{t.sortRecommended}</option>
-              <option value="price_asc">{t.sortPriceAsc}</option>
-              <option value="price_desc">{t.sortPriceDesc}</option>
-              <option value="rating">{t.sortRating}</option>
-            </select>
-          </div>
+        <div className="flex gap-3 flex-wrap">{options.map(([key,label])=><label key={key} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm cursor-pointer"><input type="checkbox" checked={amenities.includes(key)} onChange={()=>toggle(key)}/>{label}</label>)}</div>
+        <button type="button" className="text-sm underline underline-offset-4" onClick={clear}>{t.clearFilters}</button>
+      </div>}
+      {nights < 1 && <p role="alert" className="text-sm text-red-700">{copy.invalid}</p>}
+    </section>
+    <div className="flex items-center justify-between gap-3"><p className="text-sm text-slate-500"><strong className="text-slate-900">{filtered.length}</strong> {copy.results}</p><label className="flex items-center gap-2 text-sm" htmlFor="stay-sort"><span className="hidden sm:inline text-slate-500">{t.sortByLabel}</span><select id="stay-sort" className="field !w-auto" value={sort} onChange={event=>setSort(event.target.value)}><option value="recommended">{t.sortRecommended}</option><option value="price_asc">{t.sortPriceAsc}</option><option value="price_desc">{t.sortPriceDesc}</option><option value="rating">{t.sortRating}</option></select></label></div>
+    {!filtered.length ? <div className="surface px-6 py-16 text-center space-y-3"><Building2 className="mx-auto text-slate-400" size={36}/><h2 className="text-xl font-semibold">{copy.empty}</h2><p className="text-slate-500">{copy.emptyHint}</p><button type="button" className="button-secondary mx-auto" onClick={clear}>{t.clearFilters}</button></div> : <div className="grid gap-5">{filtered.map(hostel=>{
+      const rating=getHostelRating(hostel.id),name=getLocalized(hostel.name,currentLang),price=nightly(hostel);
+      return <article key={hostel.id} className="surface overflow-hidden grid md:grid-cols-[290px_1fr] group">
+        <div className="relative aspect-[16/10] md:aspect-auto min-h-56 bg-slate-100"><img src={hostel.photos[0]} alt={name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"/>{hostel.verification?.status==='verified' && <span className="absolute top-4 start-4 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-emerald-800">✓ {ft.verified}</span>}</div>
+        <div className="p-5 sm:p-7 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3"><p className="eyebrow">{getCityName(hostel.city,currentLang)} · {hostel.district}</p><span className="inline-flex items-center gap-1 text-sm text-slate-500">{rating.count>0 ? <><Star size={15} className="text-amber-600 fill-amber-500"/><strong className="text-slate-900">{rating.avg}</strong> ({rating.count})</> : copy.noReviews}</span></div>
+          <div><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity})}>{name}</button><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">{hostel.amenities.wifi&&<span className="inline-flex gap-1.5 items-center"><Wifi size={16}/>{getAmenityLabel('wifi',currentLang)}</span>}{hostel.amenities.lockers&&<span className="inline-flex gap-1.5 items-center"><Lock size={16}/>{getAmenityLabel('lockers',currentLang)}</span>}{hostel.reception24h&&<span>{t.reception24hBadge}</span>}</div>
+          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end"><div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*quantity*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div><div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity})}>{t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
         </div>
-      </div>
-
-      {/* Main Layout: Filters Sidebar + Results List */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Desktop Sidebar Filters */}
-        <aside className="hidden lg:block lg:col-span-1 space-y-6">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <span className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                <Filter className="w-4 h-4 text-amber-600" />
-                <span>{t.filtersLabel}</span>
-              </span>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-amber-700 hover:text-amber-800 font-semibold cursor-pointer"
-              >
-                {t.clearFilters}
-              </button>
-            </div>
-
-            {/* City */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.cityLabel}</label>
-              <select
-                value={city}
-                onChange={e => {
-                  setCity(e.target.value);
-                  setDistrict('all');
-                }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="all">{t.allCities}</option>
-                <option value="Yerevan">{getCityName('Yerevan', currentLang)}</option>
-                <option value="Gyumri">{getCityName('Gyumri', currentLang)}</option>
-                <option value="Dilijan">{getCityName('Dilijan', currentLang)}</option>
-              </select>
-            </div>
-
-            {/* Room Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.amenitiesLabel}</label>
-              <div className="space-y-1.5 text-xs">
-                {(['all', 'dorm_mixed', 'dorm_female', 'private'] as const).map(item => (
-                  <label key={item} className="flex items-center gap-2 cursor-pointer p-1">
-                    <input
-                      type="radio"
-                      name="roomTypeFilter"
-                      checked={roomTypeFilter === item}
-                      onChange={() => setRoomTypeFilter(item)}
-                      className="text-amber-600 focus:ring-amber-500"
-                    />
-                    <span className="text-slate-700">{getRoomTypeFilterName(item, currentLang)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Max Price Slider */}
-            <div>
-              <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
-                <span>{t.stayTotal}:</span>
-                <span className="text-amber-700">{maxPrice.toLocaleString()} {t.currencyAMD}</span>
-              </div>
-              <input
-                type="range"
-                min="4000"
-                max="30000"
-                step="1000"
-                value={maxPrice}
-                onChange={e => setMaxPrice(Number(e.target.value))}
-                className="w-full accent-amber-600"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>4,000 {t.currencyAMD}</span>
-                <span>30,000 {t.currencyAMD}</span>
-              </div>
-            </div>
-
-            {/* Urgent & Capacity Toggles */}
-            <div className="pt-2 border-t border-slate-100 space-y-2.5">
-              <span className="block text-xs font-bold text-slate-700">{t.amenitiesLabel}</span>
-
-
-              <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={onlyTonightCapacity}
-                  onChange={e => setOnlyTonightCapacity(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                />
-                <span>{t.payOnArrivalBadge}</span>
-              </label>
-
-              <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={only24hReception}
-                  onChange={e => setOnly24hReception(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                />
-                <span>{t.reception24hBadge}</span>
-              </label>
-
-              <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={onlyElevator}
-                  onChange={e => setOnlyElevator(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                />
-                <span>{getAmenityLabel('elevator', currentLang)}</span>
-              </label>
-
-              <label className="flex items-center gap-2.5 text-xs text-slate-800 cursor-pointer p-1 rounded-lg hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={onlyCoworking}
-                  onChange={e => setOnlyCoworking(e.target.checked)}
-                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
-                />
-                <span>{getAmenityLabel('coworking', currentLang)}</span>
-              </label>
-            </div>
-          </div>
-        </aside>
-
-        {/* Results List */}
-        <div className="lg:col-span-3 space-y-5">
-          {filteredHostels.length === 0 ? (
-            <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-4">
-              <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
-              <h3 className="text-lg font-bold text-slate-800">{t.filtersLabel}</h3>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-xs cursor-pointer"
-              >
-                {t.clearFilters}
-              </button>
-            </div>
-          ) : (
-            filteredHostels.map(hostel => {
-              const { avg, count } = getHostelRating(hostel.id);
-              const localizedName = getLocalized(hostel.name, currentLang);
-              const localizedAddress = getLocalized(hostel.address, currentLang);
-
-              return (
-                <div
-                  key={hostel.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col md:flex-row group"
-                >
-                    {/* Photo & Badges */}
-                    <div className="md:w-72 relative aspect-16/10 md:aspect-auto overflow-hidden bg-slate-100 shrink-0">
-                      <img
-                        src={hostel.photos[0]}
-                        alt={localizedName}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-
-                      {/* Tags */}
-                      <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
-                        {hostel.reception24h && (
-                          <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium">
-                            {t.reception24hBadge}
-                          </span>
-                        )}
-                        {hostel.immediateStayEnabled && (
-                          <span className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold shadow-xs flex items-center gap-1">
-                            <Zap className="w-3 h-3 fill-white" />
-                            <span>24/7</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-lg text-xs font-bold text-slate-800 shadow-xs flex items-center gap-1">
-                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        <span>{avg}</span>
-                        <span className="text-slate-400 font-normal">({count} {t.reviewsCountText})</span>
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">
-                            {getCityName(hostel.city, currentLang)} • {hostel.district}
-                          </span>
-                          <span className="text-[11px] text-slate-400">
-                            {t.staffLanguagesText} {hostel.languagesSpoken.map(l => l.toUpperCase()).join(', ')}
-                          </span>
-                        </div>
-
-                        <h2 className="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
-                          {localizedName}
-                        </h2>
-
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-                          {localizedAddress}
-                        </p>
-                      </div>
-
-                      {/* Room Types summary */}
-                      <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                        <div className="flex flex-wrap gap-2">
-                          {hostel.roomTypes.map(rt => (
-                            <span
-                              key={rt.id}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-1.5"
-                            >
-                              <span>{getLocalized(rt.name, currentLang)}</span>
-                              <span className="text-amber-700 font-bold">
-                                {rt.pricePerNightAMD.toLocaleString()} {t.currencyAMD}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Amenities Row */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 pt-1">
-                        {hostel.amenities.wifi && (
-                          <span className="flex items-center gap-1">
-                            <Wifi className="w-3.5 h-3.5 text-slate-400" /> {getAmenityLabel('wifi', currentLang)}
-                          </span>
-                        )}
-                        {hostel.amenities.lockers && (
-                          <span className="flex items-center gap-1">
-                            <Lock className="w-3.5 h-3.5 text-slate-400" /> {getAmenityLabel('lockers', currentLang)}
-                          </span>
-                        )}
-                        {hostel.freeLuggageStorage && (
-                          <span className="flex items-center gap-1">
-                            <Shield className="w-3.5 h-3.5 text-emerald-600" /> {getAmenityLabel('freeLuggageStorage', currentLang)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Pricing & CTA */}
-                      <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[11px] text-slate-400 block font-normal">
-                            {t.startingFrom}
-                          </span>
-                          <div className="text-xl font-black text-slate-900">
-                            {hostel.minPricePerNightAMD.toLocaleString()}{' '}
-                            <span className="text-xs font-semibold text-amber-700">{t.currencyAMD}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 block">
-                            ≈ {Math.round(hostel.minPricePerNightAMD * 160).toLocaleString()} {t.approxTomanSuffix} {t.perBedPerNight}
-                          </span>
-                        </div>
-
-                        <div className="text-sm font-bold">{ft.total}: {stayTotal(hostel).toLocaleString()} AMD</div>
-                        <VerificationInfo verified={hostel.verification?.status === 'verified'} checkedAt={hostel.verification?.checkedAt} />
-                        <PlaceActions kind="hostel" id={hostel.id} />
-                        <button
-                          type="button"
-                          onClick={() => onNavigate('hostel-detail', { ...initialFilter, id: hostel.id, checkIn, checkOut, guests: quantity })}
-                          className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
-                        >
-                          {t.detailsButton}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-        </div>
-      </div>
-
-      {/* Mobile Filters Modal */}
-      {showMobileFilterModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl p-6 space-y-5 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900">{t.filtersLabel}</h3>
-              <button
-                type="button"
-                onClick={() => setShowMobileFilterModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* City */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.cityLabel}</label>
-              <select
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm"
-              >
-                <option value="all">{t.allCities}</option>
-                <option value="Yerevan">{getCityName('Yerevan', currentLang)}</option>
-                <option value="Gyumri">{getCityName('Gyumri', currentLang)}</option>
-                <option value="Dilijan">{getCityName('Dilijan', currentLang)}</option>
-              </select>
-            </div>
-
-            {/* Action */}
-            <div className="pt-4 border-t border-slate-100 flex gap-3">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="flex-1 py-3 rounded-xl border border-slate-200 font-bold text-xs text-slate-700 cursor-pointer"
-              >
-                {t.clearFilters}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMobileFilterModal(false)}
-                className="flex-1 py-3 rounded-xl bg-amber-500 font-bold text-xs text-slate-950 cursor-pointer shadow-md"
-              >
-                {t.searchButton}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+      </article>;
+    })}</div>}
+    <p className="text-xs text-slate-500 max-w-3xl leading-relaxed">{ft.feesNotice}</p>
+  </div>;
 };

@@ -10,6 +10,8 @@ export function publicState(state: AppStoreState, actor: User | null, demoMode: 
   const inquiries = state.rentalInquiries.filter(i => admin || (inquiryToken && i.privateToken === inquiryToken));
   const hostels = state.hostels.filter(h => h.isPublished || manages(h.id) || bookings.some(b => b.hostelId === h.id)).map(hostel => {
     const copy = structuredClone(hostel);
+    copy.locationVerification ??= { status: 'unverified' };
+    if (!manages(hostel.id) && copy.locationVerification) { delete copy.locationVerification.checkedBy; }
     if (!manages(hostel.id) && !bookings.some(b => b.hostelId === hostel.id && b.privateToken === bookingToken && b.status === 'confirmed')) delete copy.floorAndDoorCode;
     return copy;
   });

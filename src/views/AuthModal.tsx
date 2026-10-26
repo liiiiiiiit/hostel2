@@ -1,306 +1,65 @@
-import React, { useState } from 'react';
-import { AppLanguage, User } from '../types';
-import { UI_TRANSLATIONS } from '../i18n/translations';
-import { X, Shield, Key, User as UserIcon, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { AppLanguage, User } from '../types';
+import { X, ArrowRight, Eye, EyeOff, LockKeyhole } from 'lucide-react';
 import { appStore } from '../services/store';
-
-interface Props {
-  currentLang: AppLanguage;
-  onClose: () => void;
-  onSuccess: (user: User) => void;
-}
-
-const AUTH_TEXTS = {
-  fa: {
-    headerTitle: 'ورود به سیستم',
-    quickDemoLabel: 'ورود سریع با حساب‌های آزمایشی:',
-    roleAdmin: 'مدیر کل',
-    roleManager: 'هاستل‌دار',
-    roleTraveler: 'مسافر',
-    tabLogin: 'ورود به حساب',
-    tabRegister: 'ثبت‌نام اختیاری مسافر',
-    emailLabel: 'ایمیل',
-    passwordLabel: 'رمز عبور',
-    nameLabel: 'نام و نام خانوادگی',
-    phoneLabel: 'شماره تماس (اختیاری)',
-    loginButton: 'ورود به سامانه',
-    registerButton: 'ثبت‌نام و ورود',
-    loginError: 'اطلاعات ورود نادرست است.',
-    registerError: 'خطایی در ثبت‌نام رخ داد.',
-  },
-  en: {
-    headerTitle: 'System Access',
-    quickDemoLabel: 'Quick Demo Logins:',
-    roleAdmin: 'Super Admin',
-    roleManager: 'Hostel Host',
-    roleTraveler: 'Traveler',
-    tabLogin: 'Sign In',
-    tabRegister: 'Optional Traveler Sign Up',
-    emailLabel: 'Email Address',
-    passwordLabel: 'Password',
-    nameLabel: 'Full Name',
-    phoneLabel: 'Phone (optional)',
-    loginButton: 'Sign In',
-    registerButton: 'Register & Continue',
-    loginError: 'Invalid email or password.',
-    registerError: 'An error occurred during registration.',
-  },
-  ru: {
-    headerTitle: 'Вход в систему',
-    quickDemoLabel: 'Быстрый вход для демо:',
-    roleAdmin: 'Главный админ',
-    roleManager: 'Хостельер',
-    roleTraveler: 'Гость',
-    tabLogin: 'Вход',
-    tabRegister: 'Регистрация путешественника',
-    emailLabel: 'Эл. почта',
-    passwordLabel: 'Пароль',
-    nameLabel: 'Полное имя',
-    phoneLabel: 'Телефон (необязательно)',
-    loginButton: 'Войти',
-    registerButton: 'Зарегистрироваться',
-    loginError: 'Неверный адрес почты или пароль.',
-    registerError: 'Ошибка при регистрации.',
-  },
-  hy: {
-    headerTitle: 'Մուտք համակարգ',
-    quickDemoLabel: 'Արագ մուտք փորձնական հաշիվներով՝',
-    roleAdmin: 'Գլխավոր ադմին',
-    roleManager: 'Հոսթելի տեր',
-    roleTraveler: 'Ճանապարհորդ',
-    tabLogin: 'Մուտք գործել',
-    tabRegister: 'Ճանապարհորդի գրանցում',
-    emailLabel: 'Էլ. հասցե',
-    passwordLabel: 'Գաղտնաբառ',
-    nameLabel: 'Անուն և ազգանուն',
-    phoneLabel: 'Հեռախոսահամար (ըստ ցանկության)',
-    loginButton: 'Մուտք',
-    registerButton: 'Գրանցվել',
-    loginError: 'Մուտքանունը կամ գաղտնաբառը սխալ է:',
-    registerError: 'Գրանցման սխալ տեղի ունեցավ:',
-  },
+interface Props { currentLang: AppLanguage; onClose: () => void; onSuccess: (user: User) => void }
+const copy = {
+  fa: { title: 'خوش آمدید', intro: 'رزروها و سفرهایتان، در یک جا.', login: 'ورود', register: 'ساخت حساب', email: 'ایمیل', password: 'رمز عبور', name: 'نام و نام خانوادگی', phone: 'تلفن (اختیاری)', submit: 'ورود به حساب', create: 'ساخت حساب و ادامه', close: 'بستن', show: 'نمایش رمز', hide: 'پنهان‌کردن رمز', minimum: 'حداقل ۸ کاراکتر', working: 'لطفاً صبر کنید…', demo: 'حساب‌های آزمایشی', admin: 'مدیر سایت', manager: 'هاستل‌دار', traveler: 'مسافر', error: 'درخواست انجام نشد. دوباره تلاش کنید.', private: 'اطلاعات حساب شما خصوصی می‌ماند.', preview: 'ورود و ثبت‌نام در این پیش‌نمایش فعال نیست.' },
+  en: { title: 'Welcome back', intro: 'Your stays and trips, in one place.', login: 'Sign In', register: 'Create account', email: 'Email address', password: 'Password', name: 'Full name', phone: 'Phone (optional)', submit: 'Sign In', create: 'Create account', close: 'Close', show: 'Show password', hide: 'Hide password', minimum: 'At least 8 characters', working: 'Please wait…', demo: 'Demo accounts', admin: 'Administrator', manager: 'Host', traveler: 'Traveler', error: 'Something went wrong. Please try again.', private: 'Your account details stay private.', preview: 'Sign-in and registration are not enabled in this preview.' },
+  ru: { title: 'Добро пожаловать', intro: 'Ваши бронирования и поездки в одном месте.', login: 'Вход', register: 'Регистрация', email: 'Эл. почта', password: 'Пароль', name: 'Имя и фамилия', phone: 'Телефон (необязательно)', submit: 'Войти', create: 'Создать аккаунт', close: 'Закрыть', show: 'Показать пароль', hide: 'Скрыть пароль', minimum: 'Не менее 8 символов', working: 'Подождите…', demo: 'Демо-аккаунты', admin: 'Администратор', manager: 'Владелец', traveler: 'Путешественник', error: 'Не удалось выполнить запрос. Повторите попытку.', private: 'Данные вашего аккаунта конфиденциальны.', preview: 'Вход и регистрация пока недоступны в предпросмотре.' },
+  hy: { title: 'Բարի գալուստ', intro: 'Ձեր ամրագրումներն ու ուղևորությունները մեկ տեղում։', login: 'Մուտք', register: 'Գրանցում', email: 'Էլ. հասցե', password: 'Գաղտնաբառ', name: 'Անուն և ազգանուն', phone: 'Հեռախոս (ըստ ցանկության)', submit: 'Մուտք գործել', create: 'Ստեղծել հաշիվ', close: 'Փակել', show: 'Ցույց տալ գաղտնաբառը', hide: 'Թաքցնել գաղտնաբառը', minimum: 'Առնվազն 8 նիշ', working: 'Սպասեք…', demo: 'Փորձնական հաշիվներ', admin: 'Ադմինիստրատոր', manager: 'Հոսթելի տեր', traveler: 'Ճանապարհորդ', error: 'Հարցումը չկատարվեց։ Փորձեք կրկին։', private: 'Ձեր հաշվի տվյալները գաղտնի են։', preview: 'Նախադիտման մուտքն ու գրանցումը դեռ հասանելի չեն։' },
 };
-
 export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) => {
-  const t = UI_TRANSLATIONS[currentLang];
-  const tr = AUTH_TEXTS[currentLang] || AUTH_TEXTS.fa;
+  const t = copy[currentLang];
   const [tab, setTab] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (busy) return;
-    setBusy(true);
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
+  const [name, setName] = useState(''); const [phone, setPhone] = useState('');
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [visible, setVisible] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null); const busyRef = useRef(busy); busyRef.current = busy;
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busyRef.current) onClose();
+      if (event.key !== 'Tab') return;
+      const elements = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),[tabindex="0"]') ?? [])].filter(element => element.getClientRects().length > 0);
+      const first = elements[0], last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', key);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', key); if (previous?.isConnected) previous.focus(); };
+  }, []);
+  useEffect(() => { (dialog.current?.querySelector(tab === 'register' ? '#auth-name' : '#auth-email') as HTMLElement | null)?.focus(); }, [tab]);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); if (busy) return; setError(''); setBusy(true);
     try {
-      const res = await appStore.login(email, password);
-      if (res.success && res.user) {
-        onSuccess(res.user);
-        onClose();
-      } else {
-        setError(res.error || tr.loginError);
-      }
-    } catch { setError(tr.loginError); } finally { setBusy(false); }
+      const result = tab === 'login' ? await appStore.login(email, password) : await appStore.registerTraveler(name, email, phone, password);
+      if (result.success && result.user) { onSuccess(result.user); onClose(); }
+      else setError(result.error || t.error);
+    } catch { setError(t.error); } finally { setBusy(false); }
   };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await appStore.registerTraveler(name, email, phone, password);
-      if (res.success && res.user) {
-        onSuccess(res.user);
-        onClose();
-      } else {
-        setError(res.error || tr.registerError);
-      }
-    } catch { setError(tr.registerError); } finally { setBusy(false); }
+  const demo = (role: 'admin' | 'manager' | 'traveler') => {
+    setTab('login'); setError(''); setEmail(role === 'admin' ? 'admin@yerevanhub.com' : role === 'manager' ? 'manager.kentron@yerevanhub.com' : 'traveler@example.com');
+    setPassword(role === 'admin' ? 'Admin@2026' : role === 'manager' ? 'Hostel@2026' : 'Traveler@2026');
   };
-
-  const fillQuickDemo = (role: 'admin' | 'manager' | 'traveler') => {
-    setTab('login');
-    setError('');
-    if (role === 'admin') {
-      setEmail('admin@yerevanhub.com');
-      setPassword('Admin@2026');
-    } else if (role === 'manager') {
-      setEmail('manager.kentron@yerevanhub.com');
-      setPassword('Hostel@2026');
-    } else {
-      setEmail('traveler@example.com');
-      setPassword('Traveler@2026');
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-100">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="brand-name font-black text-lg text-slate-900">YEREVANHUB</span>
-            <span className="text-xs text-slate-400">{tr.headerTitle}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Quick Demo Credentials Autofill */}
-        {appStore.getState().demoMode && <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-          <span className="font-bold text-slate-700 block">{tr.quickDemoLabel}</span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => fillQuickDemo('admin')}
-              className="py-1.5 px-2 rounded-lg bg-purple-50 text-purple-900 border border-purple-200 font-bold hover:bg-purple-100 transition-colors text-center cursor-pointer"
-            >
-              {tr.roleAdmin}
-            </button>
-            <button
-              type="button"
-              onClick={() => fillQuickDemo('manager')}
-              className="py-1.5 px-2 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 font-bold hover:bg-emerald-100 transition-colors text-center cursor-pointer"
-            >
-              {tr.roleManager}
-            </button>
-            <button
-              type="button"
-              onClick={() => fillQuickDemo('traveler')}
-              className="py-1.5 px-2 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 font-bold hover:bg-amber-100 transition-colors text-center cursor-pointer"
-            >
-              {tr.roleTraveler}
-            </button>
-          </div>
-        </div>}
-
-        {/* Tab switch */}
-        <div className="flex border-b border-slate-100 pb-1">
-          <button
-            type="button"
-            onClick={() => { setTab('login'); setError(''); }}
-            className={`flex-1 py-2 text-xs font-bold transition-colors cursor-pointer border-b-2 ${
-              tab === 'login' ? 'border-amber-500 text-amber-900' : 'border-transparent text-slate-400'
-            }`}
-          >
-            {tr.tabLogin}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTab('register'); setError(''); }}
-            className={`flex-1 py-2 text-xs font-bold transition-colors cursor-pointer border-b-2 ${
-              tab === 'register' ? 'border-amber-500 text-amber-900' : 'border-transparent text-slate-400'
-            }`}
-          >
-            {tr.tabRegister}
-          </button>
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-xl bg-red-50 text-xs text-red-700 flex items-center gap-1.5">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {tab === 'login' ? (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.emailLabel}</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left font-medium"
-                placeholder="name@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.passwordLabel}</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-md transition-colors"
-            >
-              {tr.loginButton}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.nameLabel}</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium"
-                placeholder="Name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.emailLabel}</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left font-medium"
-                placeholder="name@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.passwordLabel}</label>
-              <input type="password" required minLength={8} autoComplete="new-password" value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">{tr.phoneLabel}</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs ltr-isolate text-left"
-                placeholder="+374 91 ..."
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer shadow-md transition-colors"
-            >
-              {tr.registerButton}
-            </button>
-          </form>
-        )}
-      </div>
+  return <div className="fixed inset-0 z-[70] bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="auth-title" className="bg-white rounded-[1.75rem] shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto p-6 sm:p-8">
+      <div className="flex items-center justify-between mb-7"><span className="brand-name text-xs tracking-[.2em]">YEREVANHUB</span><button className="p-2 rounded-full hover:bg-slate-100" type="button" aria-label={t.close} onClick={onClose} disabled={busy}><X size={20} /></button></div>
+      <h1 id="auth-title" className="text-2xl font-bold mb-2">{t.title}</h1><p className="text-sm text-slate-500 mb-6">{t.intro}</p>
+      {appStore.getState().previewMode ? <p role="status" className="p-4 rounded-xl bg-amber-50 text-sm">{t.preview}</p> : <>
+        <div role="tablist" className="flex bg-slate-100 rounded-xl p-1 mb-6">{(['login','register'] as const).map(value => <button key={value} id={`auth-${value}-tab`} role="tab" aria-selected={tab === value} aria-controls="auth-form" type="button" disabled={busy} onClick={() => { setTab(value); setError(''); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === value ? 'bg-white shadow-sm' : 'text-slate-500'}`}>{value === 'login' ? t.login : t.register}</button>)}</div>
+        <form id="auth-form" role="tabpanel" aria-labelledby={`auth-${tab}-tab`} onSubmit={submit} className="space-y-4">
+          {tab === 'register' && <div><label className="field-label" htmlFor="auth-name">{t.name}</label><input id="auth-name" autoComplete="name" required maxLength={100} value={name} onChange={event => setName(event.target.value)} className="field" /></div>}
+          <div><label className="field-label" htmlFor="auth-email">{t.email}</label><input id="auth-email" type="email" autoComplete="email" required maxLength={254} dir="ltr" placeholder="name@example.com" value={email} onChange={event => setEmail(event.target.value)} className="field text-start" /></div>
+          <div><label className="field-label" htmlFor="auth-password">{t.password}</label><div className="relative"><input id="auth-password" type={visible ? 'text' : 'password'} autoComplete={tab === 'login' ? 'current-password' : 'new-password'} required minLength={tab === 'register' ? 8 : undefined} maxLength={128} dir="ltr" value={password} onChange={event => setPassword(event.target.value)} className="field !pe-12" /><button type="button" className="absolute end-2 top-2 p-2 text-slate-500" aria-label={visible ? t.hide : t.show} onClick={() => setVisible(value => !value)}>{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>{tab === 'register' && <p className="text-xs text-slate-500 mt-1">{t.minimum}</p>}</div>
+          {tab === 'register' && <div><label className="field-label" htmlFor="auth-phone">{t.phone}</label><input id="auth-phone" type="tel" autoComplete="tel" dir="ltr" maxLength={50} value={phone} onChange={event => setPhone(event.target.value)} className="field" /></div>}
+          {error && <p role="alert" className="bg-rose-50 text-rose-800 rounded-xl p-3 text-sm">{error}</p>}
+          <button type="submit" disabled={busy} className="button-primary w-full !mt-6">{busy ? t.working : tab === 'login' ? t.submit : t.create}<ArrowRight size={17} className={currentLang === 'fa' ? 'rotate-180' : ''} /></button>
+        </form>
+        {appStore.getState().demoMode && <details className="border-t border-slate-100 pt-4 mt-6 text-xs"><summary className="text-slate-500">{t.demo}</summary><div className="flex gap-2 mt-3">{(['admin','manager','traveler'] as const).map(role => <button key={role} type="button" disabled={busy} onClick={() => demo(role)} className="border rounded-lg p-2 flex-1">{t[role]}</button>)}</div></details>}
+        <p className="flex gap-2 justify-center items-center text-xs text-slate-500 mt-6"><LockKeyhole size={13} />{t.private}</p>
+      </>}
     </div>
-  );
+  </div>;
 };

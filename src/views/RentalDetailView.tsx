@@ -1,638 +1,79 @@
-import { VerificationInfo } from '../components/VerificationInfo';
-import { PlaceActions } from '../components/PlaceActions';
-import { yerevanToday } from '../utils/dates';
 import React, { useState } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, BedDouble, Building2, Check, MapPin, Users, Ruler, AlertCircle, Loader2 } from 'lucide-react';
 import { AppLanguage, RentalProperty } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
-import {
-  Home,
-  ShieldCheck,
-  MapPin,
-  Calendar,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  Eye,
-  ArrowRight,
-  ArrowLeft,
-  Zap,
-  Droplet,
-  Flame,
-  Wifi,
-  Building,
-} from 'lucide-react';
-import { appStore } from '../services/store';
 import { getLocalized, getCityName } from '../utils/i18n';
-
-interface Props {
-  currentLang: AppLanguage;
-  rental: RentalProperty;
-  onNavigate: (view: string, params?: any) => void;
-}
-
-const RENTAL_DETAIL_TEXTS = {
-  fa: {
-    breadcrumbHome: 'صفحه اصلی',
-    keySpecsTitle: 'مشخصات کلیدی ملک',
-    areaLabel: 'متراژ زیربنا',
-    sqmUnit: 'متر مربع',
-    bedroomLabel: 'اتاق خواب',
-    bedroomUnit: 'خوابه',
-    floorLabel: 'طبقه و آسانسور',
-    floorPrefix: 'طبقه',
-    withElevator: '(آسانسور دارد)',
-    noElevator: '(بدون آسانسور)',
-    residentsLabel: 'حداکثر ساکنین',
-    residentsUnit: 'نفر',
-    depositTitle: 'ودیعه تضمینی و شرایط استرداد (Deposit Terms)',
-    depositAmountLabel: 'مبلغ ودیعه:',
-    depositDesc: 'ودیعه جدا از اجاره نگهداری می‌شود و در پایان دوره قرارداد پس از تسویه قبض‌ها مستقیماً به مستاجر بازگردانده خواهد شد.',
-    utilitiesTitle: 'وضعیت هزینه‌های ماهانه و قبوض (کومونال)',
-    elecLabel: 'برق:',
-    gasLabel: 'گاز و گرمایش:',
-    waterLabel: 'آب مصرفی:',
-    wifiLabel: 'اینترنت وای‌فای:',
-    elecIncluded: 'رایگان (روی اجاره)',
-    elecMeter: 'طبق کنتور و مصرف مستاجر',
-    gasIncluded: 'رایگان',
-    gasMeter: 'بر اساس کنتور اختصاصی گاز',
-    waterIncluded: 'شامل اجاره',
-    waterMeter: 'به عهده مستاجر (معمولاً اندک)',
-    wifiIncluded: 'اینترنت فعال و رایگان',
-    wifiMeter: 'اشتراک با مستاجر',
-    inspectionTitle: 'توضیحات بازرسی YEREVANHUB:',
-    inspectionNote: 'آدرس دقیق و مشخصات تماس مالک پس از ارسال درخواست هماهنگی و بررسی اولیه توسط مدیریت با شما به اشتراک گذاشته خواهد شد.',
-    rateLabel: 'نرخ اجاره:',
-    rateMonthly: 'AMD ֏ ماهانه',
-    rateNightly: 'AMD ֏ هر شب',
-    requestTypeLabel: 'نوع درخواست شما:',
-    typeVisitBtn: 'هماهنگی بازدید',
-    typeRentBtn: 'درخواست اجاره',
-    nameLabel: 'نام و نام خانوادگی *',
-    contactLabel: 'شماره تماس یا ایمیل *',
-    visitDateLabel: 'زمان پیشنهادی جهت بازدید حضوری',
-    startDateLabel: 'تاریخ شروع',
-    durationLabel: 'مدت مورد نظر',
-    residentsCountLabel: 'تعداد ساکنین',
-    notesLabel: 'توضیحات تکمیلی (اختیاری)',
-    notesPlaceholder: 'حیوان خانگی، نیاز به پارکینگ یا شرایط ویژه...',
-    submitBtn: 'ارسال درخواست (دریافت پیوند پیگیری)',
-    submittingBtn: 'در حال ارسال...',
-    disclaimer: 'ثبت درخواست اولیه تعهدی ایجاد نمی‌کند. تیم پشتیبانی جهت هماهنگی با مالک با شما تماس خواهد گرفت.',
-    errName: 'نام و نام خانوادگی الزامی است.',
-    errContact: 'شماره تماس یا ایمیل معتبر الزامی است.',
-  },
-  en: {
-    breadcrumbHome: 'Home',
-    keySpecsTitle: 'Key Property Specifications',
-    areaLabel: 'Total Area',
-    sqmUnit: 'sq meters',
-    bedroomLabel: 'Bedrooms',
-    bedroomUnit: 'bed(s)',
-    floorLabel: 'Floor & Elevator',
-    floorPrefix: 'Floor',
-    withElevator: '(with elevator)',
-    noElevator: '(no elevator)',
-    residentsLabel: 'Max Residents',
-    residentsUnit: 'resident(s)',
-    depositTitle: 'Security Deposit & Refund Terms',
-    depositAmountLabel: 'Deposit Amount:',
-    depositDesc: 'Security deposit is held separately from rent and refunded in full at lease conclusion after final utility settlement.',
-    utilitiesTitle: 'Monthly Utilities Breakdown (Communal)',
-    elecLabel: 'Electricity:',
-    gasLabel: 'Gas & Heating:',
-    waterLabel: 'Water:',
-    wifiLabel: 'High-speed Wi-Fi:',
-    elecIncluded: 'Included in rent',
-    elecMeter: 'Meter-based (paid by tenant)',
-    gasIncluded: 'Included in rent',
-    gasMeter: 'Individual gas meter',
-    waterIncluded: 'Included in rent',
-    waterMeter: 'Tenant responsibility (nominal)',
-    wifiIncluded: 'Active & free Wi-Fi included',
-    wifiMeter: 'Tenant responsibility',
-    inspectionTitle: 'YEREVANHUB Field Verification:',
-    inspectionNote: 'Exact building address and owner contact details are provided upon initial review and inquiry confirmation.',
-    rateLabel: 'Rental Rate:',
-    rateMonthly: 'AMD ֏ per month',
-    rateNightly: 'AMD ֏ per night',
-    requestTypeLabel: 'Inquiry Purpose:',
-    typeVisitBtn: 'Schedule Visit',
-    typeRentBtn: 'Apply to Rent',
-    nameLabel: 'Full Name *',
-    contactLabel: 'Phone or Email *',
-    visitDateLabel: 'Preferred viewing date & time',
-    startDateLabel: 'Move-in Date',
-    durationLabel: 'Desired Lease Term',
-    residentsCountLabel: 'Number of Residents',
-    notesLabel: 'Additional Notes (optional)',
-    notesPlaceholder: 'Pets, parking requirements, or special terms...',
-    submitBtn: 'Submit Inquiry (Get Private Link)',
-    submittingBtn: 'Submitting...',
-    disclaimer: 'Submitting creates no financial obligation. Our local coordinator will contact you to confirm viewing details.',
-    errName: 'Full name is required.',
-    errContact: 'Valid phone number or email is required.',
-  },
-  ru: {
-    breadcrumbHome: 'Главная',
-    keySpecsTitle: 'Характеристики объекта',
-    areaLabel: 'Площадь',
-    sqmUnit: 'м²',
-    bedroomLabel: 'Спальни',
-    bedroomUnit: 'комн.',
-    floorLabel: 'Этаж и лифт',
-    floorPrefix: 'Этаж',
-    withElevator: '(есть лифт)',
-    noElevator: '(без лифта)',
-    residentsLabel: 'Макс. жителей',
-    residentsUnit: 'чел.',
-    depositTitle: 'Условия гарантийного депозита (Залог)',
-    depositAmountLabel: 'Сумма залога:',
-    depositDesc: 'Залог хранится отдельно от арендной платы и возвращается арендатору при выезде после финальной сверки коммунальных счетов.',
-    utilitiesTitle: 'Коммунальные платежи (Комунал)',
-    elecLabel: 'Электричество:',
-    gasLabel: 'Газ и отопление:',
-    waterLabel: 'Вода:',
-    wifiLabel: 'Интернет Wi-Fi:',
-    elecIncluded: 'Включено в аренду',
-    elecMeter: 'По счетчику (оплачивает жилец)',
-    gasIncluded: 'Включено в аренду',
-    gasMeter: 'По индивидуальному газовому счетчику',
-    waterIncluded: 'Включено в аренду',
-    waterMeter: 'По счетчику (обычно минимально)',
-    wifiIncluded: 'Интернет подключен и бесплатен',
-    wifiMeter: 'Подключение за счет жильца',
-    inspectionTitle: 'Результаты проверки YEREVANHUB:',
-    inspectionNote: 'Точный адрес объекта и контакты владельца предоставляются после подачи заявки на просмотр.',
-    rateLabel: 'Стоимость аренды:',
-    rateMonthly: 'AMD ֏ в месяц',
-    rateNightly: 'AMD ֏ за ночь',
-    requestTypeLabel: 'Тип обращения:',
-    typeVisitBtn: 'Осмотр квартиры',
-    typeRentBtn: 'Заявка на аренду',
-    nameLabel: 'Имя и фамилия *',
-    contactLabel: 'Телефон или Email *',
-    visitDateLabel: 'Желаемая дата и время осмотра',
-    startDateLabel: 'Дата заселения',
-    durationLabel: 'Срок аренды',
-    residentsCountLabel: 'Количество проживающих',
-    notesLabel: 'Дополнительные пожелания (необязательно)',
-    notesPlaceholder: 'Домашние питомцы, парковка, особые условия...',
-    submitBtn: 'Отправить заявку (получить ссылку)',
-    submittingBtn: 'Отправка...',
-    disclaimer: 'Подача заявки ни к чему не обязывает. Координатор свяжется с вами для согласования визита.',
-    errName: 'Укажите имя и фамилию.',
-    errContact: 'Укажите телефон или email.',
-  },
-  hy: {
-    breadcrumbHome: 'Գլխավոր',
-    keySpecsTitle: 'Գույքի հիմնական բնութագիրը',
-    areaLabel: 'Մակերես',
-    sqmUnit: 'քմ',
-    bedroomLabel: 'Ննջասենյակներ',
-    bedroomUnit: 'սենյականոց',
-    floorLabel: 'Հարկ և վերելակ',
-    floorPrefix: 'Հարկ',
-    withElevator: '(առկա է վերելակ)',
-    noElevator: '(առանց վերելակի)',
-    residentsLabel: 'Առավելագույն բնակիչներ',
-    residentsUnit: 'անձ',
-    depositTitle: 'Երաշխիքային կանխավճարի պայմաններ (Դեպոզիտ)',
-    depositAmountLabel: 'Դեպոզիտի գումարը՝',
-    depositDesc: 'Դեպոզիտը պահվում է առանձին և ամբողջությամբ վերադարձվում է վարձակալության ավարտին՝ կոմունալ վճարումները կարգավորելուց հետո:',
-    utilitiesTitle: 'Ամսական կոմունալ ծախսեր',
-    elecLabel: 'Էլեկտրաէներգիա՝',
-    gasLabel: 'Գազ և ջեռուցում՝',
-    waterLabel: 'Ջուր՝',
-    wifiLabel: 'Wi-Fi ինտերնետ՝',
-    elecIncluded: 'Ներառված է վարձավճարում',
-    elecMeter: 'Ըստ հաշվիչի (վճարում է վարձակալը)',
-    gasIncluded: 'Ներառված է վարձավճարում',
-    gasMeter: 'Ըստ գազի առանձին հաշվիչի',
-    waterIncluded: 'Ներառված է վարձավճարում',
-    waterMeter: 'Ըստ հաշվիչի (չնչին գումար)',
-    wifiIncluded: 'Ակտիվ և անվճար Wi-Fi',
-    wifiMeter: 'Վարձակալի հաշվին',
-    inspectionTitle: 'YEREVANHUB ստուգման արդյունքներ՝',
-    inspectionNote: 'Շենքի ճշգրիտ հասցեն և տիրոջ կոնտակտները կտրամադրվեն նախնական հաստատումից հետո:',
-    rateLabel: 'Վարձավճար՝',
-    rateMonthly: 'AMD ֏ ամսական',
-    rateNightly: 'AMD ֏ օրական',
-    requestTypeLabel: 'Հարցման նպատակ՝',
-    typeVisitBtn: 'Տեղում դիտում',
-    typeRentBtn: 'Վարձակալության հայտ',
-    nameLabel: 'Անուն և ազգանուն *',
-    contactLabel: 'Հեռախոս կամ էլ. հասցե *',
-    visitDateLabel: 'Դիտման նախընտրելի օր և ժամ',
-    startDateLabel: 'Մուտքի ամսաթիվ',
-    durationLabel: 'Վարձակալության ժամկետ',
-    residentsCountLabel: 'Բնակիչների քանակ',
-    notesLabel: 'Լրացուցիչ նշումներ (ըստ ցանկության)',
-    notesPlaceholder: 'Ընտանի կենդանիներ, ավտոկայանատեղի կամ այլ...',
-    submitBtn: 'Ուղարկել հայտը (ստանալ հետևման հղում)',
-    submittingBtn: 'Ուղարկվում է...',
-    disclaimer: 'Հայտի ուղարկումը ֆինանսական պարտավորություն չի առաջացնում: Մեր համակարգողը կկապվի Ձեզ հետ:',
-    errName: 'Անուն և ազգանունը պարտադիր է:',
-    errContact: 'Կոնտակտային տվյալը պարտադիր է:',
-  },
+import { yerevanToday } from '../utils/dates';
+import { appStore } from '../services/store';
+import { VerificationInfo } from '../components/VerificationInfo';
+import { PlaceActions } from '../components/PlaceActions';
+interface Props { currentLang: AppLanguage; rental: RentalProperty; onNavigate: (view: string, params?: any) => void }
+const COPY = {
+  fa: { home:'خانه', overview:'دربارهٔ این ملک', specs:'مشخصات', area:'متراژ', bedrooms:'اتاق خواب', floor:'طبقه', residents:'حداکثر ساکنین', elevator:'آسانسور دارد', noElevator:'بدون آسانسور', amenities:'امکانات', costs:'اجاره و هزینه‌ها', nightly:'هر شب', monthly:'ماهانه', deposit:'ودیعه', commission:'کمیسیون', cleaning:'نظافت', terms:'شرایط اجاره و ودیعه', utilities:'قبوض و هزینه‌های جاری', included:'شامل اجاره', tenant:'به عهدهٔ مستأجر', meter:'بر اساس مصرف', electricity:'برق', water:'آب', gas:'گاز', internet:'اینترنت', maintenance:'شارژ ساختمان', minimum:'حداقل اقامت', nights:'شب', months:'ماه', request:'درخواست بازدید یا اجاره', visit:'بازدید', rent:'اجاره', name:'نام و نام خانوادگی', contact:'تلفن یا ایمیل', visitDate:'زمان بازدید پیشنهادی', startDate:'تاریخ شروع', duration:'مدت مورد نظر', durationHint:'مثلاً ۳ ماه', people:'تعداد ساکنین', notes:'توضیحات بیشتر', optional:'اختیاری', submit:'ارسال درخواست', submitting:'در حال ارسال', disclaimer:'پس از بررسی، برای هماهنگی با شما تماس می‌گیریم. ثبت درخواست به معنی تأیید اجاره نیست.', private:'نشانی دقیق پس از هماهنگی در اختیار شما قرار می‌گیرد.', nameRequired:'نام و نام خانوادگی را وارد کنید.', contactRequired:'تلفن یا ایمیل خود را وارد کنید.', failed:'ارسال درخواست انجام نشد؛ دوباره تلاش کنید.', wifi:'وای‌فای', ac:'تهویه', centralHeating:'گرمایش', washingMachine:'ماشین لباس‌شویی', dishwasher:'ماشین ظرف‌شویی', balcony:'بالکن', parking:'پارکینگ', petFriendly:'حیوان خانگی مجاز' },
+  en: { home:'Home', overview:'About this property', specs:'At a glance', area:'Area', bedrooms:'Bedrooms', floor:'Floor', residents:'Max. residents', elevator:'Elevator', noElevator:'No elevator', amenities:'Amenities', costs:'Rent & costs', nightly:'per night', monthly:'per month', deposit:'Deposit', commission:'Commission', cleaning:'Cleaning', terms:'Lease & deposit terms', utilities:'Utilities', included:'Included in rent', tenant:'Paid by tenant', meter:'Based on usage', electricity:'Electricity', water:'Water', gas:'Gas', internet:'Internet', maintenance:'Building fees', minimum:'Minimum stay', nights:'nights', months:'months', request:'Arrange a visit or rental', visit:'Viewing', rent:'Rental', name:'Full name', contact:'Phone or email', visitDate:'Preferred viewing time', startDate:'Move-in date', duration:'Preferred lease length', durationHint:'e.g. 3 months', people:'Residents', notes:'Additional details', optional:'optional', submit:'Send inquiry', submitting:'Sending', disclaimer:'We will contact you after reviewing your inquiry. Sending it does not confirm a rental.', private:'The exact address is shared after coordination.', nameRequired:'Enter your full name.', contactRequired:'Enter your phone or email.', failed:'Your inquiry could not be sent. Please try again.', wifi:'Wi-Fi', ac:'Air conditioning', centralHeating:'Heating', washingMachine:'Washing machine', dishwasher:'Dishwasher', balcony:'Balcony', parking:'Parking', petFriendly:'Pets welcome' },
+  ru: { home:'Главная', overview:'Об объекте', specs:'Характеристики', area:'Площадь', bedrooms:'Спальни', floor:'Этаж', residents:'Макс. жителей', elevator:'Есть лифт', noElevator:'Без лифта', amenities:'Удобства', costs:'Аренда и расходы', nightly:'за ночь', monthly:'в месяц', deposit:'Залог', commission:'Комиссия', cleaning:'Уборка', terms:'Условия аренды и залога', utilities:'Коммунальные услуги', included:'Включено в аренду', tenant:'Оплачивает жилец', meter:'По потреблению', electricity:'Электричество', water:'Вода', gas:'Газ', internet:'Интернет', maintenance:'Обслуживание дома', minimum:'Минимальный срок', nights:'ночей', months:'месяцев', request:'Запросить просмотр или аренду', visit:'Просмотр', rent:'Аренда', name:'Полное имя', contact:'Телефон или почта', visitDate:'Удобное время просмотра', startDate:'Дата заезда', duration:'Срок аренды', durationHint:'Например, 3 месяца', people:'Жители', notes:'Дополнительные сведения', optional:'необязательно', submit:'Отправить запрос', submitting:'Отправка', disclaimer:'Мы свяжемся с вами после рассмотрения. Запрос не является подтверждением аренды.', private:'Точный адрес предоставляется после согласования.', nameRequired:'Введите полное имя.', contactRequired:'Введите телефон или почту.', failed:'Не удалось отправить запрос. Попробуйте ещё раз.', wifi:'Wi-Fi', ac:'Кондиционер', centralHeating:'Отопление', washingMachine:'Стиральная машина', dishwasher:'Посудомоечная машина', balcony:'Балкон', parking:'Парковка', petFriendly:'Можно с питомцами' },
+  hy: { home:'Գլխավոր', overview:'Բնակարանի մասին', specs:'Բնութագրեր', area:'Մակերես', bedrooms:'Ննջասենյակներ', floor:'Հարկ', residents:'Բնակիչների առավելագույն թիվ', elevator:'Կա վերելակ', noElevator:'Առանց վերելակի', amenities:'Հարմարություններ', costs:'Վարձավճար և ծախսեր', nightly:'մեկ գիշեր', monthly:'ամսական', deposit:'Ավանդ', commission:'Միջնորդավճար', cleaning:'Մաքրում', terms:'Վարձակալության և ավանդի պայմաններ', utilities:'Կոմունալ ծառայություններ', included:'Ներառված է վարձի մեջ', tenant:'Վճարում է վարձակալը', meter:'Ըստ սպառման', electricity:'Էլեկտրաէներգիա', water:'Ջուր', gas:'Գազ', internet:'Ինտերնետ', maintenance:'Շենքի սպասարկում', minimum:'Նվազագույն ժամկետ', nights:'գիշեր', months:'ամիս', request:'Դիտման կամ վարձակալության հարցում', visit:'Դիտում', rent:'Վարձակալություն', name:'Անուն և ազգանուն', contact:'Հեռախոս կամ էլ. հասցե', visitDate:'Դիտման նախընտրելի ժամ', startDate:'Մուտքի ամսաթիվ', duration:'Վարձակալության ժամկետ', durationHint:'Օրինակ՝ 3 ամիս', people:'Բնակիչներ', notes:'Լրացուցիչ տեղեկություններ', optional:'ըստ ցանկության', submit:'Ուղարկել հարցումը', submitting:'Ուղարկվում է', disclaimer:'Հարցումը դիտարկելուց հետո կկապվենք ձեզ հետ։ Հարցումը չի հաստատում վարձակալությունը։', private:'Ճշգրիտ հասցեն տրվում է համաձայնեցումից հետո։', nameRequired:'Մուտքագրեք անունն ու ազգանունը։', contactRequired:'Մուտքագրեք հեռախոսը կամ էլ. հասցեն։', failed:'Հարցումը չուղարկվեց։ Փորձեք կրկին։', wifi:'Wi-Fi', ac:'Օդորակիչ', centralHeating:'Ջեռուցում', washingMachine:'Լվացքի մեքենա', dishwasher:'Սպասք լվացող մեքենա', balcony:'Պատշգամբ', parking:'Կայանատեղի', petFriendly:'Կենդանիները թույլատրվում են' },
 };
-
-export const RentalDetailView: React.FC<Props> = ({
-  currentLang,
-  rental,
-  onNavigate,
-}) => {
-  const t = UI_TRANSLATIONS[currentLang];
-  const tr = RENTAL_DETAIL_TEXTS[currentLang] || RENTAL_DETAIL_TEXTS.fa;
-  const isRtl = currentLang === 'fa';
-  const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
-
-  // Inquiry form state
-  const [requestType, setRequestType] = useState<'visit' | 'rent'>('visit');
-  const [guestName, setGuestName] = useState('');
-  const [contact, setContact] = useState('');
-  const [proposedVisitDate, setProposedVisitDate] = useState(() => `${yerevanToday()} 17:00`);
-  const [desiredStartDate, setDesiredStartDate] = useState(yerevanToday);
-  const [desiredDurationText, setDesiredDurationText] = useState('6 months');
-  const [residentsCount, setResidentsCount] = useState(1);
-  const [notes, setNotes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-
-    if (!guestName.trim()) {
-      setFormError(tr.errName);
-      return;
-    }
-    if (!contact.trim()) {
-      setFormError(tr.errContact);
-      return;
-    }
-
+export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavigate }) => {
+  const t=UI_TRANSLATIONS[currentLang]; const c=COPY[currentLang]; const title=getLocalized(rental.title,currentLang);
+  const Back=currentLang==='fa'?ArrowRight:ArrowLeft;
+  const [requestType,setRequestType]=useState<'visit'|'rent'>('visit'); const [guestName,setGuestName]=useState(''); const [contact,setContact]=useState('');
+  const [proposedVisitDate,setProposedVisitDate]=useState(()=>`${yerevanToday()}T17:00`); const [desiredStartDate,setDesiredStartDate]=useState(yerevanToday);
+  const [desiredDurationText,setDesiredDurationText]=useState(''); const [residentsCount,setResidentsCount]=useState(1); const [notes,setNotes]=useState('');
+  const [isSubmitting,setIsSubmitting]=useState(false); const [formError,setFormError]=useState('');
+  const primaryPrice=rental.pricePerMonthAMD ?? rental.pricePerNightAMD;
+  const onSubmit=async(event:React.FormEvent)=>{
+    event.preventDefault();if(isSubmitting)return;setFormError('');
+    if(!guestName.trim()){setFormError(c.nameRequired);return;}if(!contact.trim()){setFormError(c.contactRequired);return;}
     setIsSubmitting(true);
-    const result = await appStore.createRentalInquiry({
-      propertyId: rental.id,
-      guestName,
-      contact,
-      requestType,
-      desiredStartDate: requestType === 'rent' ? desiredStartDate : undefined,
-      desiredDurationText: requestType === 'rent' ? desiredDurationText : undefined,
-      proposedVisitDate: requestType === 'visit' ? proposedVisitDate : undefined,
-      residentsCount,
-      notes,
-    });
-    setIsSubmitting(false);
-
-    if (result.success && result.inquiry) {
-      onNavigate('rental-track', { token: result.inquiry.privateToken });
-    } else {
-      setFormError(result.error || 'Failed to submit inquiry.');
-    }
+    try {
+      const result=await appStore.createRentalInquiry({propertyId:rental.id,guestName,contact,requestType,desiredStartDate:requestType==='rent'?desiredStartDate:undefined,desiredDurationText:requestType==='rent'?desiredDurationText:undefined,proposedVisitDate:requestType==='visit'?proposedVisitDate:undefined,residentsCount,notes});
+      if(result.success&&result.inquiry)onNavigate('rental-track',{token:result.inquiry.privateToken});else setFormError(result.error||c.failed);
+    } catch {setFormError(c.failed);}finally{setIsSubmitting(false);}
   };
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      <PlaceActions kind="rental" id={rental.id} />
-      <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <button
-          type="button"
-          onClick={() => onNavigate('home')}
-          className="hover:text-blue-700 cursor-pointer"
-        >
-          {tr.breadcrumbHome}
-        </button>
-        <span>/</span>
-        <button
-          type="button"
-          onClick={() => onNavigate('rentals')}
-          className="hover:text-blue-700 cursor-pointer"
-        >
-          {t.navRentals}
-        </button>
-        <span>/</span>
-        <span className="text-slate-900 font-semibold truncate">
-          {getLocalized(rental.title, currentLang)}
-        </span>
-      </nav>
-
-      {/* Header */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-900 text-xs font-bold">
-            {getCityName(rental.city, currentLang)} • {rental.neighborhood}
-          </span>
-          {rental.verifiedBadge && (
-            <span className="px-2.5 py-0.5 rounded-md bg-emerald-600 text-white text-xs font-bold flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{t.verifiedBadge}</span>
-            </span>
-          )}
-        </div>
-
-        <h1 className="text-2xl sm:text-4xl font-black text-slate-900">
-          {getLocalized(rental.title, currentLang)}
-        </h1>
-
-        <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1.5">
-          <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-          <span>{rental.addressPublic || `${rental.city}, ${rental.neighborhood}`}</span>
-        </p>
-      </div>
-
-      {/* Photo Gallery */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-2xl overflow-hidden bg-slate-100">
-        <div className="md:col-span-2 aspect-16/10 overflow-hidden">
-          <img
-            src={rental.photos[0]}
-            alt={getLocalized(rental.title, currentLang)}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-          {rental.photos.slice(1, 3).map((photo, i) => (
-            <div key={i} className="aspect-16/10 md:aspect-auto overflow-hidden">
-              <img
-                src={photo}
-                alt={`${getLocalized(rental.title, currentLang)} ${i + 2}`}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Grid: Left Details / Right Inquiry Form */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Property specs */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
-            <h2 className="text-lg font-bold text-slate-900">{tr.keySpecsTitle}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-              <div className="p-3.5 rounded-2xl bg-slate-50">
-                <span className="text-slate-400 block mb-1">{tr.areaLabel}</span>
-                <span className="font-extrabold text-slate-900 text-sm">{rental.areaSqm} {tr.sqmUnit}</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-50">
-                <span className="text-slate-400 block mb-1">{tr.bedroomLabel}</span>
-                <span className="font-extrabold text-slate-900 text-sm">{rental.bedroomsCount} {tr.bedroomUnit}</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-50">
-                <span className="text-slate-400 block mb-1">{tr.floorLabel}</span>
-                <span className="font-extrabold text-slate-900 text-sm">
-                  {tr.floorPrefix} {rental.floor} {rental.hasElevator ? tr.withElevator : tr.noElevator}
-                </span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-slate-50">
-                <span className="text-slate-400 block mb-1">{tr.residentsLabel}</span>
-                <span className="font-extrabold text-slate-900 text-sm">{rental.maxResidents} {tr.residentsUnit}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Refundable Security Deposit terms (شرایط ودیعه) */}
-          <div className="p-6 rounded-3xl bg-amber-50/70 border border-amber-200 space-y-3">
-            <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
-              <ShieldCheck className="w-5 h-5 text-amber-600" />
-              <span>{tr.depositTitle}</span>
-            </div>
-            <div className="text-xs sm:text-sm text-slate-800 space-y-2 leading-relaxed">
-              <p>
-                <strong>{tr.depositAmountLabel}</strong> {rental.refundableDepositAMD.toLocaleString()} AMD ֏.
-              </p>
-              <p>{rental.depositTerms}</p>
-              <p className="text-slate-600 text-xs">
-                {tr.depositDesc}
-              </p>
-            </div>
-          </div>
-
-          {/* Utilities status breakdown (آب، برق، گاز، اینترنت، شارژ ساختمان) */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
-            <h2 className="text-lg font-bold text-slate-900">{tr.utilitiesTitle}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-slate-700">
-                  <Zap className="w-4 h-4 text-amber-500" />
-                  <span>{tr.elecLabel}</span>
-                </span>
-                <span className="font-bold text-slate-900">
-                  {rental.utilitiesBreakdown.electricity === 'included' ? tr.elecIncluded : tr.elecMeter}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-slate-700">
-                  <Flame className="w-4 h-4 text-rose-500" />
-                  <span>{tr.gasLabel}</span>
-                </span>
-                <span className="font-bold text-slate-900">
-                  {rental.utilitiesBreakdown.gas === 'included' ? tr.gasIncluded : tr.gasMeter}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-slate-700">
-                  <Droplet className="w-4 h-4 text-blue-500" />
-                  <span>{tr.waterLabel}</span>
-                </span>
-                <span className="font-bold text-slate-900">
-                  {rental.utilitiesBreakdown.water === 'included' ? tr.waterIncluded : tr.waterMeter}
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-slate-50 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-slate-700">
-                  <Wifi className="w-4 h-4 text-emerald-500" />
-                  <span>{tr.wifiLabel}</span>
-                </span>
-                <span className="font-bold text-emerald-700">
-                  {rental.utilitiesBreakdown.internet === 'included' ? tr.wifiIncluded : tr.wifiMeter}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Inspection Verification Badge Details */}
-          <div className="p-5 rounded-3xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 space-y-1">
-            <span className="font-bold block flex items-center gap-1.5 text-sm text-emerald-900">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>{tr.inspectionTitle}</span>
-            </span>
-            <p>{rental.verifiedExplanation}</p>
-            <p className="text-slate-600 text-[11px] pt-1">
-              {tr.inspectionNote}
-            </p>
-          </div>
-        </div>
-
-        {/* Right Column: Inquiry & Visit Request Form */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-24 bg-white p-6 rounded-3xl border border-slate-200 shadow-xl space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <span className="text-xs text-slate-400 font-semibold block">{tr.rateLabel}</span>
-              <div className="text-2xl font-black text-slate-900">
-                {rental.pricePerMonthAMD ? (
-                  <span>
-                    {rental.pricePerMonthAMD.toLocaleString()}{' '}
-                    <span className="text-xs font-bold text-blue-700">{tr.rateMonthly}</span>
-                  </span>
-                ) : (
-                  <span>
-                    {rental.pricePerNightAMD?.toLocaleString()}{' '}
-                    <span className="text-xs font-bold text-blue-700">{tr.rateNightly}</span>
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] text-emerald-700 font-bold block mt-1">
-                {rental.commissionAmountText}
-              </span>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-1.5">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Request Type Toggle */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">{tr.requestTypeLabel}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRequestType('visit')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      requestType === 'visit'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>{tr.typeVisitBtn}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRequestType('rent')}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      requestType === 'rent'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>{tr.typeRentBtn}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Applicant Name & Contact */}
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">{tr.nameLabel}</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ali / John"
-                  value={guestName}
-                  onChange={e => setGuestName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">{tr.contactLabel}</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="+374 91 ... / email@domain.com"
-                  value={contact}
-                  onChange={e => setContact(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-blue-500 ltr-isolate text-left"
-                />
-              </div>
-
-              {requestType === 'visit' ? (
-                <div>
-                  <label className="block text-xs text-slate-600 mb-1">{tr.visitDateLabel}</label>
-                  <input
-                    type="text"
-                    value={proposedVisitDate}
-                    onChange={e => setProposedVisitDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium"
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-slate-600 mb-1">{tr.startDateLabel}</label>
-                    <input
-                      type="date"
-                      value={desiredStartDate}
-                      onChange={e => setDesiredStartDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-600 mb-1">{tr.durationLabel}</label>
-                    <input
-                      type="text"
-                      placeholder="6 months"
-                      value={desiredDurationText}
-                      onChange={e => setDesiredDurationText(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">{tr.residentsCountLabel}</label>
-                <select
-                  value={residentsCount}
-                  onChange={e => setResidentsCount(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                >
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                  <option value={4}>4+</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-slate-600 mb-1">{tr.notesLabel}</label>
-                <textarea
-                  rows={2}
-                  placeholder={tr.notesPlaceholder}
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>{isSubmitting ? tr.submittingBtn : tr.submitBtn}</span>
-                <ArrowIcon className="w-4 h-4" />
-              </button>
-
-              <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                {tr.disclaimer}
-              </p>
-            </form>
-          </div>
-        </div>
-      </div>
+  const utilityValue=(value:string)=>value==='included'?c.included:value==='meter_reading'?c.meter:c.tenant;
+  const photoCount=rental.photos.length;
+  return <div className="page-shell py-7 sm:py-10 space-y-7">
+    <nav aria-label={currentLang==='fa'?'مسیر صفحه':'Breadcrumb'} className="flex items-center gap-2 text-sm text-slate-500"><button type="button" className="inline-flex items-center gap-2 hover:text-slate-900" onClick={()=>onNavigate('rentals')}><Back className="w-4 h-4" />{t.navRentals}</button><span aria-hidden="true">/</span><span className="truncate max-w-[65%]">{title}</span></nav>
+    <header className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div className="space-y-3"><p className="eyebrow inline-flex items-center gap-1.5"><MapPin className="w-4 h-4" />{getCityName(rental.city,currentLang)} · {rental.neighborhood}</p><h1 className="text-3xl sm:text-4xl font-semibold leading-tight tracking-tight max-w-3xl">{title}</h1><p className="text-slate-500 text-sm">{rental.addressPublic || rental.approximateLocationLabel}</p></div><PlaceActions kind="rental" id={rental.id} /></header>
+    <div className={`grid gap-3 ${photoCount>1?'md:grid-cols-[1.7fr_1fr]':''}`}>
+      <div className="aspect-[16/10] max-h-[510px] rounded-3xl overflow-hidden bg-slate-100">{rental.photos[0]&&<img src={rental.photos[0]} alt={title} className="w-full h-full object-cover" />}</div>
+      {photoCount>1&&<div className={`grid gap-3 ${photoCount>2?'grid-cols-2 md:grid-cols-1':''}`}>{rental.photos.slice(1,3).map((photo,index)=><div key={photo} className="rounded-3xl overflow-hidden bg-slate-100 aspect-[16/10] md:aspect-auto min-h-0"><img src={photo} alt={`${title} · ${index+2}`} loading="lazy" className="w-full h-full object-cover" /></div>)}</div>}
     </div>
-  );
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(320px,390px)] gap-7 lg:gap-10 items-start">
+      <div className="space-y-6 min-w-0">
+        <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.specs}</h2><dl className="grid grid-cols-2 sm:grid-cols-4 gap-5">{[
+          [Ruler,c.area,`${rental.areaSqm} m²`],[BedDouble,c.bedrooms,rental.bedroomsCount],[Building2,c.floor,`${rental.floor} / ${rental.totalFloors}`],[Users,c.residents,rental.maxResidents],
+        ].map(([Icon,label,value])=>{const Symbol=Icon as typeof Ruler;return <div key={String(label)} className="space-y-2"><Symbol className="w-5 h-5 text-slate-400" /><dt className="text-sm text-slate-500">{String(label)}</dt><dd className="font-semibold text-lg">{String(value)}</dd></div>;})}</dl><p className="text-sm text-slate-500 border-t border-slate-100 pt-4">{rental.hasElevator?c.elevator:c.noElevator}{rental.approximateLocationLabel?` · ${rental.approximateLocationLabel}`:''}</p></section>
+        <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.amenities}</h2><ul className="grid sm:grid-cols-2 gap-4">{(Object.entries(rental.amenities) as [keyof RentalProperty['amenities'],boolean][]).filter(([,available])=>available).map(([key])=><li key={key} className="flex items-center gap-3 text-sm"><span className="rounded-full bg-emerald-50 p-1"><Check className="w-3.5 h-3.5 text-emerald-700" /></span>{c[key]}</li>)}</ul></section>
+        <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.costs}</h2><dl className="divide-y divide-slate-100 text-sm">
+          {rental.pricePerNightAMD!==undefined&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.nightly}</dt><dd className="font-semibold">{rental.pricePerNightAMD.toLocaleString(currentLang)} AMD</dd></div>}
+          {rental.pricePerMonthAMD!==undefined&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.monthly}</dt><dd className="font-semibold">{rental.pricePerMonthAMD.toLocaleString(currentLang)} AMD</dd></div>}
+          <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.deposit}</dt><dd className="font-semibold">{rental.refundableDepositAMD.toLocaleString(currentLang)} AMD</dd></div>
+          <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.cleaning}</dt><dd>{rental.cleaningFeeAMD.toLocaleString(currentLang)} AMD</dd></div>
+          <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.commission}</dt><dd className="text-end max-w-[70%]">{rental.commissionAmountText}</dd></div>
+          {(rental.minStayNights || rental.minStayMonths)&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.minimum}</dt><dd>{[rental.minStayNights?`${rental.minStayNights} ${c.nights}`:'',rental.minStayMonths?`${rental.minStayMonths} ${c.months}`:''].filter(Boolean).join(' · ')}</dd></div>}
+        </dl><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer py-1">{c.terms}</summary><p className="text-sm text-slate-600 leading-7 mt-3 whitespace-pre-line">{rental.depositTerms}</p></details></section>
+        <details className="surface p-5 sm:p-7"><summary className="text-xl font-semibold cursor-pointer">{c.utilities}</summary><dl className="divide-y divide-slate-100 text-sm mt-4">{(Object.entries(rental.utilitiesBreakdown) as [keyof RentalProperty['utilitiesBreakdown'],string][]).map(([key,value])=><div className="flex justify-between gap-4 py-3" key={key}><dt className="text-slate-500">{({electricity:c.electricity,water:c.water,gas:c.gas,internet:c.internet,buildingMaintenance:c.maintenance})[key]}</dt><dd>{utilityValue(value)}</dd></div>)}</dl></details>
+        <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
+      </div>
+      <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>
+        <div className="space-y-2 border-b border-slate-100 pb-5"><p className="text-3xl font-semibold tabular-nums">{primaryPrice?.toLocaleString(currentLang)??'—'} <span className="text-sm font-normal text-slate-500">AMD {rental.pricePerMonthAMD?c.monthly:c.nightly}</span></p><h2 className="text-lg font-medium">{c.request}</h2></div>
+        {formError&&<div role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm flex gap-2"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{formError}</div>}
+        <form onSubmit={onSubmit} className="space-y-4" aria-busy={isSubmitting}>
+          <fieldset className="grid grid-cols-2 gap-2"><legend className="sr-only">{c.request}</legend>{(['visit','rent'] as const).map(value=><button type="button" key={value} aria-pressed={requestType===value} disabled={isSubmitting} onClick={()=>setRequestType(value)} className={`rounded-xl py-3 text-sm font-medium border ${requestType===value?'bg-[#142f2a] border-[#142f2a] text-white':'border-slate-200 bg-white text-slate-600'}`}>{value==='visit'?c.visit:c.rent}</button>)}</fieldset>
+          <div><label htmlFor="rental-name" className="block text-sm font-medium mb-1.5">{c.name}</label><input id="rental-name" name="name" autoComplete="name" required maxLength={200} value={guestName} onChange={e=>setGuestName(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
+          <div><label htmlFor="rental-contact" className="block text-sm font-medium mb-1.5">{c.contact}</label><input id="rental-contact" name="contact" required maxLength={254} value={contact} onChange={e=>setContact(e.target.value)} className="field w-full ltr-isolate text-start" disabled={isSubmitting} /></div>
+          {requestType==='visit'?<div><label htmlFor="rental-visit-date" className="block text-sm font-medium mb-1.5">{c.visitDate}</label><input id="rental-visit-date" type="datetime-local" required min={`${yerevanToday()}T00:00`} value={proposedVisitDate} onChange={e=>setProposedVisitDate(e.target.value)} className="field w-full min-w-0" disabled={isSubmitting} /></div>:<>
+            <div><label htmlFor="rental-start-date" className="block text-sm font-medium mb-1.5">{c.startDate}</label><input id="rental-start-date" type="date" required min={yerevanToday()} value={desiredStartDate} onChange={e=>setDesiredStartDate(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
+            <div><label htmlFor="rental-duration" className="block text-sm font-medium mb-1.5">{c.duration}</label><input id="rental-duration" required value={desiredDurationText} maxLength={200} placeholder={c.durationHint} onChange={e=>setDesiredDurationText(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
+          </>}
+          <div><label htmlFor="rental-residents" className="block text-sm font-medium mb-1.5">{c.people}</label><select id="rental-residents" value={residentsCount} onChange={e=>setResidentsCount(Number(e.target.value))} className="field w-full" disabled={isSubmitting}>{Array.from({length:rental.maxResidents},(_,index)=>index+1).map(value=><option key={value} value={value}>{value.toLocaleString(currentLang)}</option>)}</select></div>
+          <details className="text-sm"><summary className="cursor-pointer text-slate-600 py-1">{c.notes} · {c.optional}</summary><label className="sr-only" htmlFor="rental-notes">{c.notes}</label><textarea id="rental-notes" rows={3} maxLength={3000} value={notes} onChange={e=>setNotes(e.target.value)} className="field w-full mt-2" disabled={isSubmitting} /></details>
+          <button type="submit" disabled={isSubmitting} className="button-primary w-full inline-flex items-center justify-center gap-2">{isSubmitting?<Loader2 className="w-4 h-4 animate-spin" />:<ArrowUpRight className="w-4 h-4" />}{isSubmitting?c.submitting:c.submit}</button>
+          <p className="text-xs leading-6 text-slate-500">{c.disclaimer}</p>
+        </form>
+      </aside>
+    </div>
+  </div>;
 };

@@ -1,203 +1,60 @@
-import { PropertyOperationsPanel } from '../components/PropertyOperationsPanel';
-import React from 'react';
-import { AppLanguage, Booking, Hostel } from '../types';
-import {
-  Key,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Building2,
-  Calendar,
-  Bed,
-  ExternalLink,
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Building2, CalendarDays, Clock3, BedDouble, LayoutDashboard, Settings2, Search, ArrowUpRight, Loader2 } from 'lucide-react';
 import { appStore } from '../services/store';
 import { useLanguage } from '../context/LanguageContext';
+import { PropertyOperationsPanel } from '../components/PropertyOperationsPanel';
+import { DashboardLayout, DashboardStat, DashboardEmpty, BookingStatusBadge } from '../components/DashboardLayout';
+import { dashboardText, bookingStatusText } from '../i18n/dashboard';
+import { yerevanToday } from '../utils/dates';
+import type { AppLanguage, Booking, BookingStatus } from '../types';
 
-interface Props {
-  currentLang?: AppLanguage;
-  onNavigate: (view: string, params?: any) => void;
-}
+interface Props { currentLang?: AppLanguage; onNavigate: (view: string, params?: any) => void }
+const textField = 'min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10';
+const button = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium transition hover:bg-slate-50 disabled:opacity-50';
+const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#142f2a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#244b41] disabled:opacity-50';
 
 export const ManagerPanelView: React.FC<Props> = ({ onNavigate }) => {
-  const { currentLang, tManager, getLocalized, isRtl } = useLanguage();
-  const store = appStore.getState();
-  const handleUpdateBookingStatus = async (...args: Parameters<typeof appStore.updateBookingStatus>) => {
-    const result = await appStore.updateBookingStatus(...args);
-    if (!result.success) window.alert(result.error);
+  const { currentLang, getLocalized } = useLanguage(); const t = dashboardText(currentLang);
+  const state = appStore.getState(); const today = yerevanToday();
+  const hostels = state.hostels.filter(h => state.currentUser?.assignedHostelIds?.includes(h.id));
+  const assignedIds = new Set(hostels.map(h => h.id));
+  const allBookings = state.bookings.filter(b => assignedIds.has(b.hostelId));
+  const [active, setActive] = useState('overview'); const [hostelId, setHostelId] = useState('all');
+  const [status, setStatus] = useState<BookingStatus | 'all'>('all'); const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState('');
+  const scoped = allBookings.filter(b => hostelId === 'all' || b.hostelId === hostelId);
+  const pending = scoped.filter(b => b.status === 'pending');
+  const arrivals = scoped.filter(b => b.status === 'confirmed' && b.checkIn === today);
+  const staying = scoped.filter(b => b.status === 'confirmed' && b.checkIn <= today && b.checkOut > today);
+  const available = state.availability.filter(day => assignedIds.has(day.hostelId) && (hostelId === 'all' || day.hostelId === hostelId) && day.date === today).reduce((sum,day) => sum + day.available,0);
+  const filtered = scoped.filter(b => (status === 'all' || b.status === status) && (!search.trim() || `${b.guestName} ${b.trackingCode} ${b.guestContact}`.toLowerCase().includes(search.trim().toLowerCase()))).sort((a,b) => Number(b.status === 'pending') - Number(a.status === 'pending') || b.createdAt.localeCompare(a.createdAt));
+  const selectedHostel = hostels.find(h => h.id === hostelId);
+  const formatDate = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString(currentLang === 'fa' ? 'fa-IR' : currentLang, { timeZone:'UTC',month:'short',day:'numeric' });
+  const update = async (booking: Booking, next: BookingStatus) => {
+    if (busy) return; setBusy(booking.id); setError('');
+    try { const result=await appStore.updateBookingStatus(booking.id,next); if(!result.success)setError(result.error || t.noResults); }
+    catch { setError(t.noResults); } finally { setBusy(null); }
   };
-  const currentUser = store.currentUser;
-  const assignedHostelId = currentUser?.assignedHostelIds?.[0];
-  const hostel = store.hostels.find(h => h.id === assignedHostelId);
-  if (!hostel) return <div className="p-8 text-center">{tManager.panelTitle}: —</div>;
+  const showBookings = (filter: BookingStatus | 'all' = 'all') => { setStatus(filter); setActive('bookings'); };
+  const cards = (bookings: Booking[]) => bookings.length ? <div className="space-y-3">{bookings.map(b => <article key={b.id} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h3 className="text-base font-bold text-[#142f2a]">{b.guestName}</h3><p className="mt-1 text-sm text-slate-500">{getLocalized(hostels.find(h=>h.id===b.hostelId)?.name) || b.hostelName} · {b.roomTypeName}</p></div><BookingStatusBadge status={b.status} /></div>
+    <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 xl:grid-cols-4 text-sm"><div><dt className="text-xs text-slate-500">{{fa:'ورود / خروج',en:'Check-in / Check-out',ru:'Заезд / Выезд',hy:'Մուտք / Ելք'}[currentLang]}</dt><dd className="mt-1 font-medium text-slate-800">{formatDate(b.checkIn)} — {formatDate(b.checkOut)}</dd></div><div><dt className="text-xs text-slate-500">{t.guests}</dt><dd className="mt-1 font-medium text-slate-800">{b.guestsCount} · {b.nights} {t.nights}</dd></div><div><dt className="text-xs text-slate-500">{t.amount}</dt><dd className="mt-1 font-semibold tabular-nums text-slate-800">{b.finalAmountAMD.toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang)} AMD</dd></div><div><dt className="text-xs text-slate-500">{t.contact}</dt><dd className="mt-1 break-all text-slate-800" dir="ltr">{b.guestContact}</dd></div></dl>
+    {b.specialRequests && <div className="mt-4 rounded-xl bg-amber-50/60 px-3.5 py-3 text-sm text-amber-950"><span className="font-semibold">{t.guestNote}: </span>{b.specialRequests}</div>}
+    {b.entranceIssueReported && <div className="mt-3 rounded-xl bg-rose-50 px-3.5 py-3 text-sm text-rose-800"><strong>{t.unresolved}</strong>{b.entranceIssueNote && <p className="mt-1">{b.entranceIssueNote}</p>}</div>}
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4"><span className="max-w-48 truncate font-mono text-xs text-slate-400" title={b.trackingCode}>{b.trackingCode}</span><div className="flex flex-wrap gap-2"><button type="button" className={button} onClick={()=>onNavigate('booking-track',{token:b.privateToken})}>{t.viewBooking}<ArrowUpRight className="h-4 w-4" /></button>{b.status === 'pending' && <><button type="button" disabled={Boolean(busy)} className={primary} onClick={()=>void update(b,'confirmed')}>{busy === b.id && <Loader2 className="h-4 w-4 animate-spin" />}{t.confirm}</button><button type="button" disabled={Boolean(busy)} className={`${button} text-rose-700`} onClick={()=>void update(b,'rejected')}>{t.reject}</button></>}{b.status === 'confirmed' && <><button type="button" disabled={Boolean(busy)} className={primary} onClick={()=>void update(b,'completed')}>{t.finish}</button><button type="button" disabled={Boolean(busy)} className={`${button} text-rose-700`} onClick={()=>void update(b,'no_show')}>{t.noShow}</button></>}</div></div>
+  </article>)}</div> : <DashboardEmpty title={t.noResults}><p className="text-sm text-slate-500">{t.tryFilter}</p></DashboardEmpty>;
 
-  const hostelBookings = store.bookings.filter(b => b.hostelId === hostel.id);
-  const pendingBookings = hostelBookings.filter(b => b.status === 'pending');
-
-  const statusLabels: Record<string, Record<AppLanguage, string>> = {
-    confirmed: { fa: 'تأییدشده', en: 'Confirmed', ru: 'Подтверждено', hy: 'Հաստատված' },
-    pending: { fa: 'در انتظار بررسی', en: 'Pending', ru: 'В ожидании', hy: 'Սպասվող' },
-    completed: { fa: 'تکمیل‌شده', en: 'Completed', ru: 'Завершено', hy: 'Ավարտված' },
-    rejected: { fa: 'ردشده', en: 'Rejected', ru: 'Отклонено', hy: 'Մերժված' },
-    cancelled: { fa: 'لغوشده', en: 'Cancelled', ru: 'Отменено', hy: 'Չեղարկված' },
-    no_show: { fa: 'عدم حضور', en: 'No Show', ru: 'Не заехал', hy: 'Չներկայացավ' },
-  };
-
-  const getStatusText = (status: string) => {
-    return statusLabels[status]?.[currentLang] || status;
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <PropertyOperationsPanel />
-      {/* Header */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
-            <Key className="w-4 h-4" />
-            <span>{tManager.panelTitle}</span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 mt-1">
-            {getLocalized(hostel.name, hostel.name.fa)}
-          </h1>
-          <p className="text-xs text-slate-500">{getLocalized(hostel.address, hostel.address.fa)}</p>
-        </div>
-
-        {/* Hostel Quick Stats & Action */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onNavigate('hostel-detail', { id: hostel.id })}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
-          >
-            <Building2 className="w-4 h-4 text-amber-400" />
-            <span>
-              {currentLang === 'fa' ? 'مشاهده صفحه عمومی هاستل' : currentLang === 'en' ? 'View Public Page' : currentLang === 'ru' ? 'Страница хостела' : 'Դիտել էջը'}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Pending requests alert */}
-      {pendingBookings.length > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-between text-xs sm:text-sm text-amber-950 font-medium">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-            <span>{tManager.pendingBookingsAlert.replace('{count}', String(pendingBookings.length))}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Bookings List */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-black text-slate-900">
-          {tManager.bookingsListTitle.replace('{count}', String(hostelBookings.length))}
-        </h2>
-        <div className="space-y-3">
-          {hostelBookings.map(b => (
-            <div key={b.id} className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-sm font-bold text-emerald-700">{b.trackingCode}</span>
-                  <span className="font-bold text-slate-900">{b.guestName}</span>
-                  <span className="text-xs text-slate-500 ltr-isolate">{b.guestContact}</span>
-                  {b.isImmediateArrival && (
-                    <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
-                      {tManager.immediateBadge}
-                    </span>
-                  )}
-                </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  b.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' :
-                  b.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                  b.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                  b.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
-                  'bg-slate-100 text-slate-700'
-                }`}>
-                  {getStatusText(b.status)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600">
-                <div>
-                  <span className="text-slate-400">{tManager.roomLabel} </span>
-                  <strong className="text-slate-900">{b.roomTypeName}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">{tManager.datesLabel} </span>
-                  <strong className="text-slate-900 ltr-isolate">{b.checkIn} → {b.checkOut}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">{tManager.quantityLabel} </span>
-                  <strong className="text-slate-900">
-                    {b.quantity} {tManager.bedsCountText} ({b.guestsCount} {tManager.personsCountText})
-                  </strong>
-                </div>
-                <div>
-                  <span className="text-slate-400">{tManager.amountOnArrivalLabel} </span>
-                  <strong className="text-slate-900">{b.finalAmountAMD.toLocaleString()} AMD</strong>
-                </div>
-              </div>
-
-              {b.specialRequests && (
-                <div className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                  <span className="font-bold">{tManager.guestRequestLabel}</span> {b.specialRequests}
-                </div>
-              )}
-
-              {/* Status Actions */}
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-end">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('booking-track', { token: b.privateToken })}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>{tManager.passengerLinkBtn}</span>
-                </button>
-
-                {b.status === 'pending' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBookingStatus(b.id, 'confirmed')}
-                      className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-colors"
-                    >
-                      {tManager.confirmBtn}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBookingStatus(b.id, 'rejected', 'عدم ظرفیت')}
-                      className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer transition-colors"
-                    >
-                      {tManager.rejectBtn}
-                    </button>
-                  </>
-                )}
-
-                {b.status === 'confirmed' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBookingStatus(b.id, 'completed')}
-                      className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
-                    >
-                      {tManager.completeBtn}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBookingStatus(b.id, 'no_show', 'عدم حضور مسافر')}
-                      className="px-4 py-1.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold text-xs cursor-pointer transition-colors"
-                    >
-                      {tManager.noShowBtn}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <DashboardLayout title={t.manager} subtitle={state.currentUser?.name} active={active} onChange={value=>{setActive(value);setError('');}} nav={[
+    {id:'overview',label:t.overview,icon:<LayoutDashboard className="h-4 w-4"/>},
+    {id:'bookings',label:t.bookings,icon:<CalendarDays className="h-4 w-4"/>,count:allBookings.filter(b=>b.status==='pending').length},
+    {id:'operations',label:t.operations,icon:<Settings2 className="h-4 w-4"/>},
+    {id:'properties',label:t.properties,icon:<Building2 className="h-4 w-4"/>},
+  ]} actions={<label className="min-w-48 text-sm"><span className="sr-only">{t.chooseHostel}</span><select aria-label={t.chooseHostel} className={textField} value={hostelId} onChange={event=>setHostelId(event.target.value)}><option value="all">{t.all} · {t.properties}</option>{hostels.map(hostel=><option key={hostel.id} value={hostel.id}>{getLocalized(hostel.name)}</option>)}</select></label>}>
+    {error && <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-800" role="alert">{error}</div>}
+    {!hostels.length && <DashboardEmpty title={t.noResults}><p className="text-sm text-slate-500">{currentLang === 'fa' ? 'برای اختصاص اقامتگاه با مدیر سایت تماس بگیرید.' : currentLang === 'ru' ? 'Обратитесь к администратору для назначения объекта.' : currentLang === 'hy' ? 'Օբյեկտի նշանակման համար կապվեք ադմինիստրատորի հետ։' : 'Contact the administrator to assign a property.'}</p></DashboardEmpty>}
+    {active === 'overview' && hostels.length > 0 && <><div className="grid grid-cols-2 gap-3 xl:grid-cols-4"><DashboardStat label={t.needsAction} value={pending.length} icon={<Clock3 className="h-4 w-4"/>} onClick={()=>showBookings('pending')}/><DashboardStat label={t.todayArrivals} value={arrivals.length} icon={<CalendarDays className="h-4 w-4"/>}/><DashboardStat label={t.activeStays} value={staying.length} icon={<BedDouble className="h-4 w-4"/>}/><DashboardStat label={currentLang === 'fa' ? 'ظرفیت آزاد امروز' : currentLang === 'ru' ? 'Свободно сегодня' : currentLang === 'hy' ? 'Այսօր ազատ տեղեր' : 'Available today'} value={available} icon={<Building2 className="h-4 w-4"/>}/></div><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold text-[#142f2a]">{pending.length ? t.needsAction : t.recentBookings}</h2><button type="button" className="text-sm font-medium underline underline-offset-4" onClick={()=>showBookings()}>{t.all} {t.bookings}</button></div>{cards((pending.length ? pending : scoped).slice(0,5))}</>}
+    {active === 'bookings' && <><div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_200px]"><label className="relative"><Search className="pointer-events-none absolute start-3.5 top-3.5 h-4 w-4 text-slate-400"/><span className="sr-only">{t.search}</span><input className={`${textField} ps-10`} placeholder={t.search} value={search} onChange={event=>setSearch(event.target.value)}/></label><select aria-label={t.bookings} className={textField} value={status} onChange={event=>setStatus(event.target.value as typeof status)}><option value="all">{t.all}</option>{(['pending','confirmed','completed','cancelled','rejected','expired','no_show'] as const).map(value=><option value={value} key={value}>{bookingStatusText(value,currentLang)}</option>)}</select></div>{cards(filtered)}</>}
+    {active === 'operations' && <PropertyOperationsPanel />}
+    {active === 'properties' && <div className="grid gap-4 xl:grid-cols-2">{(selectedHostel ? [selectedHostel] : hostels).map(hostel=><article key={hostel.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><img src={hostel.photos[0]} alt="" className="h-40 w-full object-cover"/><div className="space-y-4 p-5"><div><h2 className="font-bold text-[#142f2a]">{getLocalized(hostel.name)}</h2><p className="mt-1 text-sm text-slate-500">{getLocalized(hostel.address)}</p></div><div className="flex flex-wrap gap-2"><button className={primary} type="button" onClick={()=>setActive('operations')}>{t.manageProperty}</button><button className={button} type="button" onClick={()=>onNavigate('hostel-detail',{id:hostel.id})}>{t.open}<ArrowUpRight className="h-4 w-4"/></button></div></div></article>)}</div>}
+  </DashboardLayout>;
 };

@@ -1,20 +1,9 @@
-import React, { useState } from 'react';
-import { AppLanguage, User } from '../types';
-import { UI_TRANSLATIONS } from '../i18n/translations';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight, Building2, Heart, Menu, X, UserRound, LogOut, LayoutDashboard } from 'lucide-react';
+import type { AppLanguage, User } from '../types';
 import { LanguageSelector } from './LanguageSelector';
-import {
-  Building2,
-  Home,
-  BookOpen,
-  Languages,
-  Zap,
-  User as UserIcon,
-  LogOut,
-  Shield,
-  Key,
-  Menu,
-  X,
-} from 'lucide-react';
+import { useSavedPlaces } from '../context/SavedPlacesContext';
+import { publicSiteText } from '../i18n/publicSite';
 
 interface Props {
   currentLang: AppLanguage;
@@ -26,259 +15,56 @@ interface Props {
   onLogout: () => void;
 }
 
-export const Header: React.FC<Props> = ({
-  currentLang,
-  onLanguageChange,
-  activeView,
-  onNavigate,
-  currentUser,
-  onOpenAuth,
-  onLogout,
-}) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const t = UI_TRANSLATIONS[currentLang];
-
-  const handleNav = (view: string) => {
-    onNavigate(view);
-    setMobileMenuOpen(false);
-  };
-
-  return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/70 shadow-xs transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-18">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => handleNav('home')}
-              className="flex items-center gap-3 text-slate-900 group cursor-pointer text-left"
-              aria-label="YEREVANHUB Home"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 flex items-center justify-center text-white shadow-lg shadow-amber-500/25 ring-1 ring-amber-400/40 group-hover:scale-105 group-hover:shadow-amber-500/35 transition-all">
-                <Building2 className="w-5 h-5 drop-shadow-xs" />
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="brand-name text-lg sm:text-xl font-black tracking-wider text-slate-950 group-hover:text-amber-700 transition-colors">
-                    YEREVANHUB
-                  </span>
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title={t.systemActive} />
-                </div>
-                <span className="hidden sm:block text-[10px] text-slate-400 font-medium truncate max-w-[170px] sm:max-w-xs">
-                  {t.tagline}
-                </span>
-              </div>
-            </button>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1.5 text-sm font-medium">
-              <button
-                type="button"
-                onClick={() => handleNav('hostels')}
-                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-                  activeView === 'hostels'
-                    ? 'bg-amber-500/10 text-amber-950 font-bold ring-1 ring-amber-500/25 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
-                }`}
-              >
-                <Building2 className={`w-4 h-4 ${activeView === 'hostels' ? 'text-amber-600' : 'text-slate-400'}`} />
-                <span>{t.navHostels}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNav('rentals')}
-                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-                  activeView === 'rentals'
-                    ? 'bg-blue-50 text-blue-950 font-bold ring-1 ring-blue-500/25 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
-                }`}
-              >
-                <Home className={`w-4 h-4 ${activeView === 'rentals' ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>{t.navRentals}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNav('guide')}
-                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-                  activeView === 'guide'
-                    ? 'bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-500/25 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
-                }`}
-              >
-                <BookOpen className={`w-4 h-4 ${activeView === 'guide' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                <span>{t.navGuide}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNav('translator')}
-                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-                  activeView === 'translator'
-                    ? 'bg-indigo-50 text-indigo-950 font-bold ring-1 ring-indigo-500/25 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
-                }`}
-              >
-                <Languages className={`w-4 h-4 ${activeView === 'translator' ? 'text-indigo-600' : 'text-slate-400'}`} />
-                <span>{t.navTranslator}</span>
-              </button>
-            </nav>
-          </div>
-
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Language Selector */}
-            <LanguageSelector currentLang={currentLang} onLanguageChange={onLanguageChange} />
-
-            {/* User Account / Login */}
-            {currentUser ? (
-              <div className="flex items-center gap-1 sm:gap-1.5">
-                {currentUser.role === 'admin' && (
-                  <button
-                    type="button"
-                    onClick={() => handleNav('admin')}
-                    className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-semibold cursor-pointer"
-                  >
-                    <Shield className="w-3.5 h-3.5 text-purple-600" />
-                    <span>{t.adminPanel}</span>
-                  </button>
-                )}
-
-                {currentUser.role === 'hostel_manager' && (
-                  <button
-                    type="button"
-                    onClick={() => handleNav('manager')}
-                    className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-semibold cursor-pointer"
-                  >
-                    <Key className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{t.managerPanel}</span>
-                  </button>
-                )}
-
-                {currentUser.role === 'traveler' && (
-                  <button
-                    type="button"
-                    onClick={() => handleNav('account')}
-                    className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium cursor-pointer"
-                  >
-                    <UserIcon className="w-3.5 h-3.5 text-slate-600" />
-                    <span>{currentUser.name.split(' ')[0]}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="p-1 sm:p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                  title={t.logout}
-                  aria-label={t.logout}
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenAuth}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-medium transition-colors shadow-xs cursor-pointer"
-              >
-                <UserIcon className="w-4 h-4" />
-                <span>{t.login}</span>
-              </button>
-            )}
-
-            {/* Mobile Menu Toggle */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 sm:p-2 rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer"
-              aria-label="Toggle navigation menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
-            </button>
-          </div>
+export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeView, onNavigate, currentUser, onOpenAuth, onLogout }) => {
+  const text = publicSiteText(currentLang);
+  const { saved, compared } = useSavedPlaces();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const nav = [ ['hostels', text.hostels], ['rentals', text.rentals], ['guide', text.guide], ['translator', text.translator] ];
+  const accountView = currentUser?.role === 'admin' ? 'admin' : currentUser?.role === 'hostel_manager' ? 'manager' : 'account';
+  const accountLabel = currentUser?.role === 'admin' ? text.admin : currentUser?.role === 'hostel_manager' ? text.manager : text.account;
+  const navigate = (view: string) => { onNavigate(view); setMenuOpen(false); setAccountOpen(false); };
+  useEffect(() => {
+    const close = (event: MouseEvent) => { if (accountRef.current && !accountRef.current.contains(event.target as Node)) setAccountOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && (menuOpen || accountOpen)) { if (menuOpen) mobileToggleRef.current?.focus(); else accountRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); setMenuOpen(false); setAccountOpen(false); } };
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
+  }, [menuOpen, accountOpen]);
+  return <header className="sticky top-0 z-40 border-b border-[#142f2a]/10 bg-[#f8faf7]/95 backdrop-blur-xl">
+    <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
+        <span className="brand-name text-base font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
+      </button>
+      <nav aria-label={text.menu} className="hidden items-center gap-1 xl:flex">
+        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={activeView.startsWith(view.replace(/s$/, '')) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${activeView === view ? 'bg-[#142f2a]/7 text-[#142f2a]' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
+      </nav>
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
+        <button type="button" onClick={() => navigate('saved')} aria-label={`${text.saved} (${saved.length} / ${compared.length})`} title={text.saved} className="relative flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white">
+          <Heart className="size-5" strokeWidth={1.6} />{saved.length > 0 && <span className="absolute -end-0.5 top-0 flex min-w-4 items-center justify-center rounded-full bg-[#d6a65c] px-1 text-[10px] font-bold text-[#142f2a]">{saved.length}</span>}
+        </button>
+        <LanguageSelector currentLang={currentLang} onLanguageChange={onLanguageChange} />
+        {currentUser ? <div className="relative hidden sm:block" ref={accountRef}>
+          <button type="button" onClick={() => setAccountOpen(!accountOpen)} aria-haspopup="true" aria-expanded={accountOpen} aria-controls="account-popover" className="flex min-h-10 items-center gap-2 rounded-xl border border-[#142f2a]/12 bg-white px-3 text-sm font-semibold text-[#142f2a]"><UserRound className="size-4" />{currentUser.name.split(' ')[0]}</button>
+          {accountOpen && <div id="account-popover" className="absolute end-0 top-full mt-3 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-[#142f2a]/10">
+            <p className="truncate border-b border-slate-100 px-3 py-3 text-xs text-slate-500" dir="ltr">{currentUser.email}</p>
+            <button type="button" onClick={() => navigate(accountView)} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm font-semibold text-[#142f2a] hover:bg-slate-50"><LayoutDashboard className="size-4" />{accountLabel}</button>
+            <button type="button" onClick={() => { setAccountOpen(false); onLogout(); }} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm text-rose-700 hover:bg-rose-50"><LogOut className="size-4" />{text.logout}</button>
+          </div>}
+        </div> : <button type="button" onClick={onOpenAuth} className="hidden min-h-10 items-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#234a40] sm:flex"><UserRound className="size-4" />{text.signIn}</button>}
+        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white xl:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
+      </div>
+    </div>
+    {menuOpen && <nav id="mobile-navigation" aria-label={text.menu} className="border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 xl:hidden">
+      <div className="mx-auto grid max-w-7xl gap-1">
+        {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={activeView === view ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${activeView === view ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
+        <button type="button" onClick={() => navigate('saved')} className="flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium text-[#142f2a] hover:bg-white">{text.saved}<span>{saved.length}</span></button>
+        <div className="mt-2 flex gap-2 border-t border-[#142f2a]/10 pt-3">
+          {currentUser ? <><button type="button" onClick={() => navigate(accountView)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-medium text-white"><LayoutDashboard className="size-4" />{accountLabel}</button><button type="button" onClick={() => { setMenuOpen(false); onLogout(); }} className="rounded-xl border border-[#142f2a]/15 px-4 text-sm text-rose-700">{text.logout}</button></> : <button type="button" onClick={() => { setMenuOpen(false); onOpenAuth(); }} className="min-h-11 w-full rounded-xl bg-[#142f2a] text-sm font-semibold text-white">{text.signIn}</button>}
         </div>
       </div>
-
-      {/* Mobile Drawer Menu */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-6 space-y-2 animate-in slide-in-from-top-2 duration-150 shadow-lg">
-          <button
-            type="button"
-            onClick={() => handleNav('hostels')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-800 hover:bg-slate-100 font-medium text-sm text-right cursor-pointer"
-          >
-            <Building2 className="w-5 h-5 text-amber-600" />
-            <span>{t.navHostels}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleNav('rentals')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-800 hover:bg-slate-100 font-medium text-sm text-right cursor-pointer"
-          >
-            <Home className="w-5 h-5 text-blue-600" />
-            <span>{t.navRentals}</span>
-          </button>
-
-
-          <button
-            type="button"
-            onClick={() => handleNav('guide')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-800 hover:bg-slate-100 font-medium text-sm text-right cursor-pointer"
-          >
-            <BookOpen className="w-5 h-5 text-emerald-600" />
-            <span>{t.navGuide}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleNav('translator')}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-800 hover:bg-slate-100 font-medium text-sm text-right cursor-pointer"
-          >
-            <Languages className="w-5 h-5 text-indigo-600" />
-            <span>{t.navTranslator}</span>
-          </button>
-
-          {currentUser?.role === 'admin' && (
-            <button
-              type="button"
-              onClick={() => handleNav('admin')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-50 text-purple-900 font-semibold text-sm text-right cursor-pointer"
-            >
-              <Shield className="w-5 h-5 text-purple-600" />
-              <span>{t.adminPanel}</span>
-            </button>
-          )}
-
-          {currentUser?.role === 'hostel_manager' && (
-            <button
-              type="button"
-              onClick={() => handleNav('manager')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-50 text-emerald-900 font-semibold text-sm text-right cursor-pointer"
-            >
-              <Key className="w-5 h-5 text-emerald-600" />
-              <span>{t.managerPanel}</span>
-            </button>
-          )}
-
-          {!currentUser && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenAuth();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-900 text-white font-medium text-sm text-right cursor-pointer"
-            >
-              <UserIcon className="w-5 h-5 text-amber-400" />
-              <span>{t.login} / {t.register}</span>
-            </button>
-          )}
-        </div>
-      )}
-    </header>
-  );
+    </nav>}
+  </header>;
 };

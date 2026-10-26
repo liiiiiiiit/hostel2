@@ -1,3 +1,4 @@
+import { isValidCoordinates } from '../src/utils/maps.js';
 import { addCalendarDays } from '../src/utils/dates.js';
 import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords.js';
 import {
@@ -483,6 +484,25 @@ export class Store {
     this.persist();
   }
 
+  public updateHostelLocation(hostelId: string, data: { lat: number; lng: number; verified: boolean; note?: string }) {
+    if (!this.canManageHostel(hostelId)) throw new Error('دسترسی مجاز نیست.');
+    const hostel = this.state.hostels.find(item => item.id === hostelId);
+    if (!hostel) throw new Error('اقامتگاه یافت نشد.');
+    if (!isValidCoordinates(data)) throw new Error('مختصات جغرافیایی معتبر نیست.');
+    if (data.verified && this.state.currentUser?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+    if (data.verified && !data.note?.trim()) throw new Error('برای تأیید موقعیت، مرجع بررسی را ثبت کنید.');
+    hostel.coordinates = { lat: data.lat, lng: data.lng };
+    hostel.locationVerification = {
+      status: data.verified ? 'verified' : 'unverified',
+      checkedAt: data.verified ? new Date().toISOString() : undefined,
+      checkedBy: data.verified ? this.state.currentUser!.name : undefined,
+      note: data.verified ? data.note!.trim() : undefined,
+    };
+    hostel.updatedAt = new Date().toISOString();
+    this.logAudit('UPDATE_HOSTEL_LOCATION', 'HOSTEL', hostelId, data.verified ? 'Location reviewed and confirmed' : 'Location edited; confirmation required');
+    this.persist();
+  }
+
   public updateArrivalGuide(hostelId: string, data: Pick<Hostel, 'addressArmenianForTaxi' | 'directionsFa' | 'directionsHy' | 'entrancePhoto' | 'floorAndDoorCode' | 'phone'>) {
     if (!this.canManageHostel(hostelId)) throw new Error('دسترسی مجاز نیست.');
     const hostel = this.state.hostels.find(h => h.id === hostelId);
@@ -756,6 +776,11 @@ export class Store {
   // Admin Hostels Management
   public saveHostel(hostel: Hostel) {
     this.requireAdmin();
+    if (!isValidCoordinates(hostel.coordinates)) throw new Error('مختصات جغرافیایی معتبر نیست.');
+    const previous = this.state.hostels.find(item => item.id === hostel.id);
+    // Verification is issued only by the explicit reviewed-location action.
+    hostel = { ...hostel, locationVerification: previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng
+      ? previous.locationVerification : { status: 'unverified' } };
     const idx = this.state.hostels.findIndex(h => h.id === hostel.id);
     if (idx >= 0) {
       this.state.hostels[idx] = { ...hostel, updatedAt: new Date().toISOString() };

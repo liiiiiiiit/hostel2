@@ -1,49 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { LanguageProvider } from '../context/LanguageContext';
+import { InteractiveHostelMap } from './InteractiveHostelMap';
+import { INITIAL_HOSTELS } from '../../server/seed';
+import { getMapBounds, getMapLinks } from '../utils/maps';
 
-const YEREVAN_BOUNDS = {
-  minLat: 40.1500,
-  maxLat: 40.2150,
-  minLng: 44.4750,
-  maxLng: 44.5450,
-};
-
-function projectCoords(lat: number, lng: number) {
-  const latSpan = YEREVAN_BOUNDS.maxLat - YEREVAN_BOUNDS.minLat;
-  const lngSpan = YEREVAN_BOUNDS.maxLng - YEREVAN_BOUNDS.minLng;
-
-  const xPct = Math.max(2, Math.min(98, ((lng - YEREVAN_BOUNDS.minLng) / lngSpan) * 100));
-  const yPct = Math.max(2, Math.min(98, ((YEREVAN_BOUNDS.maxLat - lat) / latSpan) * 100));
-
-  return { x: xPct, y: yPct };
-}
-
-test('projectCoords projects Yerevan Republic Square inside center viewport', () => {
-  const republicSquare = { lat: 40.1776, lng: 44.5126 };
-  const { x, y } = projectCoords(republicSquare.lat, republicSquare.lng);
-
-  assert.ok(x >= 45 && x <= 65, `X coordinate ${x} should be in center of map`);
-  assert.ok(y >= 45 && y <= 65, `Y coordinate ${y} should be in center of map`);
+test('Gyumri bounds and marker preserve its real saved coordinate rather than clamp to Yerevan', () => {
+  const gyumri = { lat: 40.7891, lng: 43.8473 };
+  const bounds = getMapBounds(gyumri)!;
+  assert.ok(bounds[0] < gyumri.lng && bounds[2] > gyumri.lng);
+  assert.ok(bounds[1] < gyumri.lat && bounds[3] > gyumri.lat);
+  assert.equal(new URL(getMapLinks(gyumri)!.embed!).searchParams.get('marker'), '40.7891,43.8473');
 });
 
-test('projectCoords projects northern Arabkir hostel above center', () => {
-  const arabkirHostel = { lat: 40.2031, lng: 44.4982 };
-  const { x, y } = projectCoords(arabkirHostel.lat, arabkirHostel.lng);
-
-  assert.ok(y < 35, `Y coordinate ${y} for northern hostel should be near the top`);
-  assert.ok(x > 10 && x < 50, `X coordinate ${x} should be west of Republic Square`);
+test('selected-hostel map renders the corresponding stored point on an actual basemap', () => {
+  const hostels = structuredClone(INITIAL_HOSTELS);
+  const selected = hostels[hostels.length - 1];
+  const markup = renderToStaticMarkup(createElement(LanguageProvider, { children: createElement(InteractiveHostelMap, { hostels, selectedHostelId: selected.id, onNavigate: () => {} }) }));
+  assert.ok(markup.includes('https://www.openstreetmap.org/export/embed.html?'));
+  assert.ok(markup.includes(`marker=${selected.coordinates.lat}%2C${selected.coordinates.lng}`));
+  assert.ok(!markup.includes('nearest metro') && !markup.includes('walking distances'));
 });
 
-test('projectCoords clamps extreme coordinates safely within 2% to 98%', () => {
-  const farSouth = projectCoords(39.0, 44.5);
-  assert.equal(farSouth.y, 98);
-
-  const farNorth = projectCoords(41.0, 44.5);
-  assert.equal(farNorth.y, 2);
-
-  const farWest = projectCoords(40.18, 43.0);
-  assert.equal(farWest.x, 2);
-
-  const farEast = projectCoords(40.18, 46.0);
-  assert.equal(farEast.x, 98);
+test('map bounds remain valid near longitude edges without moving the marker', () => {
+  const point = { lat: 40, lng: 179.999 };
+  const [west, south, east, north] = getMapBounds(point)!;
+  assert.ok(west >= -180 && east <= 180 && east > west && north > south);
+  assert.equal(new URL(getMapLinks(point)!.embed!).searchParams.get('marker'), '40,179.999');
 });

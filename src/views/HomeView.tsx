@@ -1,24 +1,11 @@
-import { addCalendarDays, yerevanToday } from '../utils/dates';
-import React, { useState, useEffect } from 'react';
-import { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
-import { UI_TRANSLATIONS } from '../i18n/translations';
+import React, { useState } from 'react';
+import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages } from 'lucide-react';
+import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
 import { getLocalized, getCityName } from '../utils/i18n';
-import {
-  Building2,
-  Home,
-  Search,
-  Star,
-  ShieldCheck,
-  CheckCircle2,
-  Calendar,
-  Users,
-  MapPin,
-  ArrowRight,
-  ArrowLeft,
-  Compass,
-  Clock,
-  Sparkles,
-} from 'lucide-react';
+import { addCalendarDays, yerevanToday } from '../utils/dates';
+import { calculateNights } from '../utils/pricing';
+import { PlaceActions } from '../components/PlaceActions';
+import { publicSiteText } from '../i18n/publicSite';
 
 interface Props {
   currentLang: AppLanguage;
@@ -30,724 +17,101 @@ interface Props {
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
-export const HomeView: React.FC<Props> = ({
-  currentLang,
-  hostels,
-  rentals,
-  articles,
-  onNavigate,
-  getHostelRating,
-}) => {
-  const t = UI_TRANSLATIONS[currentLang];
-  const isRtl = currentLang === 'fa';
-  const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
+function StayImage({ src, alt, className = '' }: { src?: string; alt: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  return <div className={`relative overflow-hidden bg-[#e5ece5] ${className}`}>
+    <Building2 aria-hidden="true" className="absolute start-1/2 top-1/2 size-12 -translate-x-1/2 -translate-y-1/2 text-[#aabfb0]" strokeWidth={1} />
+    {src && !failed && <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} className="relative size-full object-cover transition-transform duration-700 group-hover:scale-105" />}
+  </div>;
+}
 
-  // Search state
-  const [searchTab, setSearchTab] = useState<'hostels' | 'rentals'>('hostels');
-  const [selectedCity, setSelectedCity] = useState('all');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
+export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, onNavigate, getHostelRating }) => {
+  const text = publicSiteText(currentLang);
+  const Arrow = currentLang === 'fa' ? ArrowLeft : ArrowRight;
+  const [tab, setTab] = useState<'hostels' | 'rentals'>('hostels');
+  const [city, setCity] = useState('all');
+  const [checkIn, setCheckIn] = useState(yerevanToday);
+  const [checkOut, setCheckOut] = useState(() => addCalendarDays(yerevanToday(), 2));
   const [guests, setGuests] = useState(1);
-
-  const AMD_TO_TOMAN = 160;
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTab === 'hostels') {
-      onNavigate('hostels', { city: selectedCity, checkIn, checkOut, guests });
-    } else {
-      onNavigate('rentals', { city: selectedCity });
-    }
+  const [error, setError] = useState('');
+  const cities = [...new Set([...hostels.map(hostel => hostel.city), ...rentals.map(rental => rental.city)])];
+  const format = (amount: number) => amount.toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang);
+  const quickDate = (offset: number) => { const start = addCalendarDays(yerevanToday(), offset); setCheckIn(start); setCheckOut(addCalendarDays(start,2)); setError(''); };
+  const search = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (tab === 'hostels' && calculateNights(checkIn, checkOut) < 1) { setError(text.datesError); return; }
+    setError(''); onNavigate(tab, tab === 'hostels' ? { city, checkIn, checkOut, guests } : { city });
   };
+  const sectionHeading = (eyebrow: string, title: string, description: string, action: string, view: string) => <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div><p className="mb-2 text-xs font-semibold tracking-[0.13em] text-[#8e7044]">{eyebrow}</p><h2 className="text-2xl font-bold tracking-tight text-[#142f2a] sm:text-3xl">{title}</h2><p className="mt-2 max-w-xl text-sm leading-7 text-slate-500">{description}</p></div>
+    <button type="button" onClick={() => onNavigate(view)} className="flex min-h-10 shrink-0 items-center gap-2 self-start text-sm font-semibold text-[#142f2a] hover:text-[#89703d] sm:self-auto">{action}<Arrow className="size-4" /></button>
+  </div>;
+  return <div className="pb-3">
+    <section className="relative overflow-hidden bg-[#142f2a]">
+      <div className="absolute inset-y-0 end-0 hidden w-[54%] overflow-hidden md:block">
+        <img src="https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1400&q=85" alt="" className="size-full object-cover opacity-85" fetchPriority="high" />
+        <div className={`absolute inset-0 ${currentLang === 'fa' ? 'bg-gradient-to-l' : 'bg-gradient-to-r'} from-[#142f2a] via-[#142f2a]/15 to-transparent`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#142f2a]/35 via-transparent to-transparent" />
+      </div>
+      <div className="relative mx-auto grid max-w-7xl gap-8 px-5 pb-24 pt-12 sm:px-6 sm:pb-28 sm:pt-16 md:grid-cols-2 lg:px-8 lg:pb-32 lg:pt-20">
+        <div className="max-w-xl">
+          <div className="mb-6 flex items-center gap-3 text-xs font-semibold tracking-[0.16em] text-[#e4be7d]"><span className="h-px w-7 bg-[#e4be7d]" />{text.eyebrow}</div>
+          <h1 className="text-[2.7rem] font-bold leading-[1.35] tracking-tight text-[#f6f7f5] sm:text-6xl sm:leading-[1.25]"><span className="block">{text.heroFirst}</span><span className="block text-[#e4be7d]">{text.heroSecond}</span></h1>
+          <p className="mt-5 max-w-md text-sm leading-8 text-[#bfcec2] sm:text-base">{text.intro}</p>
+          <div className="mt-7 flex items-center gap-2 text-xs text-[#b3c7b9]"><MapPin className="size-4 text-[#e4be7d]" />{text.explore}</div>
+        </div>
+      </div>
+    </section>
 
-  // Quick date presets
-  const setQuickDate = (daysFromToday: number, duration: number = 2) => {
-    const start = addCalendarDays(yerevanToday(), daysFromToday);
-    setCheckIn(start);
-    setCheckOut(addCalendarDays(start, duration));
-  };
-
-  return (
-    <div className="space-y-20 sm:space-y-28 pb-20">
-      {/* 1. HERO SECTION - Modern Ambient Glow & Editorial Presence */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-slate-200/80 bg-gradient-to-b from-amber-500/5 via-slate-50/50 to-white">
-        {/* Subtle Warm Backdrop Glow */}
-        <div 
-          aria-hidden="true" 
-          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-amber-400/15 via-rose-300/10 to-transparent blur-3xl pointer-events-none rounded-full"
-        />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto space-y-6">
-            {/* Header Kicker Tag */}
-            <div className="flex items-center justify-center gap-2 text-xs font-black tracking-widest text-amber-700 uppercase">
-              <span className="brand-name">YEREVANHUB</span>
-              <span aria-hidden="true" className="text-amber-400">·</span>
-              <span>{t.officialPlatformBadge}</span>
-            </div>
-
-            {/* High-Contrast Modern Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-[1.18]">
-              {t.heroTitle}
-            </h1>
-
-            {/* Primary Action CTA */}
-            <div className="pt-2 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => onNavigate('hostels')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/35 transition-all cursor-pointer hover:-translate-y-0.5"
-              >
-                <Building2 className="w-4 h-4 text-slate-950" />
-                <span>{t.ctaSearchHostels}</span>
-                <ArrowIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Single Honest Guarantee */}
-            <div className="pt-3 flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold text-slate-700">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{t.payOnArrivalText}</span>
-            </div>
+    <div className="relative z-10 mx-auto -mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="rounded-[1.4rem] border border-[#142f2a]/8 bg-white p-4 shadow-[0_16px_60px_-24px_rgba(20,47,42,0.25)] sm:p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="flex rounded-xl bg-[#f1f4f0] p-1" role="group" aria-label={text.search}>
+            {(['hostels','rentals'] as const).map(value => { const Icon = value === 'hostels' ? BedDouble : Home; return <button type="button" key={value} aria-pressed={tab === value} onClick={() => { setTab(value); setError(''); }} className={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors sm:px-5 ${tab === value ? 'bg-[#142f2a] text-white shadow-sm' : 'text-slate-500 hover:text-[#142f2a]'}`}><Icon className="size-4" />{text[value]}</button>; })}
           </div>
+          {tab === 'hostels' && <div className="flex items-center gap-2 text-xs text-slate-500"><span className="hidden sm:inline">{text.quickDates}</span><button type="button" onClick={() => quickDate(0)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tonight}</button><span className="text-slate-200">/</span><button type="button" onClick={() => quickDate(1)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tomorrow}</button></div>}
+        </div>
+        <form onSubmit={search} className={`grid items-end gap-3 sm:grid-cols-2 ${tab === 'hostels' ? 'lg:grid-cols-[1.2fr_1fr_1fr_.7fr_auto]' : 'lg:grid-cols-[1fr_auto]'}`}>
+          <label htmlFor="home-destination" className="text-xs font-medium text-slate-500">{text.destination}<select id="home-destination" value={city} onChange={event => setCity(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]"><option value="all">{text.allCities}</option>{cities.map(value => <option key={value} value={value}>{getCityName(value,currentLang)}</option>)}</select></label>
+          {tab === 'hostels' && <>
+            <label htmlFor="home-checkin" className="text-xs font-medium text-slate-500">{text.checkIn}<input id="home-checkin" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} className="mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
+            <label htmlFor="home-checkout" className="text-xs font-medium text-slate-500">{text.checkOut}<input id="home-checkout" type="date" required min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event => setCheckOut(event.target.value)} className="mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
+            <label htmlFor="home-guests" className="text-xs font-medium text-slate-500">{text.guests}<select id="home-guests" value={guests} onChange={event => setGuests(Number(event.target.value))} className="mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]">{[1,2,3,4,5,6].map(value => <option key={value} value={value}>{format(value)}</option>)}</select></label>
+          </>}
+          <button type="submit" className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d6a65c] px-6 text-sm font-bold text-[#142f2a] transition-colors hover:bg-[#e1b876] sm:col-span-2 lg:col-span-1"><Search className="size-4" />{text.search}</button>
+          {error && <p role="alert" className="text-sm text-rose-700 sm:col-span-2 lg:col-span-full">{error}</p>}
+        </form>
+      </div>
+    </div>
 
-          {/* SEARCH CONSOLE - High Elevation Floating Card */}
-          <div className="mt-12 sm:mt-14 max-w-4xl mx-auto bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/8 border border-slate-200/90 p-5 sm:p-7">
-            {/* Segmented Switcher & Quick Date Chips */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl max-w-xs">
-                <button
-                  type="button"
-                  onClick={() => setSearchTab('hostels')}
-                  className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                    searchTab === 'hostels'
-                      ? 'bg-white text-slate-950 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4 text-amber-600" />
-                  <span>{t.navHostels}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSearchTab('rentals')}
-                  className={`flex-1 py-2 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                    searchTab === 'rentals'
-                      ? 'bg-white text-slate-950 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Home className="w-4 h-4 text-blue-600" />
-                  <span>{t.navRentals}</span>
-                </button>
-              </div>
-
-              {/* Quick Date Presets (Hostels only) */}
-              {searchTab === 'hostels' && (
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 overflow-x-auto pb-1 sm:pb-0">
-                  <span className="hidden md:inline text-slate-400">{t.quickDatesLabel}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuickDate(0, 1)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    {t.tonight}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickDate(1, 2)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    {t.tomorrowNight}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickDate(3, 3)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 transition-colors cursor-pointer"
-                  >
-                    {t.thisWeekend}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  {t.cityLabel}
-                </label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
-                  <select
-                    value={selectedCity}
-                    onChange={e => setSelectedCity(e.target.value)}
-                    className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
-                  >
-                    <option value="all">{t.allCities}</option>
-                    <option value="Yerevan">{getCityName('Yerevan', currentLang)}</option>
-                    <option value="Gyumri">{getCityName('Gyumri', currentLang)}</option>
-                    <option value="Dilijan">{getCityName('Dilijan', currentLang)}</option>
-                  </select>
-                </div>
-              </div>
-
-              {searchTab === 'hostels' ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {t.checkInLabel}
-                    </label>
-                    <div className="relative">
-                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={checkIn}
-                        onChange={e => setCheckIn(e.target.value)}
-                        className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {t.checkOutLabel}
-                    </label>
-                    <div className="relative">
-                      <Calendar className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
-                      <input
-                        type="date"
-                        value={checkOut}
-                        onChange={e => setCheckOut(e.target.value)}
-                        className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {t.guestsLabel}
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Users className="w-4 h-4 text-slate-400 absolute top-3.5 right-3 pointer-events-none" />
-                        <select
-                          value={guests}
-                          onChange={e => setGuests(Number(e.target.value))}
-                          className="w-full bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 focus:outline-hidden pr-9 transition-colors"
-                        >
-                          <option value={1}>{t.guestCount1}</option>
-                          <option value={2}>{t.guestCount2}</option>
-                          <option value={3}>{t.guestCount3}</option>
-                          <option value={4}>{t.guestCount4Plus}</option>
-                        </select>
-                      </div>
-                      <button
-                        type="submit"
-                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:scale-102"
-                      >
-                        <Search className="w-4 h-4 text-slate-950" />
-                        <span>{t.searchButton}</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {t.rentalTypeLabel}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('rentals', { type: 'long_term' })}
-                        className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center transition-colors cursor-pointer"
-                      >
-                        {t.longTermRental}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('rentals', { type: 'short_term' })}
-                        className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-semibold text-slate-700 hover:bg-blue-50/50 text-center transition-colors cursor-pointer"
-                      >
-                        {t.shortTermRental}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/20 transition-colors cursor-pointer flex items-center justify-center gap-1.5 hover:scale-102"
-                    >
-                      <Search className="w-4 h-4" />
-                      <span>{t.ctaSearchRentals}</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </form>
-          </div>
+    <div className="mx-auto max-w-7xl space-y-14 px-4 pt-14 sm:space-y-20 sm:px-6 sm:pt-20 lg:px-8">
+      <section>
+        {sectionHeading(text.hostelEyebrow,text.hostelTitle,text.hostelDesc,text.allHostels,'hostels')}
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {hostels.slice(0,3).map(hostel => { const rating = getHostelRating(hostel.id); return <article key={hostel.id} className="group overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white transition-shadow hover:shadow-[0_12px_40px_-20px_rgba(20,47,42,0.25)]">
+            <button type="button" onClick={() => onNavigate('hostel-detail',{id:hostel.id})} className="relative block w-full text-start" aria-label={getLocalized(hostel.name,currentLang)}><StayImage src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="aspect-[4/2.8]" /><span className="absolute bottom-4 start-4 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-[#142f2a]">{hostel.district}</span>{rating.count > 0 && <span className="absolute end-4 top-4 flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-[#142f2a]"><Star className="size-3.5 fill-[#d6a65c] text-[#d6a65c]" />{rating.avg} <span className="font-normal text-slate-500">({rating.count})</span></span>}</button>
+            <div className="p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="min-h-14 text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => onNavigate('hostel-detail',{id:hostel.id})} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3><div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div><PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => onNavigate('hostel-detail',{id:hostel.id})} className="mt-2 min-h-11 w-full rounded-xl bg-[#f0f4ef] text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{text.details}</button></div>
+          </article>; })}
+          {!hostels.length && <p className="py-10 text-sm text-slate-500">{text.noStays}</p>}
         </div>
       </section>
 
+      {rentals.length > 0 && <section>
+        {sectionHeading(text.rentalEyebrow,text.rentalTitle,text.rentalDesc,text.allRentals,'rentals')}
+        <div className="grid gap-5 md:grid-cols-2">{rentals.slice(0,2).map(rental => <article key={rental.id} className="group grid overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white sm:grid-cols-[.9fr_1fr] md:grid-cols-1 lg:grid-cols-[.9fr_1fr]">
+          <button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} aria-label={getLocalized(rental.title,currentLang)} className="block min-h-56"><StayImage src={rental.photos[0]} alt={getLocalized(rental.title,currentLang)} className="h-full min-h-56" /></button>
+          <div className="flex flex-col p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{rental.neighborhood}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]">{getLocalized(rental.title,currentLang)}</h3><p className="mt-3 text-sm text-slate-500"><span className="ltr-isolate">{rental.areaSqm} m²</span></p><div className="mt-auto pt-4"><p className="text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(rental.pricePerNightAMD ?? rental.pricePerMonthAMD ?? 0)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{rental.pricePerNightAMD ? text.perNight : text.perMonth}</span></p><PlaceActions kind="rental" id={rental.id} /><button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} className="mt-1 flex min-h-10 items-center gap-2 text-sm font-semibold text-[#142f2a] hover:underline">{text.propertyDetails}<Arrow className="size-4" /></button></div></div>
+        </article>)}</div>
+      </section>}
 
-      {/* 3. YEREVAN NEIGHBORHOODS EXPLORER - Architectural District Guide */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">
-              {t.neighborhoodsTag}
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {t.neighborhoodsTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              {t.neighborhoodsSubtitle}
-            </p>
-          </div>
-        </div>
+      {articles.length > 0 && <section>
+        {sectionHeading(text.journalEyebrow,text.journalTitle,'',text.allArticles,'guide')}
+        <div className="grid gap-6 md:grid-cols-3">{articles.slice(0,3).map(article => <article key={article.id} className="group"><button type="button" className="block w-full overflow-hidden rounded-2xl text-start" onClick={() => onNavigate('article-detail',{slug:article.slug})} aria-label={article.title}><StayImage src={article.featuredImage} alt="" className="aspect-[4/2.5]" /></button><p className="mt-4 text-xs font-semibold text-[#8e7044]">{article.category}</p><h3 className="mt-2 text-base font-semibold leading-7 text-[#142f2a]"><button type="button" className="text-start hover:underline" onClick={() => onNavigate('article-detail',{slug:article.slug})}>{article.title}</button></h3><button type="button" onClick={() => onNavigate('article-detail',{slug:article.slug})} className="mt-3 flex min-h-9 items-center gap-2 text-sm text-slate-500 hover:text-[#142f2a]">{text.readArticle}<Arrow className="size-3.5" /></button></article>)}</div>
+      </section>}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Kentron */}
-          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
-            <div>
-              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
-                <img
-                  src="https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=800&q=80"
-                  alt="Kentron Yerevan"
-                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
-                />
-                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
-                  {t.distToRepublicSquare}: ۲ {t.minsWalk}
-                </div>
-              </div>
-              <div className="p-5 space-y-2">
-                <h3 className="text-lg font-black text-slate-900 group-hover:text-amber-700 transition-colors">
-                  {t.neighborhoodKentronName}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {t.neighborhoodKentronDesc}
-                </p>
-              </div>
-            </div>
-            <div className="p-5 pt-0">
-              <button
-                type="button"
-                onClick={() => onNavigate('hostels', { district: 'Kentron' })}
-                className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{t.viewHostelsInDistrict}</span>
-                <ArrowIcon className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Arabkir */}
-          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
-            <div>
-              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
-                <img
-                  src="https://images.unsplash.com/photo-1541971875076-8f970d573be6?auto=format&fit=crop&w=800&q=80"
-                  alt="Arabkir Yerevan"
-                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
-                />
-                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
-                  {t.directMetroAccess}
-                </div>
-              </div>
-              <div className="p-5 space-y-2">
-                <h3 className="text-lg font-black text-slate-900 group-hover:text-blue-700 transition-colors">
-                  {t.neighborhoodArabkirName}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {t.neighborhoodArabkirDesc}
-                </p>
-              </div>
-            </div>
-            <div className="p-5 pt-0">
-              <button
-                type="button"
-                onClick={() => onNavigate('hostels', { district: 'Arabkir' })}
-                className="w-full py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{t.viewHostelsInDistrict}</span>
-                <ArrowIcon className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Avan & Nork */}
-          <div className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col justify-between">
-            <div>
-              <div className="relative aspect-16/9 overflow-hidden bg-slate-100">
-                <img
-                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80"
-                  alt="Avan & Nork Yerevan"
-                  className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
-                />
-                <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-white text-[10px] font-bold">
-                  {t.freshMountainAir}
-                </div>
-              </div>
-              <div className="p-5 space-y-2">
-                <h3 className="text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
-                  {t.neighborhoodAvanName}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {t.neighborhoodAvanDesc}
-                </p>
-              </div>
-            </div>
-            <div className="p-5 pt-0">
-              <button
-                type="button"
-                onClick={() => onNavigate('rentals', { city: 'Yerevan' })}
-                className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{t.viewAllRentals}</span>
-                <ArrowIcon className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. FEATURED HOSTELS - Clean Aspect Ratios & Tactile Cards */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="text-xs font-bold text-amber-700 uppercase tracking-widest mb-1">
-              {t.navHostels}
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {t.featuredHostelsTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              {t.featuredHostelsSubtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('hostels')}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-800 cursor-pointer"
-          >
-            <span>{t.viewAllHostels} ({hostels.length})</span>
-            <ArrowIcon className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-          {hostels.slice(0, 3).map(hostel => {
-            const { avg, count } = getHostelRating(hostel.id);
-            const localizedName = getLocalized(hostel.name, currentLang);
-            const localizedAddress = getLocalized(hostel.address, currentLang);
-
-            return (
-              <div
-                key={hostel.id}
-                className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
-              >
-                {/* Photo & Clean Overlays */}
-                <div>
-                  <div className="relative aspect-16/10 overflow-hidden bg-slate-100">
-                    <img
-                      src={hostel.photos[0]}
-                      alt={localizedName}
-                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
-                      loading="lazy"
-                    />
-
-
-                    {/* Rating Tag */}
-                    <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white shadow-xs flex items-center gap-1.5">
-                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      <span>{avg}</span>
-                      <span className="text-slate-400 font-normal text-[11px]">({count})</span>
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="p-6 space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs text-amber-800 font-bold">
-                      <span>{getCityName(hostel.city, currentLang)}</span>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>{hostel.district}</span>
-                      {hostel.reception24h && (
-                        <>
-                          <span aria-hidden="true" className="text-slate-300">·</span>
-                          <span className="text-slate-500 font-normal">{t.hours24}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <h3 className="text-lg font-black text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
-                      {localizedName}
-                    </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                      {localizedAddress}
-                    </p>
-
-                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-slate-500 pt-3 border-t border-slate-100">
-                      {hostel.amenities.wifi && <span>{t.wifi}</span>}
-                      {hostel.amenities.wifi && hostel.amenities.lockers && <span aria-hidden="true" className="text-slate-300">·</span>}
-                      {hostel.amenities.lockers && <span>{t.lockers}</span>}
-                      {hostel.freeLuggageStorage && <span aria-hidden="true" className="text-slate-300">·</span>}
-                      {hostel.freeLuggageStorage && <span>{t.luggageStorage}</span>}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Price & Action */}
-                <div className="p-6 pt-0">
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-[11px] text-slate-400 block font-normal">
-                        {t.startingFrom}
-                      </span>
-                      <div className="text-lg font-black text-slate-900 tracking-tight">
-                        {hostel.minPricePerNightAMD.toLocaleString()}{' '}
-                        <span className="text-xs font-bold text-amber-700">֏ AMD</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 block">
-                        ≈ {Math.round(hostel.minPricePerNightAMD * AMD_TO_TOMAN).toLocaleString()} {t.approxTomanSuffix}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('hostel-detail', { id: hostel.id })}
-                      className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs hover:scale-102"
-                    >
-                      {t.detailsButton}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 5. FEATURED RENTALS - Architectural Presentation */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">
-              {t.navRentals}
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {t.featuredRentalsTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              {t.featuredRentalsSubtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('rentals')}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-700 hover:text-blue-800 cursor-pointer"
-          >
-            <span>{t.viewAllRentals} ({rentals.length})</span>
-            <ArrowIcon className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-          {rentals.slice(0, 2).map(rental => {
-            const localizedTitle = getLocalized(rental.title, currentLang);
-
-            return (
-              <div
-                key={rental.id}
-                className="bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col sm:flex-row group"
-              >
-                <div className="sm:w-2/5 relative aspect-16/10 sm:aspect-auto overflow-hidden bg-slate-100">
-                  <img
-                    src={rental.photos[0]}
-                    alt={localizedTitle}
-                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  {rental.verifiedBadge && (
-                    <div className="absolute top-3 right-3 bg-emerald-600/95 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-xs flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>{t.verifiedBadge}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="sm:w-3/5 p-6 flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-blue-700 font-bold">
-                      <span>{getCityName(rental.city, currentLang)}</span>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>{rental.neighborhood}</span>
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900 line-clamp-2">
-                      {localizedTitle}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <span>{rental.areaSqm} m²</span>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>{rental.bedroomsCount} {t.bedsLabel}</span>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span>{t.floorLabel} {rental.floor} {rental.hasElevator ? `(${t.elevatorShort})` : ''}</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-semibold text-slate-700">{t.stayTotal}:</span>{' '}
-                    <strong className="text-slate-900">{rental.refundableDepositAMD.toLocaleString()} {t.currencyAMD}</strong>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      {rental.pricePerMonthAMD ? (
-                        <div>
-                          <div className="text-base font-black text-slate-900">
-                            {rental.pricePerMonthAMD.toLocaleString()}{' '}
-                            <span className="text-xs font-bold text-blue-700">{t.currencyAMD}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 block font-medium">{t.perMonth}</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="text-base font-black text-slate-900">
-                            {rental.pricePerNightAMD?.toLocaleString()}{' '}
-                            <span className="text-xs font-bold text-blue-700">{t.currencyAMD}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 block font-medium">{t.perNight}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('rental-detail', { id: rental.id })}
-                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs hover:scale-102"
-                    >
-                      {t.viewPropertyButton}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 7. ARMENIA GUIDE HIGHLIGHTS - Editorial Quality */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-          <div>
-            <div className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-1">
-              {t.navGuide}
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {t.guideHighlightsTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              {t.guidePageSubtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('guide')}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer"
-          >
-            <span>{t.readMoreButton} ({articles.filter(a => a.status === 'published').length})</span>
-            <ArrowIcon className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-7">
-          {articles
-            .filter(a => a.status === 'published')
-            .slice(0, 3)
-            .map(article => (
-              <div
-                key={article.id}
-                onClick={() => onNavigate('article-detail', { slug: article.slug })}
-                className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                  <div className="aspect-16/10 overflow-hidden bg-slate-100">
-                    <img
-                      src={article.featuredImage}
-                      alt={article.title}
-                      className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="p-6 space-y-2.5">
-                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">{article.category}</span>
-                    <h3 className="text-base font-bold text-slate-900 line-clamp-2 group-hover:text-emerald-700 transition-colors">
-                      {article.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                      {article.summary}
-                    </p>
-                  </div>
-                </div>
-                <div className="p-6 pt-0">
-                  <div className="text-[11px] text-slate-400 pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span>{t.lastVerifiedLabel} {article.lastVerifiedDate}</span>
-                    <span className="font-bold text-emerald-700 flex items-center gap-1">
-                      <span>{t.readMoreButton}</span>
-                      <ArrowIcon className="w-3.5 h-3.5" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-        </div>
-      </section>
-
-      {/* 8. WHY YEREVANHUB - 4 Structured Pillars with Hairline Borders */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 bg-white rounded-3xl border border-slate-200/90 shadow-xs">
-        <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
-            {t.whyChooseTitle}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
-            {t.whyChooseSubtitle}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
-            <span className="font-mono text-xs font-black text-amber-700">01</span>
-            <h3 className="text-base font-bold text-slate-900">{t.feature1Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              {t.feature1Desc}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
-            <span className="font-mono text-xs font-black text-red-700">02</span>
-            <h3 className="text-base font-bold text-slate-900">{t.feature2Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              {t.feature2Desc}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
-            <span className="font-mono text-xs font-black text-blue-700">03</span>
-            <h3 className="text-base font-bold text-slate-900">{t.feature3Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              {t.feature3Desc}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-stone-50/80 border border-stone-200/80 space-y-3">
-            <span className="font-mono text-xs font-black text-emerald-700">04</span>
-            <h3 className="text-base font-bold text-slate-900">{t.feature4Title}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-normal">
-              {t.feature4Desc}
-            </p>
-          </div>
-        </div>
+      <section className="flex flex-col items-start justify-between gap-6 rounded-[1.5rem] border border-[#142f2a]/10 bg-[#eaf0e7] p-6 sm:flex-row sm:items-center sm:p-9">
+        <div className="flex items-center gap-5"><span className="hidden size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#467452] sm:flex"><Languages className="size-7" strokeWidth={1.4} /></span><div><h2 className="text-xl font-semibold text-[#142f2a]">{text.translatorTitle}</h2><p className="mt-2 text-sm leading-7 text-[#5f7566]">{text.translatorDesc}</p></div></div><button type="button" onClick={() => onNavigate('translator')} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#142f2a]/20 px-5 text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{text.translatorAction}<Arrow className="size-4" /></button>
       </section>
     </div>
-  );
+  </div>;
 };

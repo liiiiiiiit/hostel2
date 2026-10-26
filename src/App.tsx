@@ -1,12 +1,11 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { AppLanguage, User } from './types';
 import { appStore } from './services/store';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomeView } from './views/HomeView';
 import { AuthModal } from './views/AuthModal';
-import { useSavedPlaces } from './context/SavedPlacesContext';
-import { featureText } from './i18n/features';
+import { parseRoute, routeHash } from './utils/navigation';
 import { useLanguage } from './context/LanguageContext';
 
 const HostelsView = lazy(() => import('./views/HostelsView').then(module => ({ default: module.HostelsView })));
@@ -28,10 +27,11 @@ const SavedPlacesView = lazy(() => import('./views/SavedPlacesView').then(module
 export default function App() {
   const [storeState, setStoreState] = useState(() => appStore.getState());
   const { currentLang, setLanguage } = useLanguage();
-  const savedPlaces = useSavedPlaces();
+  const navigationVersion = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
 
-  const [activeView, setActiveView] = useState<string>('home');
-  const [viewParams, setViewParams] = useState<any>({});
+  const [activeView, setActiveView] = useState<string>(() => parseRoute(window.location.hash).view);
+  const [viewParams, setViewParams] = useState<any>(() => parseRoute(window.location.hash).params);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -45,48 +45,31 @@ export default function App() {
     return () => { unsubscribe(); window.clearInterval(timer); };
   }, []);
 
-  // Handle URL hash or direct parameter initialization
+  // Every page has a stable URL; refresh and browser Back retain the selected view.
   useEffect(() => {
     let active = true;
     const handleHash = async () => {
-      setTrackingError('');
-      const hash = window.location.hash.replace('#', '');
-      if (hash.startsWith('/booking/')) {
-        const token = hash.replace('/booking/', '');
-        setTrackingLoading(true);
-        try { await appStore.track(token); } catch (error) { setTrackingError(String(error)); }
-        if (!active) return;
-        setActiveView('booking-track'); setViewParams({ token }); setTrackingLoading(false);
-      } else if (hash.startsWith('/rental-request/')) {
-        const token = hash.replace('/rental-request/', '');
-        setTrackingLoading(true);
-        try { await appStore.track('', token); } catch (error) { setTrackingError(String(error)); }
-        if (!active) return;
-        setActiveView('rental-track'); setViewParams({ token }); setTrackingLoading(false);
-      } else {
-        setActiveView('home');
-        setViewParams({});
+      const version = ++navigationVersion.current;
+      const route = parseRoute(window.location.hash);
+      setTrackingError(''); setActiveView(route.view); setViewParams(route.params);
+      const tracking = route.view === 'booking-track' || route.view === 'rental-track';
+      setTrackingLoading(tracking);
+      try {
+        await appStore.track(route.view === 'booking-track' ? String(route.params.token) : '', route.view === 'rental-track' ? String(route.params.token) : '');
+      } catch {
+        if (active && version === navigationVersion.current && tracking) setTrackingError(({ fa: 'ارتباط برقرار نشد. دوباره تلاش کنید.', en: 'Unable to connect. Please try again.', ru: 'Нет соединения. Попробуйте ещё раз.', hy: 'Կապը չհաստատվեց։ Փորձեք կրկին։' })[currentLang]);
       }
+      if (active && version === navigationVersion.current) { setTrackingLoading(false); mainRef.current?.focus({ preventScroll: true }); }
     };
-
-    handleHash();
+    void handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => { active = false; window.removeEventListener('hashchange', handleHash); };
   }, []);
 
   const handleNavigate = (view: string, params: any = {}) => {
-    setActiveView(view);
-    setViewParams(params);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Update URL hash for private tracking links without full page reload
-    if (view === 'booking-track' && params?.token) {
-      window.location.hash = `/booking/${params.token}`;
-    } else if (view === 'rental-track' && params?.token) {
-      window.location.hash = `/rental-request/${params.token}`;
-    } else {
-      if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search);
-    }
+    const hash = routeHash(view, params);
+    if (window.location.hash !== hash) window.location.hash = hash;
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
 
   const handleLogout = async () => {
@@ -128,6 +111,7 @@ export default function App() {
       case 'hostels':
         return (
           <HostelsView
+            key={JSON.stringify(viewParams)}
             currentLang={currentLang}
             hostels={appStore.getHostels()}
             onNavigate={handleNavigate}
@@ -142,7 +126,7 @@ export default function App() {
         const reviews = storeState.reviews.filter(r => r.hostelId === hostel.id && r.status === 'approved');
         return (
           <HostelDetailView
-            key={hostel.id}
+            key={`${hostel.id}:${viewParams.checkIn ?? ''}:${viewParams.checkOut ?? ''}:${viewParams.guests ?? ''}`}
             initialBooking={viewParams}
             currentLang={currentLang}
             hostel={hostel}
@@ -172,6 +156,7 @@ export default function App() {
         return (
           <RentalsView
             currentLang={currentLang}
+            key={JSON.stringify(viewParams)}
             rentals={appStore.getRentals()}
             onNavigate={handleNavigate}
             initialFilter={viewParams}
@@ -272,23 +257,13 @@ export default function App() {
       case 'privacy':
         return <StaticPages currentLang={currentLang} pageType={activeView} />;
 
-      default:
-        return (
-          <HomeView
-            currentLang={currentLang}
-            hostels={appStore.getHostels()}
-            rentals={appStore.getRentals()}
-            articles={appStore.getArticles()}
-            phrases={appStore.getPhrases()}
-            onNavigate={handleNavigate}
-            getHostelRating={id => appStore.getHostelAverageRating(id)}
-          />
-        );
+      default: return unavailable();
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <div className="app-shell min-h-screen flex flex-col text-slate-900">
+      <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); mainRef.current?.focus(); mainRef.current?.scrollIntoView(); }}>{currentLang === 'fa' ? 'رفتن به محتوا' : 'Skip to content'}</a>
       {/* Top Header */}
       <Header
         currentLang={currentLang}
@@ -300,10 +275,10 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <div className="bg-white border-b px-4 py-2 text-center"><button className="text-sm text-amber-800 underline" onClick={() => handleNavigate('saved')}>{featureText(currentLang).saved} ({savedPlaces.saved.length} / {savedPlaces.compared.length})</button></div>
+
       {storeState.previewMode && <div role="status" className="px-4 py-3 bg-amber-50 text-amber-950 text-center text-sm">{({ fa: 'پیش‌نمایش: مرور و مقایسه فعال است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.', en: 'Preview: browse and compare stays. Booking and sign-in are not enabled yet.', ru: 'Предпросмотр: просмотр и сравнение доступны. Бронирование и вход пока не включены.', hy: 'Նախադիտում․ դիտումն ու համեմատությունը հասանելի են։ Ամրագրումն ու մուտքը դեռ միացված չեն։' })[currentLang]}</div>}
       {/* Main Content Area */}
-      <main className="flex-1">
+      <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
         <Suspense fallback={<div className="p-8 text-center" role="status">YEREVANHUB…</div>}>
           {renderView()}
         </Suspense>

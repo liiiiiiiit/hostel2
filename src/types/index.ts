@@ -39,6 +39,7 @@ export interface Hostel {
   address: Record<AppLanguage, string>;
   addressArmenianForTaxi: string;
   coordinates: { lat: number; lng: number };
+  locationVerification?: Verification;
   phone: string;
   whatsapp?: string;
   telegram?: string;

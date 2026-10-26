@@ -2,7 +2,7 @@ import { featureText } from '../i18n/features';
 import { VerificationInfo } from '../components/VerificationInfo';
 import { PlaceActions } from '../components/PlaceActions';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppLanguage, Hostel, RoomType, Review } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import {
@@ -341,10 +341,20 @@ export const HostelDetailView: React.FC<Props> = ({
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [couponError, setCouponError] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
 
   // Submission
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  const capacityFor = (room: RoomType) => appStore.remainingCapacity(hostel, room.id, checkIn, checkOut);
+  useEffect(() => {
+    const selected = hostel.roomTypes.find(room => room.id === selectedRoomTypeId);
+    if (!selected || capacityFor(selected) === 0) {
+      const next = hostel.roomTypes.find(room => capacityFor(room) > 0);
+      if (next) setSelectedRoomTypeId(next.id);
+    }
+  }, [hostel, checkIn, checkOut, selectedRoomTypeId]);
 
   const selectedRoom = hostel.roomTypes.find(rt => rt.id === selectedRoomTypeId) || hostel.roomTypes[0];
 
@@ -381,8 +391,11 @@ export const HostelDetailView: React.FC<Props> = ({
     const clean = couponInput.trim().toUpperCase();
     if (!clean) return;
 
+    if (couponBusy) return;
+    setCouponBusy(true);
     const response = await appStore.checkCoupon(clean,
       (selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD) * quantity * nights);
+    setCouponBusy(false);
     if (!response.success || !response.coupon) {
       setAppliedCouponCode(''); setCouponError(response.error || 'کد معتبر نیست.'); return;
     }
@@ -413,6 +426,9 @@ export const HostelDetailView: React.FC<Props> = ({
       return;
     }
 
+    if (!selectedRoom || quantity > capacityFor(selectedRoom)) {
+      setFormError(featureText(currentLang).noCapacity); return;
+    }
     if (nights <= 0) {
       setFormError(tr.errorNightsRequired);
       return;
@@ -454,561 +470,66 @@ export const HostelDetailView: React.FC<Props> = ({
     }
   };
 
+  const ft = featureText(currentLang);
+  const copy = {
+    fa: { book: 'درخواست رزرو', selected: 'انتخاب‌شده', rooms: 'تخت و اتاق', requests: 'درخواست‌های بیشتر', coupon: 'کد تخفیف', review: 'نظر مسافران', payment: 'پرداخت در محل', policies: 'قوانین و شرایط لغو', checkTimes: 'ساعت‌های ورود و خروج', pending: 'رزرو پس از تأیید هاستل قطعی می‌شود.', terms: 'قوانین اقامت و لغو را می‌پذیرم.', nights: 'شب', guestInfo: 'اطلاعات مهمان', contact: 'اطلاعات تماس', optional: 'اختیاری', discount: 'تخفیف', extra: 'هزینهٔ ورود', total: 'مبلغ نهایی', roomUnavailable: 'برای این تاریخ موجود نیست', noRoom: 'در این اقامتگاه اتاقی برای رزرو ثبت نشده است.' },
+    en: { book: 'Request booking', selected: 'Selected', rooms: 'Beds & rooms', requests: 'More requests', coupon: 'Promo code', review: 'Guest reviews', payment: 'Pay on arrival', policies: 'House rules & cancellation', checkTimes: 'Arrival & departure', pending: 'Your stay is reserved once the hostel confirms.', terms: 'I accept the stay and cancellation rules.', nights: 'nights', guestInfo: 'Guest details', contact: 'Contact details', optional: 'Optional', discount: 'Discount', extra: 'Arrival fees', total: 'Total to pay', roomUnavailable: 'Unavailable for these dates', noRoom: 'No room types are listed for this stay.' },
+    ru: { book: 'Запросить бронь', selected: 'Выбрано', rooms: 'Места и номера', requests: 'Пожелания', coupon: 'Промокод', review: 'Отзывы гостей', payment: 'Оплата при заезде', policies: 'Правила и отмена', checkTimes: 'Заезд и выезд', pending: 'Бронь действует после подтверждения хостелом.', terms: 'Я принимаю правила проживания и отмены.', nights: 'ночей', guestInfo: 'Данные гостя', contact: 'Контакт', optional: 'Необязательно', discount: 'Скидка', extra: 'Сборы за заезд', total: 'К оплате', roomUnavailable: 'Нет мест на эти даты', noRoom: 'Для этого объекта номера не указаны.' },
+    hy: { book: 'Ամրագրման հարցում', selected: 'Ընտրված է', rooms: 'Մահճակալներ և սենյակներ', requests: 'Ցանկություններ', coupon: 'Զեղչի կոդ', review: 'Հյուրերի կարծիքներ', payment: 'Վճարում տեղում', policies: 'Կանոններ և չեղարկում', checkTimes: 'Մուտք և ելք', pending: 'Ամրագրումը գործում է հոսթելի հաստատումից հետո։', terms: 'Ընդունում եմ կացության և չեղարկման կանոնները։', nights: 'գիշեր', guestInfo: 'Հյուրի տվյալներ', contact: 'Կոնտակտ', optional: 'Ըստ ցանկության', discount: 'Զեղչ', extra: 'Ժամանման վճարներ', total: 'Վճարման գումար', roomUnavailable: 'Այս օրերի համար հասանելի չէ', noRoom: 'Այս կացության համար սենյակներ նշված չեն։' },
+  }[currentLang];
+  const selectedCapacity = selectedRoom ? capacityFor(selectedRoom) : 0;
+  const canBook = selectedRoom && pricing.isValidDates && quantity <= selectedCapacity && selectedCapacity > 0;
+  const amenities = [
+    hostel.amenities.wifi && tr.wifiFree, hostel.amenities.lockers && tr.lockersAmenity,
+    hostel.freeLuggageStorage && tr.freeLuggage, hostel.amenities.kitchen && tr.sharedKitchen,
+    hostel.amenities.elevator && tr.hasElevator,
+  ].filter(Boolean);
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-      <PlaceActions kind="hostel" id={hostel.id} />
-      <VerificationInfo verified={hostel.verification?.status === 'verified'} checkedAt={hostel.verification?.checkedAt} note={hostel.verification?.note} />
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500">
-        <button
-          type="button"
-          onClick={() => onNavigate('home')}
-          className="hover:text-amber-700 cursor-pointer"
-        >
-          {tr.breadcrumbHome}
-        </button>
-        <span>/</span>
-        <button
-          type="button"
-          onClick={() => onNavigate('hostels')}
-          className="hover:text-amber-700 cursor-pointer"
-        >
-          {t.navHostels}
-        </button>
-        <span>/</span>
-        <span className="text-slate-900 font-semibold truncate">{getLocalized(hostel.name, currentLang)}</span>
-      </nav>
-
-      {/* Title & Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-xs font-bold">
-              {getCityName(hostel.city, currentLang)} • {hostel.district}
-            </span>
-            {hostel.immediateStayEnabled && (
-              <span className="px-2.5 py-0.5 rounded-md bg-red-600 text-white text-xs font-bold flex items-center gap-1">
-                <Zap className="w-3 h-3 fill-white" />
-                <span>{t.immediateCheckInBadge}</span>
-              </span>
-            )}
-            {hostel.reception24h && (
-              <span className="px-2.5 py-0.5 rounded-md bg-slate-900 text-white text-xs font-medium">
-                {t.reception24hBadge}
-              </span>
-            )}
-          </div>
-
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900">
-            {getLocalized(hostel.name, currentLang)}
-          </h1>
-
-          <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>{getLocalized(hostel.address, currentLang)}</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-            <div>
-              <div className="text-sm font-extrabold text-slate-900">{avg} / 5</div>
-              <div className="text-[10px] text-slate-500">{count} {t.reviewsCountText}</div>
-            </div>
-          </div>
-        </div>
+    <div className="page-shell py-7 sm:py-10 space-y-7">
+      <nav aria-label="Breadcrumb" className="flex gap-2 text-sm text-slate-500"><button type="button" className="hover:text-emerald-800" onClick={() => onNavigate('home')}>{tr.breadcrumbHome}</button><span>/</span><button type="button" className="hover:text-emerald-800" onClick={() => onNavigate('hostels')}>{t.navHostels}</button></nav>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-3"><p className="eyebrow">{getCityName(hostel.city, currentLang)} · {hostel.district}</p><h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">{getLocalized(hostel.name,currentLang)}</h1><p className="flex gap-2 items-start text-slate-500 text-sm"><MapPin size={17} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
+        <div className="space-y-2"><PlaceActions kind="hostel" id={hostel.id}/>{count > 0 && <p className="flex gap-2 items-center text-sm"><Star size={16} className="fill-amber-500 text-amber-600"/><strong>{avg} / 5</strong><span className="text-slate-500">({count} {t.reviewsCountText})</span></p>}</div>
+      </header>
+      <div className={`grid gap-3 overflow-hidden rounded-3xl ${hostel.photos.length > 1 ? 'md:grid-cols-[1.65fr_1fr]' : ''}`}>
+        <img src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="w-full aspect-[16/10] sm:aspect-[21/10] md:aspect-[16/10] object-cover bg-slate-100"/>
+        {hostel.photos.length > 1 && <div className="hidden md:grid gap-3 grid-rows-2 min-h-0">{hostel.photos.slice(1,3).map((photo,index)=><img src={photo} alt={`${getLocalized(hostel.name,currentLang)} ${index+2}`} key={photo} className="w-full h-full min-h-0 object-cover bg-slate-100"/>)}</div>}
       </div>
-
-      {/* Gallery */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-2xl overflow-hidden bg-slate-100">
-        <div className="md:col-span-2 aspect-16/10 overflow-hidden">
-          <img
-            src={hostel.photos[0]}
-            alt={getLocalized(hostel.name, currentLang)}
-            className="w-full h-full object-cover hover:scale-102 transition-transform duration-300"
-          />
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_390px] gap-7 xl:gap-10 items-start">
+        <div className="space-y-7 min-w-0">
+          <VerificationInfo verified={hostel.verification?.status==='verified'} checkedAt={hostel.verification?.checkedAt} note={hostel.verification?.note}/>
+          <div className="surface p-5 sm:p-6 space-y-5">
+            <h2 className="text-xl font-semibold">{copy.rooms}</h2>
+            {hostel.roomTypes.length===0 && <p className="text-slate-500">{copy.noRoom}</p>}
+            <div role="radiogroup" aria-label={copy.rooms} className="space-y-3">{hostel.roomTypes.map(room=>{
+              const available=capacityFor(room),selected=selectedRoom?.id===room.id;
+              return <label key={room.id} className={`block p-4 rounded-2xl border cursor-pointer transition-colors ${selected ? 'border-emerald-700 bg-emerald-50/40' : 'border-slate-200 hover:border-slate-300'} ${available===0 ? 'opacity-60' : ''}`}>
+                <div className="flex gap-3 items-start"><input className="mt-1" type="radio" name="selected-room" value={room.id} checked={selected} disabled={available===0} onChange={()=>setSelectedRoomTypeId(room.id)}/><div className="flex-1 min-w-0"><div className="flex flex-wrap gap-3 justify-between"><h3 className="font-semibold">{getLocalized(room.name,currentLang)}</h3><span className="font-semibold ltr-isolate">{room.pricePerNightAMD.toLocaleString()} <span className="text-xs text-slate-500 font-normal">AMD / {t.perNight}</span></span></div><p className="mt-1 text-sm text-slate-500 leading-relaxed">{getLocalized(room.description,currentLang)}</p><div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600">{room.hasCurtain && <span>✓ {tr.curtain}</span>}{room.hasBedsidePlug && <span>✓ {tr.bedsidePlug}</span>}{room.hasPersonalLocker && <span>✓ {tr.locker}</span>}<span className={available>0 ? 'text-emerald-800' : 'text-red-700'}>{available>0 ? `${ft.available}: ${available}` : copy.roomUnavailable}</span></div></div></div>
+              </label>;
+            })}</div>
+          </div>
+          <section className="surface p-5 sm:p-6 space-y-4"><h2 className="text-xl font-semibold">{tr.amenitiesAndRules}</h2><div className="flex flex-wrap gap-2">{amenities.map(item=><span key={String(item)} className="px-3 py-2 rounded-xl bg-slate-50 text-sm text-slate-700">{item}</span>)}</div><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer">{copy.checkTimes}</summary><div className="pt-3 grid sm:grid-cols-3 gap-3 text-sm text-slate-600"><p>{tr.standardCheckIn} <strong className="ltr-isolate">{hostel.checkInStandardTime}</strong></p><p>{tr.standardCheckOut} <strong className="ltr-isolate">{hostel.checkOutStandardTime}</strong></p><p>{hostel.reception24h ? tr.reception24hText : [hostel.receptionOpenTime,hostel.receptionCloseTime].filter(Boolean).join(' – ')}</p></div></details><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer">{copy.policies}</summary><div className="pt-3 space-y-2 text-sm text-slate-600 leading-relaxed"><p>{hostel.rules.cancellationPolicy}</p><p>{tr.quietHoursLabel} {hostel.rules.quietHours}</p><p>{copy.payment}: {hostel.rules.acceptedPaymentMethodsOnArrival.join(' · ')}</p></div></details></section>
+          <HostelLocationMap hostel={hostel} currentLang={currentLang}/>
+          <section className="surface p-5 sm:p-6 space-y-5"><h2 className="text-xl font-semibold">{copy.review} <span className="font-normal text-slate-400">({reviews.length})</span></h2>{reviews.length===0 ? <p className="text-sm text-slate-500 py-4">{ft.noReviews}</p> : reviews.map(review=><article key={review.id} className="border-t border-slate-100 pt-5 space-y-3"><div className="flex items-center justify-between"><strong>{review.guestName}</strong><span className="inline-flex gap-1 items-center text-sm"><Star size={15} className="fill-amber-500 text-amber-600"/>{review.rating} / 5</span></div>{review.scores && <div className="flex flex-wrap gap-3 text-xs text-slate-500">{(['cleanliness','safety','staff','location'] as const).map(key=><span key={key}>{ft[key]} {review.scores![key]} / 5</span>)}</div>}<p className="text-sm text-slate-600 leading-relaxed">{review.comment}</p>{review.adminReply && <p className="text-sm p-3 rounded-xl bg-slate-50">{review.adminReply}</p>}</article>)}</section>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-          {hostel.photos.slice(1, 3).map((photo, i) => (
-            <div key={i} className="aspect-16/10 md:aspect-auto overflow-hidden">
-              <img
-                src={photo}
-                alt={`${getLocalized(hostel.name, currentLang)} ${i + 2}`}
-                className="w-full h-full object-cover hover:scale-102 transition-transform duration-300"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Content Columns: Left Details / Right Booking Box */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left Column: Details, Rooms, Overnight Advisor, Amenities */}
-        <div className="lg:col-span-2 space-y-10">
-          {/* Room & Bed Types */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-black text-slate-900">
-              {tr.availableRoomsTitle}
-            </h2>
-            <div className="space-y-3">
-              {hostel.roomTypes.map(rt => (
-                <div
-                  key={rt.id}
-                  onClick={() => setSelectedRoomTypeId(rt.id)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                    selectedRoomTypeId === rt.id
-                      ? 'border-amber-500 bg-amber-50/40 shadow-xs'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Bed className="w-4 h-4 text-amber-600" />
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-                        {getLocalized(rt.name, currentLang)}
-                      </h3>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                        {rt.totalBedsOrRooms} beds
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      {getLocalized(rt.description, currentLang)}
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-[11px] text-slate-600 pt-1">
-                      {rt.hasCurtain && (
-                        <span className="text-emerald-700 font-medium">✓ {tr.curtain}</span>
-                      )}
-                      {rt.hasBedsidePlug && (
-                        <span className="text-emerald-700 font-medium">✓ {tr.bedsidePlug}</span>
-                      )}
-                      {rt.hasPersonalLocker && (
-                        <span className="text-emerald-700 font-medium">
-                          ✓ {tr.locker} {rt.requiresOwnLock ? tr.ownLock : tr.codeLock}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                    <div className="text-lg font-black text-slate-900">
-                      {rt.pricePerNightAMD.toLocaleString()}{' '}
-                      <span className="text-xs text-amber-700">AMD ֏</span>
-                    </div>
-                    <span className="text-[11px] text-slate-400 block">{tr.perNightPayOnArrival}</span>
-                    <button
-                      type="button"
-                      className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                        selectedRoomTypeId === rt.id
-                          ? 'bg-amber-500 text-slate-950'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {selectedRoomTypeId === rt.id ? tr.selectedCheck : tr.selectThisType}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Overnight & Midnight Arrival Advisor */}
-          <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
-            <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
-              <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>{tr.overnightTitle}</span>
-            </div>
-            <p className="text-xs text-slate-700 leading-relaxed">
-              {tr.overnightDesc}
-            </p>
-            <div className="text-xs text-slate-600 flex flex-wrap gap-4 pt-1 font-medium">
-              <span>{tr.standardCheckIn} {hostel.checkInStandardTime}</span>
-              <span>{tr.standardCheckOut} {hostel.checkOutStandardTime}</span>
-              <span>{tr.receptionHours} {hostel.reception24h ? tr.reception24hText : `${hostel.receptionOpenTime || '08:00'} - ${hostel.receptionCloseTime || '23:00'}`}</span>
-            </div>
-          </div>
-
-          {/* Amenities & Facility Rules */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-black text-slate-900">
-              {tr.amenitiesAndRules}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <Wifi className="w-4 h-4 text-emerald-600" />
-                <span>{tr.wifiFree}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <Lock className="w-4 h-4 text-emerald-600" />
-                <span>{tr.lockersAmenity}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>{tr.freeLuggage}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <Coffee className="w-4 h-4 text-emerald-600" />
-                <span>{tr.sharedKitchen}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-slate-500" />
-                <span>
-                  {hostel.amenities.elevator
-                    ? tr.hasElevator
-                    : `Stairs (${hostel.amenities.stairsCount || 20})`}
-                </span>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-slate-500" />
-                <span>{tr.quietHoursLabel} {hostel.rules.quietHours}</span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1 text-slate-600">
-              <span className="font-bold text-slate-800 block">{tr.cancelAndPaymentLabel}</span>
-              <p>{hostel.rules.cancellationPolicy}</p>
-              <p>Accepted Payment Methods: {hostel.rules.acceptedPaymentMethodsOnArrival.join(', ')}</p>
-            </div>
-          </div>
-
-          {/* Dedicated Hostel Location Map & Distances */}
-          <HostelLocationMap hostel={hostel} currentLang={currentLang} />
-
-          {/* Verified Reviews */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-black text-slate-900">
-                {tr.verifiedReviews} ({reviews.length})
-              </h2>
-              <span className="text-xs text-slate-400">
-                {tr.reviewAfterStayNotice}
-              </span>
-            </div>
-
-            {reviews.length === 0 ? (
-              <div className="p-6 rounded-2xl bg-slate-50 text-center text-xs text-slate-500">
-                {tr.noReviewsYet}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {reviews.map(rev => (
-                  <div
-                    key={rev.id}
-                    className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-slate-900">{rev.guestName}</span>
-                      <div className="flex items-center gap-1 text-xs font-bold text-amber-600">
-                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                        <span>{rev.rating} / 5</span>
-                      </div>
-                    </div>
-                    {rev.scores && <div className="grid grid-cols-2 gap-2 text-xs">{(['cleanliness','safety','staff','location'] as const).map(key => <span key={key}>{featureText(currentLang)[key]}: {rev.scores![key]} / 5</span>)}</div>}
-                    <p className="text-xs text-slate-700 leading-relaxed">{rev.comment}</p>
-                    {rev.adminReply && (
-                      <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs text-slate-700 mt-2">
-                        <span className="font-bold text-amber-900 block mb-0.5">
-                          YEREVANHUB Response:
-                        </span>
-                        {rev.adminReply}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Direct Booking Drawer Box */}
-        <div className="lg:col-span-1">
-          <div className="sticky top-24 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xl space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <span className="text-xs text-slate-400 font-semibold block">{tr.startingPriceLabel}</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">
-                  {selectedRoom.pricePerNightAMD.toLocaleString()}
-                </span>
-                <span className="text-xs font-bold text-amber-700">AMD ֏</span>
-              </div>
-              <span className="text-[11px] text-slate-500">{t.perBedPerNight}</span>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitBooking} className="space-y-4">
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {tr.checkInDate}
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)}
-                    value={checkIn}
-                    onChange={e => setCheckIn(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {tr.checkOutDate}
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)}
-                    value={checkOut}
-                    onChange={e => setCheckOut(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-
-              {/* Quantity & Guests */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {tr.bedQuantity}
-                  </label>
-                  <select
-                    value={quantity}
-                    onChange={e => setQuantity(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map(n => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {tr.guestsCount}
-                  </label>
-                  <select
-                    value={guestsCount}
-                    onChange={e => setGuestsCount(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map(n => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Estimated arrival time */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {tr.approxArrival}
-                </label>
-                <select
-                  value={arrivalTime}
-                  onChange={e => setArrivalTime(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium"
-                >
-                  <option value="14:00">{tr.arrival14}</option>
-                  <option value="18:00">{tr.arrival18}</option>
-                  <option value="22:00">{tr.arrival22}</option>
-                  <option value="03:00">{tr.arrival03}</option>
-                  <option value="07:00">{tr.arrival07}</option>
-                </select>
-              </div>
-
-              {/* Minimal personal info: Name + Phone or Email */}
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <span className="block text-xs font-bold text-slate-900">
-                  {tr.guestInfoLabel}
-                </span>
-
-                <div>
-                  <label className="block text-xs text-slate-600 mb-1">{tr.fullName}</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ali / John"
-                    value={guestName}
-                    onChange={e => setGuestName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1 text-xs text-slate-600">
-                    <label>{tr.phoneOrEmail}</label>
-                    <div className="flex gap-2 text-[10px]">
-                      <button
-                        type="button"
-                        onClick={() => setContactType('phone')}
-                        className={`cursor-pointer ${contactType === 'phone' ? 'font-bold text-amber-700' : 'text-slate-400'}`}
-                      >
-                        {tr.phoneTab}
-                      </button>
-                      <span>|</span>
-                      <button
-                        type="button"
-                        onClick={() => setContactType('email')}
-                        className={`cursor-pointer ${contactType === 'email' ? 'font-bold text-amber-700' : 'text-slate-400'}`}
-                      >
-                        {tr.emailTab}
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    type={contactType === 'phone' ? 'tel' : 'email'}
-                    required
-                    placeholder={contactType === 'phone' ? '+374 91 ...' : 'name@example.com'}
-                    value={guestContact}
-                    onChange={e => setGuestContact(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-medium focus:ring-2 focus:ring-amber-500 ltr-isolate text-left"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    {tr.contactHint}
-                  </span>
-                </div>
-              </div>
-
-              {/* Preferred requests */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isLowerBunkRequested}
-                    onChange={e => setIsLowerBunkRequested(e.target.checked)}
-                    className="rounded text-amber-600 w-4 h-4"
-                  />
-                  <span>{tr.lowerBunk}</span>
-                </label>
-
-                <div>
-                  <input
-                    type="text"
-                    placeholder={tr.specialRequests}
-                    value={specialRequests}
-                    onChange={e => setSpecialRequests(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Promo Coupon Drawer */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                  <span className="flex items-center gap-1">
-                    <Tag className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{tr.haveCoupon}</span>
-                  </span>
-                  {appliedCouponCode && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveCoupon}
-                      className="text-red-600 hover:text-red-700 text-[10px] cursor-pointer"
-                    >
-                      {tr.removeCoupon}
-                    </button>
-                  )}
-                </div>
-
-                {!appliedCouponCode ? (
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="WELCOME10"
-                      value={couponInput}
-                      onChange={e => setCouponInput(e.target.value)}
-                      className="flex-1 uppercase bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      className="px-3 py-1.5 rounded-xl bg-slate-900 text-white font-bold text-xs cursor-pointer"
-                    >
-                      {tr.apply}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold flex items-center justify-between">
-                    <span>{appliedCouponCode} active ({discountPercent}% off)</span>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  </div>
-                )}
-
-                {couponError && (
-                  <span className="text-[11px] text-red-600 block">{couponError}</span>
-                )}
-              </div>
-
-              {/* Cost Summary Breakdown */}
-              <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <span>{tr.stayDuration}</span>
-                  <span className="font-semibold text-slate-900">{nights} {currentLang === 'fa' ? 'شب' : currentLang === 'ru' ? 'ночей' : currentLang === 'hy' ? 'գիշեր' : 'nights'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{tr.basePrice}</span>
-                  <span>{pricing.baseAmount.toLocaleString()} AMD</span>
-                </div>
-                {pricing.discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-medium">
-                    <span>{tr.discount} ({pricing.discountPercent}%):</span>
-                    <span>- {pricing.discountAmount.toLocaleString()} AMD</span>
-                  </div>
-                )}
-                {pricing.extraFees > 0 && (
-                  <div className="flex justify-between text-slate-700">
-                    <span>{tr.overnightFee}</span>
-                    <span>+ {pricing.extraFees.toLocaleString()} AMD</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t border-slate-200 flex justify-between text-sm font-black text-slate-950">
-                  <span>{tr.finalPayOnArrival}</span>
-                  <span className="text-amber-700">
-                    {pricing.finalAmountToPayOnArrival.toLocaleString()} AMD ֏
-                  </span>
-                </div>
-              </div>
-
-              {/* Rules Acceptance Checkbox */}
-              <label className="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer pt-2">
-                <input
-                  type="checkbox"
-                  required
-                  checked={acceptedTerms}
-                  onChange={e => setAcceptedTerms(e.target.checked)}
-                  className="rounded text-amber-600 mt-0.5 w-4 h-4"
-                />
-                <span>
-                  {tr.termsCheckbox}
-                </span>
-              </label>
-
-              {/* Submit CTA */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>{isSubmitting ? tr.submittingBtn : tr.submitBtn}</span>
-                <ArrowIcon className="w-4 h-4" />
-              </button>
-
-              <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                {tr.trackingNotice}
-              </p>
-            </form>
-          </div>
-        </div>
+        <aside className="surface p-5 sm:p-6 space-y-5 lg:sticky lg:top-24" id="stay-booking-form" aria-label={copy.book}>
+          <div className="flex gap-4 items-start justify-between border-b border-slate-100 pb-5"><div><h2 className="text-xl font-semibold">{copy.book}</h2><p className="text-sm text-slate-500 mt-1">{copy.payment}</p></div><div className="text-end"><strong className="block text-xl ltr-isolate">{(selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD).toLocaleString()} <span className="text-xs font-normal">AMD</span></strong><span className="text-xs text-slate-500">{t.perNight}</span></div></div>
+          {formError && <p role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm">{formError}</p>}
+          <form onSubmit={handleSubmitBooking} className="space-y-4" aria-busy={isSubmitting}>
+            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-in" className="text-sm font-medium">{ft.checkIn}<input id="booking-in" className="field mt-2" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value&&event.target.value>=checkOut)setCheckOut(addCalendarDays(event.target.value,1));}}/></label><label htmlFor="booking-out" className="text-sm font-medium">{ft.checkOut}<input id="booking-out" className="field mt-2" type="date" required min={addCalendarDays(checkIn||yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event=>setCheckOut(event.target.value)}/></label></div>
+            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<select id="booking-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} disabled={n>selectedCapacity}>{n}</option>)}</select></label><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<select id="booking-guests" className="field mt-2" value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label></div>
+            {!canBook && <p role="status" className="text-sm text-amber-900">{ft.noCapacity}</p>}
+            <label htmlFor="booking-arrival" className="block text-sm font-medium">{tr.approxArrival}<select id="booking-arrival" className="field mt-2" value={arrivalTime} onChange={event=>setArrivalTime(event.target.value)}><option value="14:00">{tr.arrival14}</option><option value="18:00">{tr.arrival18}</option><option value="22:00">{tr.arrival22}</option><option value="03:00">{tr.arrival03}</option><option value="07:00">{tr.arrival07}</option></select></label>
+            {arrivalAnalysis.isEarlyMorning && <details className="rounded-xl p-3 bg-amber-50 text-sm text-amber-950"><summary className="cursor-pointer font-medium">{tr.overnightTitle}</summary><p className="pt-2 leading-relaxed">{tr.overnightDesc}</p></details>}
+            <div className="border-t border-slate-100 pt-4 space-y-3"><h3 className="font-medium text-sm">{copy.guestInfo}</h3><label htmlFor="booking-name" className="block text-sm">{tr.fullName}<input id="booking-name" autoComplete="name" className="field mt-2" required placeholder="Ali / John" value={guestName} onChange={event=>setGuestName(event.target.value)}/></label><div className="flex justify-between gap-2 text-sm"><label htmlFor="booking-contact">{copy.contact}</label><div className="flex gap-3"><button type="button" aria-pressed={contactType==='phone'} className={contactType==='phone'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('phone')}>{tr.phoneTab}</button><button type="button" aria-pressed={contactType==='email'} className={contactType==='email'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('email')}>{tr.emailTab}</button></div></div><input id="booking-contact" className="field ltr-isolate" autoComplete={contactType==='phone'?'tel':'email'} required type={contactType==='phone'?'tel':'email'} placeholder={contactType==='phone'?'+374 91 ...':'name@example.com'} value={guestContact} onChange={event=>setGuestContact(event.target.value)}/></div>
+            <details className="border-t border-slate-100 pt-4"><summary className="text-sm cursor-pointer font-medium">{copy.requests} <span className="text-slate-400 font-normal">· {copy.optional}</span></summary><div className="pt-4 space-y-3"><label className="flex gap-2 text-sm"><input type="checkbox" checked={isLowerBunkRequested} onChange={event=>setIsLowerBunkRequested(event.target.checked)}/>{tr.lowerBunk}</label><label className="block text-sm" htmlFor="booking-note">{tr.specialRequests}<textarea id="booking-note" className="field mt-2" rows={2} value={specialRequests} onChange={event=>setSpecialRequests(event.target.value)}/></label></div></details>
+            <details className="border-t border-slate-100 pt-4"><summary className="text-sm cursor-pointer font-medium">{copy.coupon}</summary><div className="pt-3 space-y-2">{!appliedCouponCode ? <div className="flex gap-2"><label htmlFor="booking-coupon" className="sr-only">{copy.coupon}</label><input id="booking-coupon" className="field min-w-0 uppercase" placeholder="WELCOME10" value={couponInput} onChange={event=>setCouponInput(event.target.value)}/><button type="button" disabled={couponBusy} onClick={handleApplyCoupon} className="button-secondary">{couponBusy?'…':tr.apply}</button></div> : <div className="flex justify-between gap-3 text-sm text-emerald-800"><span>{appliedCouponCode} · {discountPercent}%</span><button type="button" className="underline" onClick={handleRemoveCoupon}>{tr.removeCoupon}</button></div>}{couponError && <p role="alert" className="text-xs text-red-700">{couponError}</p>}{appliedCouponCode && !couponValidation.valid && <p role="alert" className="text-xs text-red-700">{couponValidation.message}</p>}</div></details>
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 text-sm"><div className="flex justify-between text-slate-500"><span>{nights} {copy.nights} × {quantity}</span><span className="ltr-isolate">{pricing.baseAmount.toLocaleString()} AMD</span></div>{pricing.discountAmount>0&&<div className="flex justify-between text-emerald-800"><span>{copy.discount}</span><span className="ltr-isolate">−{pricing.discountAmount.toLocaleString()} AMD</span></div>}{pricing.extraFees>0&&<div className="flex justify-between text-slate-600"><span>{copy.extra}</span><span className="ltr-isolate">{pricing.extraFees.toLocaleString()} AMD</span></div>}<div className="flex justify-between gap-3 font-semibold text-base border-t border-slate-200 pt-3"><span>{copy.total}</span><span className="ltr-isolate">{pricing.finalAmountToPayOnArrival.toLocaleString()} AMD</span></div></div>
+            <label className="flex gap-2 items-start text-sm text-slate-600"><input className="mt-1" type="checkbox" required checked={acceptedTerms} onChange={event=>setAcceptedTerms(event.target.checked)}/>{copy.terms}</label>
+            <button type="submit" disabled={isSubmitting || !canBook || Boolean(appliedCouponCode&&!couponValidation.valid) || Boolean(appStore.getState().previewMode)} className="button-primary w-full">{isSubmitting ? ft.processing : copy.book}<ArrowIcon size={17}/></button>
+            <p className="text-xs text-slate-500 leading-relaxed text-center">{copy.pending}</p>
+          </form>
+        </aside>
       </div>
     </div>
   );

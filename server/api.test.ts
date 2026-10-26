@@ -182,3 +182,30 @@ test('Vercel API adapter serves read-only browsing and rejects writes without a 
     if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;
   }
 });
+
+test('hostel location updates are scoped, validated and require explicit admin verification', async t => {
+  const { visitor, client, hostel } = await fixture(t);
+  const point = { lat: 40.7891, lng: 43.8473, verified: false };
+  assert.equal((await visitor.action('updateHostelLocation', [hostel.id, point])).response.status, 403);
+  const manager = client();
+  await manager.action('login', ['manager.kentron@yerevanhub.com', 'Hostel@2026']);
+  assert.equal((await manager.action('updateHostelLocation', [hostel.id, { ...point, verified: true, note: 'Checked' }])).response.status, 403);
+  assert.equal((await manager.action('updateHostelLocation', [hostel.id, point])).data.success, true);
+  let publicHostel = (await visitor.get()).state.hostels.find(h => h.id === hostel.id)!;
+  assert.deepEqual(publicHostel.coordinates, { lat: point.lat, lng: point.lng });
+  assert.equal(publicHostel.locationVerification?.status, 'unverified');
+  const otherManager = client();
+  await otherManager.action('login', ['manager.cascade@yerevanhub.com', 'Hostel@2026']);
+  assert.equal((await otherManager.action('updateHostelLocation', [hostel.id, point])).response.status, 403);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  assert.equal((await admin.action('updateHostelLocation', [hostel.id, { ...point, lat: 91 }])).response.status, 400);
+  assert.equal((await admin.action('updateHostelLocation', [hostel.id, { ...point, verified: true, note: '' }])).response.status, 400);
+  assert.equal((await admin.action('updateHostelLocation', [hostel.id, { ...point, verified: true, note: 'Address and entrance confirmed by owner' }])).data.success, true);
+  publicHostel = (await visitor.get()).state.hostels.find(h => h.id === hostel.id)!;
+  assert.equal(publicHostel.locationVerification?.status, 'verified');
+  assert.ok(publicHostel.locationVerification?.checkedAt);
+  assert.equal(publicHostel.locationVerification?.checkedBy, undefined);
+  assert.equal((await manager.action('updateHostelLocation', [hostel.id, point])).data.success, true);
+  assert.equal((await visitor.get()).state.hostels.find(h => h.id === hostel.id)!.locationVerification?.status, 'unverified');
+});

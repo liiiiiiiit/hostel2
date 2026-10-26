@@ -1,34 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getMapBounds, getMapLinks, isValidCoordinates } from '../utils/maps';
 
-// Test pure distance calculation logic
-function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3;
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return Math.round(R * c);
-}
-
-test('calculateDistanceMeters accurately measures distance in central Yerevan', () => {
-  // Distance from Republic Square (40.1777, 44.5126) to Cascade (40.1911, 44.5156) is roughly ~1.5 km
-  const dist = calculateDistanceMeters(40.1777, 44.5126, 40.1911, 44.5156);
-  assert.ok(dist > 1400 && dist < 1600, `Expected ~1.5km, got ${dist}m`);
+test('map links encode the exact stored coordinate in the embed and navigation destination', () => {
+  const point = { lat: 40.1785, lng: 44.5152 };
+  const links = getMapLinks(point)!;
+  const embed = new URL(links.embed!);
+  assert.equal(embed.origin, 'https://www.openstreetmap.org');
+  assert.equal(embed.searchParams.get('marker'), '40.1785,44.5152');
+  assert.equal(new URL(links.directions).searchParams.get('destination'), '40.1785,44.5152');
+  const [west, south, east, north] = getMapBounds(point)!;
+  assert.ok(west < point.lng && east > point.lng && south < point.lat && north > point.lat);
 });
 
-test('calculateDistanceMeters calculates short walk to nearest metro (~200-400m)', () => {
-  const dist = calculateDistanceMeters(40.1777, 44.5126, 40.1792, 44.5145);
-  assert.ok(dist > 100 && dist < 400, `Expected ~200-400m, got ${dist}m`);
+test('invalid and nonfinite coordinates never create map or navigation URLs', () => {
+  for (const point of [undefined, null, {}, {lat:'40.1',lng:44.5}, {lat:NaN,lng:44.5}, {lat:40,lng:Infinity}, {lat:91,lng:44}, {lat:40,lng:-181}]) {
+    assert.equal(isValidCoordinates(point), false);
+    assert.equal(getMapLinks(point as { lat: number; lng: number }), null);
+  }
 });
 
-test('calculateDistanceMeters returns 0 for identical coordinates', () => {
-  const dist = calculateDistanceMeters(40.1777, 44.5126, 40.1777, 44.5126);
-  assert.equal(dist, 0);
+test('valid polar coordinates do not get clamped into a false map position', () => {
+  const links = getMapLinks({lat:89,lng:0})!;
+  assert.equal(links.embed, null);
+  assert.equal(new URL(links.directions).searchParams.get('destination'), '89,0');
 });
