@@ -17,7 +17,7 @@ function fixture() {
   const hostel = store.getHostels()[0];
   const room = hostel.roomTypes[0];
   room.totalBedsOrRooms = 2;
-  const data = { hostelId: hostel.id, roomTypeId: room.id, guestName: 'Test Guest', contactType: 'email' as const,
+  const data = { acceptedTerms:true, hostelId: hostel.id, roomTypeId: room.id, guestName: 'Test Guest', contactType: 'email' as const,
     guestContact: 'test@example.com', checkIn: '2030-01-01', checkOut: '2030-01-03', guestsCount: 1, quantity: 1 };
   return { store, hostel, room, data };
 }

@@ -122,6 +122,16 @@ export type BookingStatus =
   | 'no_show';
 
 export interface Booking {
+  idempotencyKey?: string;
+  requestFingerprint?: string;
+  language?: AppLanguage;
+  agreement?: {
+    currency: 'AMD'; bookingUnit: 'bed' | 'room'; guestsPerUnit: number;
+    nightlyPriceAMD: number; cancellationPolicy: string;
+    cancellationPolicyLocalized?: Record<AppLanguage,string>;
+    paymentMethodsOnArrival: string[]; acceptedAt: string;
+    breakdown: { accommodationAMD:number; discountAMD:number; earlyArrivalAMD:number; lateArrivalAMD:number; optionalServicesAMD:number; totalAMD:number };
+  };
   id: string;
   trackingCode: string;
   privateToken: string;

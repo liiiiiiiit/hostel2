@@ -28,7 +28,7 @@ const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z
 const schemas = {
   login: z.tuple([email, password]), logout: z.tuple([]),
   registerTraveler: z.tuple([text, email, optionalText.nullable(), password]),
-  createBooking: z.tuple([z.object({ hostelId: text, roomTypeId: text, guestName: text, contactType: z.enum(['phone','email']), guestContact: text, checkIn: date, checkOut: date, guestsCount: positive, quantity: positive, estimatedArrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), specialRequests: optionalText, isLowerBunkRequested: z.boolean().optional(), isImmediateArrival: z.boolean().optional(), couponCode: optionalText }).refine(value => calculateNights(value.checkIn, value.checkOut) >= 1 && calculateNights(value.checkIn, value.checkOut) <= 90 && value.checkIn >= yerevanToday() && value.checkOut <= addCalendarDays(yerevanToday(),89), 'Invalid stay dates').refine(value => value.contactType !== 'email' || z.email().safeParse(value.guestContact).success, 'Invalid contact')]),
+  createBooking: z.tuple([z.object({ acceptedTerms:z.literal(true), expectedHostelUpdatedAt:z.string().min(1).max(100), idempotencyKey:z.uuid(), language:z.enum(['fa','en','ru','hy']).optional(), hostelId: text, roomTypeId: text, guestName: text, contactType: z.enum(['phone','email']), guestContact: text, checkIn: date, checkOut: date, guestsCount: positive, quantity: positive, estimatedArrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), specialRequests: optionalText, isLowerBunkRequested: z.boolean().optional(), isImmediateArrival: z.boolean().optional(), couponCode: optionalText }).refine(value => calculateNights(value.checkIn, value.checkOut) >= 1 && calculateNights(value.checkIn, value.checkOut) <= 90 && value.checkIn >= yerevanToday() && value.checkOut <= addCalendarDays(yerevanToday(),89), 'Invalid stay dates').refine(value => value.contactType !== 'email' || z.email().safeParse(value.guestContact).success, 'Invalid contact')]),
   updateBookingStatus: z.tuple([text, status, optionalText]),
   cancelBookingByGuest: z.tuple([text, z.string().max(1000)]), reportEntranceIssue: z.tuple([text, z.string().max(2000)]),
   submitReview: z.tuple([text, z.number().int().min(1).max(5), z.string().trim().min(1).max(3000), scores.optional()]),
@@ -195,6 +195,7 @@ export function createApi(database: Database) {
           await tx.execute({ sql: 'INSERT INTO sessions VALUES(?,?,?)', args: [digest(token), actor.id, now + 7 * 86400000] });
           res.cookie(cookieName, token, { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 7 * 86400000 });
         }
+        if(actionResult.error)actionResult.error=localizeError(actionResult.error,req.headers['x-app-language']);
         Object.assign(state, store.getState());
         if (envelope.action === 'toggleManagerActive') {
           const user = state.users.find(user => user.id === args[0]);
@@ -204,6 +205,7 @@ export function createApi(database: Database) {
         for (const booking of changed) await enqueueBookingNotification(tx, state, booking);
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
+        if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; actionResult={...actionResult,booking:safe}; }
         return { ...actionResult, dispatch: changed.length > 0 && !database.demo, state: publicState(state, actor, database.demo, bookingToken, inquiryToken) };
       });
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }

@@ -23,6 +23,7 @@ async function fixture(t: TestContext) {
     return {
       async get(token = '', inquiryToken = '') { const response = await fetch(base, { headers: { cookie, 'X-Booking-Token': token, 'X-Inquiry-Token': inquiryToken } }); const data = await response.json() as { state: ClientState }; return { response, ...data }; },
       async action(action: string, args: unknown[], extra: Record<string,string> = {}) {
+        if(action==='createBooking'){const payload=args[0] as {hostelId:string};const {state}=await this.get();args=[{acceptedTerms:true,idempotencyKey:crypto.randomUUID(),expectedHostelUpdatedAt:state.hostels.find(item=>item.id===payload.hostelId)?.updatedAt??'missing',...payload}];}
         const response = await fetch(base, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', ...extra }, body: JSON.stringify({ action, args }) });
         const next = response.headers.get('set-cookie'); if (next) cookie = next.split(';')[0];
         const data = await response.json(); return { response, data };
@@ -33,7 +34,7 @@ async function fixture(t: TestContext) {
   const visitor = client(); const initial = await visitor.get(); const hostel = initial.state.hostels[0];
   const checkIn = addCalendarDays(yerevanToday(), 2); const checkOut = addCalendarDays(checkIn, 2);
   const booking = { hostelId: hostel.id, roomTypeId: hostel.roomTypes[0].id, guestName: 'API Guest', contactType: 'email', guestContact: 'guest@example.test', checkIn, checkOut, quantity: 1, guestsCount: 1 };
-  return { database, base, client, visitor, hostel, booking };
+  return { database, databaseUrl:`file:${directory}/test.db`, base, client, visitor, hostel, booking };
 }
 
 test('public API never returns identities, guest records, internal addresses, credentials or door codes', async t => {
@@ -279,4 +280,38 @@ test('image uploads require admin, validate actual bytes, optimize and delete on
   hostel.media=[];hostel.photos=[];await admin.action('saveHostel',[hostel]);
   assert.equal((await fetch(base+`?deleteMedia=${image.id}`,{method:'POST',headers:{...headers,'Content-Type':'application/json'}})).status,200);
   assert.equal((await fetch(new URL(image.url,base))).status,404);
+});
+
+test('double-room pricing, duplicate retries and immutable accepted conditions are server-enforced',async t=>{
+  const {completeHostel}=await import('./property-fixtures.js');
+  const {client,visitor,booking,database}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const hostel=completeHostel();hostel.listingStatus='published';hostel.isPublished=true;await admin.action('saveHostel',[hostel]);
+  const request={...booking,hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,guestsCount:2,quantity:1,idempotencyKey:crypto.randomUUID(),language:'en'};
+  const repeated=await Promise.all([visitor.action('createBooking',[request]),client().action('createBooking',[request])]);
+  assert.ok(repeated.every(result=>result.data.success));assert.equal(repeated[0].data.booking.id,repeated[1].data.booking.id);
+  const agreed=repeated[0].data.booking;assert.equal(agreed.quantity,1);assert.equal(agreed.finalAmountAMD,18000*2);assert.equal(agreed.language,'en');assert.equal(agreed.agreement.bookingUnit,'room');
+  assert.equal(agreed.agreement.breakdown.totalAMD,agreed.finalAmountAMD);assert.deepEqual(agreed.agreement.paymentMethodsOnArrival,['AMD cash']);
+  assert.equal((await visitor.action('createBooking',[{...request,guestName:'Changed name'}])).data.success,false);
+  assert.equal((await visitor.action('createBooking',[{...request,idempotencyKey:crypto.randomUUID(),guestsCount:3}])).data.success,false);
+  assert.equal((await visitor.action('createBooking',[{...request,idempotencyKey:crypto.randomUUID(),roomTypeId:hostel.roomTypes[0].id}])).data.success,false);
+  hostel.roomTypes[1].pricePerNightAMD=25000;hostel.rules.cancellationPolicy='Changed cancellation terms';
+  assert.equal((await admin.action('saveHostel',[hostel])).data.success,true);
+  const tracked=(await client().get(agreed.privateToken)).state.bookings[0];assert.equal(tracked.finalAmountAMD,36000);assert.deepEqual(tracked.agreement,agreed.agreement);
+  await database.transaction(async state=>assert.equal(state.bookings.filter(item=>item.idempotencyKey===request.idempotencyKey).length,1));
+});
+
+test('two independent API/database instances cannot confirm the last private room twice',async t=>{
+  const {completeHostel}=await import('./property-fixtures.js');
+  const {client,booking,database,databaseUrl,base}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';await admin.action('saveHostel',[hostel]);
+  const request={...booking,hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,guestsCount:2,quantity:1};
+  const first=(await client().action('createBooking',[request])).data.booking;const second=(await client().action('createBooking',[request])).data.booking;
+  const otherDatabase=new Database({url:databaseUrl,demo:true});await otherDatabase.transaction(async()=>{});
+  const otherServer=createApi(otherDatabase).listen(0,'127.0.0.1');await once(otherServer,'listening');
+  t.after(async()=>{otherServer.closeAllConnections();await new Promise<void>(resolve=>otherServer.close(()=>resolve()));await otherDatabase.close();});
+  const otherBase=`http://127.0.0.1:${(otherServer.address() as {port:number}).port}/api/app`;
+  const confirm=(url:string,id:string)=>fetch(url,{method:'POST',headers:{cookie:admin.cookie,'Content-Type':'application/json','X-Requested-With':'YerevanHub'},body:JSON.stringify({action:'updateBookingStatus',args:[id,'confirmed']})}).then(response=>response.json());
+  const result=await Promise.all([confirm(base,first.id),confirm(otherBase,second.id)]);
+  assert.equal(result.filter(item=>item.success).length,1);
+  await database.transaction(async state=>assert.equal(state.bookings.filter(item=>item.hostelId===hostel.id&&item.status==='confirmed').reduce((total,item)=>total+item.quantity,0),1));
 });

@@ -1,3 +1,4 @@
+import { requiredUnits } from '../utils/occupancy';
 import React, { useMemo, useState } from 'react';
 import { Building2, MapPin, SlidersHorizontal, Star, Wifi, Lock, ArrowUpRight } from 'lucide-react';
 import type { AppLanguage, Hostel } from '../types';
@@ -34,9 +35,10 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
   const [filtersOpen, setFiltersOpen] = useState(false);
   const nights = calculateNights(checkIn, checkOut);
   const rooms = (hostel: Hostel) => hostel.roomTypes.filter(room =>
-    (roomType === 'all' || room.type === roomType) && room.pricePerNightAMD <= maxPrice &&
-    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= quantity);
-  const nightly = (hostel: Hostel) => Math.min(...rooms(hostel).map(room => room.pricePerNightAMD));
+    (roomType === 'all' || room.type === roomType) && room.pricePerNightAMD * (requiredUnits(room,quantity)??Infinity) <= maxPrice &&
+    appStore.remainingCapacity(hostel, room.id, checkIn, checkOut) >= (requiredUnits(room,quantity)??Infinity));
+  const bestRoom = (hostel:Hostel) => rooms(hostel).sort((a,b)=>a.pricePerNightAMD*(requiredUnits(a,quantity)??Infinity)-b.pricePerNightAMD*(requiredUnits(b,quantity)??Infinity))[0];
+  const nightly = (hostel: Hostel) => {const room=bestRoom(hostel);return room?room.pricePerNightAMD*(requiredUnits(room,quantity)??Infinity):Infinity;};
   const filtered = useMemo(() => hostels.filter(h => {
     if (nights < 1 || quantity < 1 || !Number.isInteger(quantity) || !rooms(h).length) return false;
     if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
@@ -76,9 +78,9 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
         <div className="relative aspect-[16/10] md:aspect-auto min-h-56 bg-slate-100"><img src={hostel.photos[0]} alt={name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"/>{hostel.verification?.status==='verified' && <span className="absolute top-4 start-4 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-emerald-800">✓ {ft.verified}</span>}</div>
         <div className="p-5 sm:p-7 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="eyebrow">{getCityName(hostel.city,currentLang)} · {hostel.district}</p><span className="inline-flex items-center gap-1 text-sm text-slate-500">{rating.count>0 ? <><Star size={15} className="text-amber-600 fill-amber-500"/><strong className="text-slate-900">{rating.avg}</strong> ({rating.count})</> : copy.noReviews}</span></div>
-          <div><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity})}>{name}</button><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
+          <div><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,roomTypeId:bestRoom(hostel)?.id})}>{name}</button><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">{hostel.amenities.wifi&&<span className="inline-flex gap-1.5 items-center"><Wifi size={16}/>{getAmenityLabel('wifi',currentLang)}</span>}{hostel.amenities.lockers&&<span className="inline-flex gap-1.5 items-center"><Lock size={16}/>{getAmenityLabel('lockers',currentLang)}</span>}{hostel.reception24h&&<span>{t.reception24hBadge}</span>}</div>
-          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end"><div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*quantity*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div><div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity})}>{t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
+          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end"><div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div><div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,roomTypeId:bestRoom(hostel)?.id})}>{t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
         </div>
       </article>;
     })}</div>}

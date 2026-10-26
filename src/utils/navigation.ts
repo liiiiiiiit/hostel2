@@ -1,7 +1,7 @@
 export interface Route { view: string; params: Record<string, string | number> }
 const pages: Record<string, string> = { home: '', hostels: 'hostels', rentals: 'rentals', guide: 'guide', translator: 'translator', admin: 'admin', manager: 'manager', account: 'account', saved: 'saved', about: 'about', contact: 'contact', rules: 'rules', privacy: 'privacy' };
 const records: Record<string, { segment: string; parameter: string }> = { 'hostel-detail': { segment: 'hostel', parameter: 'id' }, 'rental-detail': { segment: 'rental', parameter: 'id' }, 'article-detail': { segment: 'article', parameter: 'slug' }, 'booking-track': { segment: 'booking', parameter: 'token' }, 'rental-track': { segment: 'rental-request', parameter: 'token' } };
-const searchKeys = ['city','district','type','checkIn','checkOut','guests'];
+const searchKeys = ['city','district','type','checkIn','checkOut','guests', 'roomTypeId'];
 export function routeHash(view: string, params: Record<string, unknown> = {}): string {
   const record = records[view];
   const path = record ? `${record.segment}/${encodeURIComponent(String(params[record.parameter] ?? ''))}` : pages[view];

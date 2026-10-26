@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { occupancyIsValid, guestsPerUnit } from '../src/utils/occupancy.js';
 import { publicationIssues } from '../src/utils/properties.js';
 import { hostelSchema, rentalSchema } from './property-schemas.js';
 import { isValidCoordinates } from '../src/utils/maps.js';
@@ -324,6 +326,10 @@ export class Store {
 
   // Bookings
   public createBooking(data: {
+    acceptedTerms?: boolean;
+    expectedHostelUpdatedAt?: string;
+    idempotencyKey?: string;
+    language?: import('../src/types/index.js').AppLanguage;
     hostelId: string;
     roomTypeId: string;
     guestName: string;
@@ -339,11 +345,19 @@ export class Store {
     isImmediateArrival?: boolean;
     couponCode?: string;
   }): { success: boolean; booking?: Booking; error?: string } {
+    if (data.acceptedTerms !== true) return { success:false, error:'پذیرش شرایط رزرو الزامی است.' };
+    const requestFingerprint=createHash('sha256').update(JSON.stringify([this.state.currentUser?.id??null,data.hostelId,data.roomTypeId,data.guestName.trim(),data.contactType,data.guestContact.trim(),data.checkIn,data.checkOut,data.guestsCount,data.quantity,data.estimatedArrivalTime??null,data.specialRequests??null,!!data.isLowerBunkRequested,!!data.isImmediateArrival,data.couponCode?.trim().toUpperCase()??null,data.language??'fa'])).digest('hex');
+    if (data.idempotencyKey) {
+      const previous=this.state.bookings.find(booking=>booking.idempotencyKey===data.idempotencyKey);
+      if(previous) return previous.requestFingerprint===requestFingerprint?{success:true,booking:previous}:{success:false,error:'این درخواست تغییر کرده است؛ دوباره ثبت کنید.'};
+    }
     const hostel = this.state.hostels.find(h => h.id === data.hostelId);
     if (!hostel || !hostel.isPublished) return { success: false, error: 'هاستل یافت نشد.' };
+    if(data.expectedHostelUpdatedAt!==undefined&&data.expectedHostelUpdatedAt!==hostel.updatedAt)return {success:false,error:'اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.'};
 
     const roomType = hostel.roomTypes.find(rt => rt.id === data.roomTypeId);
     if (!roomType) return { success: false, error: 'نوع اتاق معتبر نیست.' };
+    if (!occupancyIsValid(roomType,data.guestsCount,data.quantity)) return {success:false,error:'تعداد مهمان با ظرفیت تخت یا اتاق سازگار نیست.'};
 
     const nights = calculateNights(data.checkIn, data.checkOut);
     if (nights <= 0) return { success: false, error: 'تاریخ خروج باید حداقل یک روز بعد از تاریخ ورود باشد.' };
@@ -422,6 +436,8 @@ export class Store {
 
     const booking: Booking = {
       id: `book-${bookingId}`,
+      idempotencyKey:data.idempotencyKey, requestFingerprint, language:data.language??'fa',
+      agreement:{currency:'AMD',bookingUnit:roomType.type==='private'?'room':'bed',guestsPerUnit:guestsPerUnit(roomType)!,nightlyPriceAMD:roomType.pricePerNightAMD,cancellationPolicy:hostel.rules.cancellationPolicy,cancellationPolicyLocalized:structuredClone(hostel.rules.cancellationPolicyLocalized),paymentMethodsOnArrival:[...hostel.rules.acceptedPaymentMethodsOnArrival],acceptedAt:new Date().toISOString(),breakdown:{accommodationAMD:pricing.baseAmount,discountAMD:pricing.discountAmount,earlyArrivalAMD:earlyArrivalFee,lateArrivalAMD:lateArrivalFee,optionalServicesAMD:0,totalAMD:pricing.finalAmountToPayOnArrival}},
       trackingCode,
       privateToken,
       hostelId: hostel.id,

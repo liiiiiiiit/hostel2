@@ -29,7 +29,7 @@ export function publicState(state: AppStoreState, actor: User | null, demoMode: 
   return {
     currentUser: actor, demoMode, users: admin ? state.users : actor ? [actor] : [], hostels,
     rentals: state.rentals.filter(r => admin || r.status === 'published').map(r => admin ? r : { ...r, addressExactInternal: '', landlordInternalNotes: '' }),
-    bookings, rentalInquiries: inquiries.map(inquiry => admin ? inquiry : { ...inquiry, adminNotes: undefined }), coupons: state.coupons,
+    bookings:bookings.map(({requestFingerprint:_fingerprint,idempotencyKey:_key,...booking})=>booking), rentalInquiries: inquiries.map(inquiry => admin ? inquiry : { ...inquiry, adminNotes: undefined }), coupons: state.coupons,
     reviews: state.reviews.filter(r => admin || r.status === 'approved').map(r => admin ? r : { ...r, bookingId: '', guestName: r.guestName.split(' ')[0] }),
     articles: state.articles.filter(a => admin || a.status === 'published'), phrases: state.phrases,
     auditLogs: admin ? state.auditLogs : [], capacities: state.capacities.filter(c => manages(c.hostelId)), availability, settings: state.settings,

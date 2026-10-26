@@ -1,9 +1,11 @@
+import { requiredUnits, occupancyIsValid } from '../utils/occupancy';
+import { propertyText } from '../i18n/properties';
 import { ListingDisclosure } from '../components/ListingDisclosure';
 import { featureText } from '../i18n/features';
 import { VerificationInfo } from '../components/VerificationInfo';
 import { PlaceActions } from '../components/PlaceActions';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppLanguage, Hostel, RoomType, Review } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import {
@@ -43,7 +45,7 @@ interface Props {
   hostel: Hostel;
   reviews: Review[];
   onNavigate: (view: string, params?: any) => void;
-  initialBooking?: { checkIn?: string; checkOut?: string; guests?: number };
+  initialBooking?: { checkIn?: string; checkOut?: string; guests?: number; roomTypeId?: string };
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
@@ -323,7 +325,7 @@ export const HostelDetailView: React.FC<Props> = ({
 
   // Booking Form State
   const [selectedRoomTypeId, setSelectedRoomTypeId] = useState<string>(
-    hostel.roomTypes[0]?.id || ''
+    initialBooking?.roomTypeId || hostel.roomTypes[0]?.id || ''
   );
   const [checkIn, setCheckIn] = useState(() => initialBooking?.checkIn || yerevanToday());
   const [checkOut, setCheckOut] = useState(() => initialBooking?.checkOut || addCalendarDays(initialBooking?.checkIn || yerevanToday(), 1));
@@ -337,6 +339,8 @@ export const HostelDetailView: React.FC<Props> = ({
   const [isLowerBunkRequested, setIsLowerBunkRequested] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
+  useEffect(()=>setAcceptedTerms(false),[hostel.updatedAt]);
+
   // Discount coupon state
   const [couponInput, setCouponInput] = useState('');
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
@@ -348,16 +352,19 @@ export const HostelDetailView: React.FC<Props> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const requestKey=useRef({fingerprint:'',key:crypto.randomUUID()});
   const capacityFor = (room: RoomType) => appStore.remainingCapacity(hostel, room.id, checkIn, checkOut);
   useEffect(() => {
     const selected = hostel.roomTypes.find(room => room.id === selectedRoomTypeId);
-    if (!selected || capacityFor(selected) === 0) {
-      const next = hostel.roomTypes.find(room => capacityFor(room) > 0);
+    if (!selected || requiredUnits(selected,guestsCount)===null || capacityFor(selected) < (requiredUnits(selected,guestsCount)??Infinity)) {
+      const next = hostel.roomTypes.find(room => capacityFor(room) >= (requiredUnits(room,guestsCount)??Infinity));
       if (next) setSelectedRoomTypeId(next.id);
     }
-  }, [hostel, checkIn, checkOut, selectedRoomTypeId]);
+  }, [hostel, checkIn, checkOut, selectedRoomTypeId,guestsCount]);
 
   const selectedRoom = hostel.roomTypes.find(rt => rt.id === selectedRoomTypeId) || hostel.roomTypes[0];
+
+  useEffect(()=>{if(selectedRoom)setQuantity(requiredUnits(selectedRoom,guestsCount)??1);},[selectedRoom?.id,guestsCount]);
 
   // Arrival hour analysis
   const arrivalHourNum = parseInt(arrivalTime.split(':')[0] || '14', 10);
@@ -427,7 +434,7 @@ export const HostelDetailView: React.FC<Props> = ({
       return;
     }
 
-    if (!selectedRoom || quantity > capacityFor(selectedRoom)) {
+    if (!selectedRoom || !occupancyIsValid(selectedRoom,guestsCount,quantity) || quantity > capacityFor(selectedRoom)) {
       setFormError(featureText(currentLang).noCapacity); return;
     }
     if (nights <= 0) {
@@ -443,7 +450,10 @@ export const HostelDetailView: React.FC<Props> = ({
     setIsSubmitting(true);
 
     try {
+      const fingerprint=JSON.stringify([hostel.id,selectedRoom.id,guestName,contactType,guestContact,checkIn,checkOut,quantity,guestsCount,arrivalTime,isLowerBunkRequested,specialRequests,appliedCouponCode,currentLang]);
+      if(requestKey.current.fingerprint!==fingerprint)requestKey.current={fingerprint,key:crypto.randomUUID()};
       const result = await appStore.createBooking({
+        acceptedTerms:true,expectedHostelUpdatedAt:hostel.updatedAt,language:currentLang,idempotencyKey:requestKey.current.key,
         hostelId: hostel.id,
         roomTypeId: selectedRoom.id,
         guestName,
@@ -479,7 +489,7 @@ export const HostelDetailView: React.FC<Props> = ({
     hy: { book: 'Ամրագրման հարցում', selected: 'Ընտրված է', rooms: 'Մահճակալներ և սենյակներ', requests: 'Ցանկություններ', coupon: 'Զեղչի կոդ', review: 'Հյուրերի կարծիքներ', payment: 'Վճարում տեղում', policies: 'Կանոններ և չեղարկում', checkTimes: 'Մուտք և ելք', pending: 'Ամրագրումը գործում է հոսթելի հաստատումից հետո։', terms: 'Ընդունում եմ կացության և չեղարկման կանոնները։', nights: 'գիշեր', guestInfo: 'Հյուրի տվյալներ', contact: 'Կոնտակտ', optional: 'Ըստ ցանկության', discount: 'Զեղչ', extra: 'Ժամանման վճարներ', total: 'Վճարման գումար', roomUnavailable: 'Այս օրերի համար հասանելի չէ', noRoom: 'Այս կացության համար սենյակներ նշված չեն։' },
   }[currentLang];
   const selectedCapacity = selectedRoom ? capacityFor(selectedRoom) : 0;
-  const canBook = selectedRoom && pricing.isValidDates && quantity <= selectedCapacity && selectedCapacity > 0;
+  const canBook = selectedRoom && pricing.isValidDates && quantity <= selectedCapacity && selectedCapacity > 0 && occupancyIsValid(selectedRoom,guestsCount,quantity);
   const amenities = [
     hostel.amenities.wifi && tr.wifiFree, hostel.amenities.lockers && tr.lockersAmenity,
     hostel.freeLuggageStorage && tr.freeLuggage, hostel.amenities.kitchen && tr.sharedKitchen,
@@ -507,7 +517,7 @@ export const HostelDetailView: React.FC<Props> = ({
             <div role="radiogroup" aria-label={copy.rooms} className="space-y-3">{hostel.roomTypes.map(room=>{
               const available=capacityFor(room),selected=selectedRoom?.id===room.id;
               return <label key={room.id} className={`block p-4 rounded-2xl border cursor-pointer transition-colors ${selected ? 'border-emerald-700 bg-emerald-50/40' : 'border-slate-200 hover:border-slate-300'} ${available===0 ? 'opacity-60' : ''}`}>
-                <div className="flex gap-3 items-start"><input className="mt-1" type="radio" name="selected-room" value={room.id} checked={selected} disabled={available===0} onChange={()=>setSelectedRoomTypeId(room.id)}/><div className="flex-1 min-w-0"><div className="flex flex-wrap gap-3 justify-between"><h3 className="font-semibold">{getLocalized(room.name,currentLang)}</h3><span className="font-semibold ltr-isolate">{room.pricePerNightAMD.toLocaleString()} <span className="text-xs text-slate-500 font-normal">AMD / {t.perNight}</span></span></div><p className="mt-1 text-sm text-slate-500 leading-relaxed">{getLocalized(room.description,currentLang)}</p><div className="flex gap-2 overflow-x-auto mt-2">{hostel.media?.filter(image=>image.roomTypeId===room.id).map(image=><img key={image.id} src={image.url} alt={image.alt[currentLang]||getLocalized(room.name,currentLang)} className="h-20 w-28 object-cover rounded-lg" loading="lazy"/>)}</div><div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600">{room.hasCurtain && <span>✓ {tr.curtain}</span>}{room.hasBedsidePlug && <span>✓ {tr.bedsidePlug}</span>}{room.hasPersonalLocker && <span>✓ {tr.locker}</span>}<span className={available>0 ? 'text-emerald-800' : 'text-red-700'}>{available>0 ? `${ft.available}: ${available}` : copy.roomUnavailable}</span></div></div></div>
+                <div className="flex gap-3 items-start"><input className="mt-1" type="radio" name="selected-room" value={room.id} checked={selected} disabled={available<(requiredUnits(room,guestsCount)??Infinity)} onChange={()=>setSelectedRoomTypeId(room.id)}/><div className="flex-1 min-w-0"><div className="flex flex-wrap gap-3 justify-between"><h3 className="font-semibold">{getLocalized(room.name,currentLang)}</h3><span className="font-semibold ltr-isolate">{room.pricePerNightAMD.toLocaleString()} <span className="text-xs text-slate-500 font-normal">AMD / {propertyText(currentLang)(room.type==='private'?'room':'bed')} / {t.perNight}</span></span></div><p className="mt-1 text-sm text-slate-500 leading-relaxed">{getLocalized(room.description,currentLang)}</p><div className="flex gap-2 overflow-x-auto mt-2">{hostel.media?.filter(image=>image.roomTypeId===room.id).map(image=><img key={image.id} src={image.url} alt={image.alt[currentLang]||getLocalized(room.name,currentLang)} className="h-20 w-28 object-cover rounded-lg" loading="lazy"/>)}</div><div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-600">{room.hasCurtain && <span>✓ {tr.curtain}</span>}{room.hasBedsidePlug && <span>✓ {tr.bedsidePlug}</span>}{room.hasPersonalLocker && <span>✓ {tr.locker}</span>}<span className={available>0 ? 'text-emerald-800' : 'text-red-700'}>{available>0 ? `${ft.available}: ${available}` : copy.roomUnavailable}</span></div></div></div>
               </label>;
             })}</div>
           </div>
@@ -520,7 +530,7 @@ export const HostelDetailView: React.FC<Props> = ({
           {formError && <p role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm">{formError}</p>}
           <form onSubmit={handleSubmitBooking} className="space-y-4" aria-busy={isSubmitting}>
             <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-in" className="text-sm font-medium">{ft.checkIn}<input id="booking-in" className="field mt-2" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value&&event.target.value>=checkOut)setCheckOut(addCalendarDays(event.target.value,1));}}/></label><label htmlFor="booking-out" className="text-sm font-medium">{ft.checkOut}<input id="booking-out" className="field mt-2" type="date" required min={addCalendarDays(checkIn||yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event=>setCheckOut(event.target.value)}/></label></div>
-            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<select id="booking-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} disabled={n>selectedCapacity}>{n}</option>)}</select></label><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<select id="booking-guests" className="field mt-2" value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label></div>
+            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<select aria-label={tr.guestsCount} id="booking-guests" className="field mt-2" value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<select aria-label={tr.bedQuantity} id="booking-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} disabled={n>selectedCapacity}>{n}</option>)}</select></label></div>
             {!canBook && <p role="status" className="text-sm text-amber-900">{ft.noCapacity}</p>}
             <label htmlFor="booking-arrival" className="block text-sm font-medium">{tr.approxArrival}<select id="booking-arrival" className="field mt-2" value={arrivalTime} onChange={event=>setArrivalTime(event.target.value)}><option value="14:00">{tr.arrival14}</option><option value="18:00">{tr.arrival18}</option><option value="22:00">{tr.arrival22}</option><option value="03:00">{tr.arrival03}</option><option value="07:00">{tr.arrival07}</option></select></label>
             {arrivalAnalysis.isEarlyMorning && <details className="rounded-xl p-3 bg-amber-50 text-sm text-amber-950"><summary className="cursor-pointer font-medium">{tr.overnightTitle}</summary><p className="pt-2 leading-relaxed">{tr.overnightDesc}</p></details>}

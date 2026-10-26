@@ -97,6 +97,17 @@ try {
   await editor.getByRole('button',{name:'Close editor',exact:true}).click();
   await page.getByTestId('property-management').getByRole('heading',{name:'Name English',exact:true}).waitFor();
   console.log('PASS administrator creates and publishes female beds and a double private room through the complete editor');
+  const publicHostels=(await (await otherPage.request.get(origin+'/api/app')).json()).state.hostels;
+  const managedHostel=publicHostels.find(item=>item.slug==='browser-hostel');const privateRoom=managedHostel.roomTypes.find(item=>item.type==='private');
+  await otherPage.goto(origin+`/#/hostel/browser-hostel?guests=2&roomTypeId=${privateRoom.id}`);
+  await otherPage.getByLabel('Number of Guests',{exact:true}).waitFor();
+  assert.equal(await otherPage.getByLabel('Number of Guests',{exact:true}).inputValue(),'2');assert.equal(await otherPage.getByLabel('Beds / Rooms',{exact:true}).inputValue(),'1');
+  await otherPage.getByPlaceholder('Ali / John').fill('Double Room Guest');await otherPage.getByPlaceholder('+374 91 ...').fill('+37491123456');await otherPage.locator('input[type=checkbox]').last().check();
+  const doubleResponse=otherPage.waitForResponse(response=>response.url().endsWith('/api/app')&&response.request().method()==='POST');
+  await otherPage.locator('button[type=submit]').click();const doubleBooking=(await (await doubleResponse).json()).booking;
+  assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,18000);
+  await otherPage.waitForURL(/#\/booking\/yvn-trk-/);
+  console.log('PASS two guests reserve one private double room at the room price through an independent browser');
   const propertyPanel=page.getByTestId('property-management');
   await propertyPanel.getByRole('button',{name:'Homes & apartments',exact:true}).click();await propertyPanel.getByRole('button',{name:'Add',exact:true}).click();
   await translations(editor,'Name');await translations(editor,'Description');
