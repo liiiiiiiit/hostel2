@@ -1,5 +1,8 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
+import { assertTheme, runThemeChecks } from './theme-checks.mjs';
+const theme = process.env.BROWSER_THEME || 'light';
+async function setTestTheme(context) { await context.addInitScript(value => { if(window === window.top) localStorage.setItem('yerevanhub_theme', value); }, theme); }
 import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
@@ -21,7 +24,8 @@ try {
     server.on('exit',code=>{clearTimeout(timer);reject(new Error(`Server exited: ${code}`));});
   });
   browser=await chromium.launch({executablePath:process.env.BROWSER_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
-  const context=await browser.newContext();
+  await runThemeChecks(browser, origin);
+  const context=await browser.newContext();await setTestTheme(context);
   await context.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');window.__socketAttempts=0;const NativeSocket=window.WebSocket;window.WebSocket=class extends NativeSocket{constructor(...args){super(...args);window.__socketAttempts++;}};});
   await context.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const page=await context.newPage();activePage=page;page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack || error.message));
@@ -49,7 +53,7 @@ try {
   await page.locator('button[type=submit]').click();
   await page.waitForURL(/#\/booking\/yvn-trk-/);await page.getByText('Browser Guest',{exact:true}).waitFor();
   const tracking=page.url();
-  const other=await browser.newContext();await other.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
+  const other=await browser.newContext();await setTestTheme(other);await other.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
   await other.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const otherPage=await other.newPage();otherPage.on('pageerror',error=>errors.push(error.stack || error.message));
   await otherPage.goto(tracking);await otherPage.getByText('Browser Guest',{exact:true}).waitFor();
@@ -58,7 +62,7 @@ try {
   await page.getByPlaceholder('name@example.com').fill('admin@yerevanhub.com');await page.locator('input[type=password]').fill('wrong-password');
   await page.locator('form button[type=submit]').last().click();await page.getByText('Incorrect email or password.',{exact:true}).waitFor();
   await page.locator('input[type=password]').fill('Admin@2026');await page.locator('form button[type=submit]').last().click();
-  await page.getByTestId('admin-dashboard').waitFor();
+  await page.getByTestId('admin-dashboard').waitFor();await assertTheme(page,theme,'admin desktop');
   await page.getByRole('button',{name:'Property settings',exact:true}).first().click();
   await page.getByLabel('Date',{exact:true}).fill(checkIn);await page.getByLabel('Daily capacity',{exact:true}).fill('0');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByText('Changes saved.',{exact:true}).waitFor();
@@ -154,26 +158,29 @@ try {
   await page.getByTestId('workspace-tab-finance').click();const finance=page.getByTestId('finance-panel');await finance.getByLabel('Guest name',{exact:true}).selectOption(externalBooking.id);await finance.getByLabel('Amount · AMD',{exact:true}).fill('1000');await finance.getByLabel('Reason / note',{exact:true}).fill('Cash recorded at reception');await finance.getByRole('button',{name:'Save',exact:true}).click();await finance.getByText('Saved.',{exact:true}).waitFor();
   assert.equal((await(await context.request.get(origin+'/api/app')).json()).state.financeEntries.filter(e=>e.bookingId===externalBooking.id).length,1);
   console.log('PASS finance records actual property payment separately from reservation value');
-  const accountContext=await browser.newContext();await accountContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await accountContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+  const accountContext=await browser.newContext();await setTestTheme(accountContext);await accountContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await accountContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const accountPassword=crypto.randomUUID();await accountContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'registerTraveler',args:['Browser Account','browser-account@example.test',null,accountPassword]}});
-  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await accountPage.getByTestId('workspace-tab-profile').click();const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
+  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await accountPage.getByTestId('traveler-dashboard').waitFor();await assertTheme(accountPage,theme,'traveler desktop');await accountPage.getByTestId('workspace-tab-profile').click();const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
   await accountPage.goto(origin+'/en/hostels/browser-hostel');await accountPage.getByRole('button',{name:'Save',exact:true}).click();
-  const secondDevice=await browser.newContext();await secondDevice.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['browser-account@example.test',accountPassword]}});const accountState=(await(await secondDevice.request.get(origin+'/api/app')).json()).state;assert.equal(accountState.currentUser.name,'Updated Browser Account');assert.ok(accountState.savedPlaces.includes('hostel:'+managedHostel.id));await secondDevice.close();await accountContext.close();
+  const secondDevice=await browser.newContext();await secondDevice.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['browser-account@example.test',accountPassword]}});const accountState=(await(await secondDevice.request.get(origin+'/api/app')).json()).state;assert.equal(accountState.currentUser.name,'Updated Browser Account');assert.ok(accountState.savedPlaces.includes('hostel:'+managedHostel.id));const travelerCookies=await accountContext.cookies();await secondDevice.close();await accountContext.close();
   console.log('PASS profile edits and saved properties persist across independent authenticated browser contexts');
   const multiHostPassword=crypto.randomUUID();
   const managerCreated=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'createHostelManager',args:[{name:'Multi-property browser host',email:'multi-host@example.test',initialPassword:multiHostPassword,assignedHostelIds:publicHostels.slice(0,2).map(item=>item.id)}]}});assert.equal((await managerCreated.json()).success,true);
-  const managerContext=await browser.newContext();const managerLogin=await managerContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['multi-host@example.test',multiHostPassword]}});assert.equal((await managerLogin.json()).success,true);const managerCookies=await managerContext.cookies();
+  const managerContext=await browser.newContext();await setTestTheme(managerContext);await managerContext.addInitScript(()=>localStorage.setItem('yerevanhub_lang','en'));const managerLogin=await managerContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['multi-host@example.test',multiHostPassword]}});assert.equal((await managerLogin.json()).success,true);const managerCookies=await managerContext.cookies();
+  await managerContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+  const managerPage=await managerContext.newPage();managerPage.on('pageerror',error=>errors.push(error.message));await managerPage.goto(origin+'/#/manager');await managerPage.getByTestId('manager-dashboard').waitFor();
+  for(const tab of ['profile','reception','finance','operations']) { await managerPage.getByTestId('workspace-tab-'+tab).click();await assertTheme(managerPage,theme,'manager desktop '+tab); }
   for(const language of ['fa','en','ru','hy']){
-    const mobile=await browser.newContext({viewport:{width:390,height:844}});
+    const mobile=await browser.newContext({viewport:{width:390,height:844}});await setTestTheme(mobile);
     await mobile.addInitScript(lang=>{if(window===window.top)localStorage.setItem('yerevanhub_lang',lang);},language);
     await mobile.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
     const screen=await mobile.newPage();screen.on('pageerror',error=>errors.push(error.stack||error.message));await screen.goto(origin+'/');
     await screen.getByRole('heading',{level:1}).waitFor();assert.equal(await screen.locator('html').getAttribute('dir'),language==='fa'?'rtl':'ltr');
     assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: mobile overflow`);
     if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,'home-fa-mobile.png'),fullPage:true});
-    for(const [role,address,password] of [['admin','admin@yerevanhub.com','Admin@2026'],['manager','multi-host@example.test',multiHostPassword]]){
-      await mobile.addCookies(role==='admin'?await context.cookies():managerCookies);
-      await screen.goto(origin+`/#/${role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();
+    for(const [role,address,password] of [['admin','admin@yerevanhub.com','Admin@2026'],['manager','multi-host@example.test',multiHostPassword],['traveler','browser-account@example.test',accountPassword]]){
+      await mobile.addCookies(role==='admin'?await context.cookies():role==='manager'?managerCookies:travelerCookies);
+      await screen.goto(origin+`/#/${role==='traveler'?'account':role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();await assertTheme(screen,theme,`${language}: ${role}`);
       assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} mobile overflow`);
       if(role==='manager'){
         await screen.getByTestId('workspace-tab-operations').click();
@@ -183,13 +190,13 @@ try {
         assert.equal(await screen.getByTestId('workspace-property').inputValue(),publicHostels[0].id);
         assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: operations mobile overflow`);
       }
-      for(const tab of ['reception','finance','profile']){await screen.getByTestId('workspace-tab-'+tab).click();assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
+      for(const tab of role==='traveler'?['upcoming','history','profile']:['reception','finance','profile']){await screen.getByTestId('workspace-tab-'+tab).click();assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
       if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,`${role}-fa-mobile.png`),fullPage:true});
     }
     await mobile.close();
   }
-  console.log('PASS mobile home, admin and manager workspaces and document direction in all four languages');
-  const offlineContext=await browser.newContext();await offlineContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await offlineContext.route('**/*',route=>{const url=route.request().url();return url.startsWith(origin)&&!url.includes('/api/app')?route.continue():route.abort();});const offlinePage=await offlineContext.newPage();offlinePage.on('pageerror',error=>errors.push(error.stack||error.message));await offlinePage.goto(origin+'/');await offlinePage.getByRole('alert').waitFor();await offlinePage.getByText('Please take me to Republic Square.',{exact:true}).waitFor();await offlineContext.close();console.log('PASS offline phrasebook remains usable when the reservation API cannot be reached');
+  console.log(`PASS ${theme} mobile home and all three roles in four languages; manager desktop workspaces`);
+  const offlineContext=await browser.newContext();await setTestTheme(offlineContext);await offlineContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await offlineContext.route('**/*',route=>{const url=route.request().url();return url.startsWith(origin)&&!url.includes('/api/app')?route.continue():route.abort();});const offlinePage=await offlineContext.newPage();offlinePage.on('pageerror',error=>errors.push(error.stack||error.message));await offlinePage.goto(origin+'/');await offlinePage.getByRole('alert').waitFor();await offlinePage.getByText('Please take me to Republic Square.',{exact:true}).waitFor();await offlineContext.close();console.log('PASS offline phrasebook remains usable when the reservation API cannot be reached');
   await managerContext.close();
   assert.deepEqual(errors,[]);
   if(process.env.BROWSER_DISABLE_HMR==='true'){assert.equal(await page.evaluate(()=>window.__socketAttempts),0);console.log('PASS hosted preview opens without WebSocket attempts');}

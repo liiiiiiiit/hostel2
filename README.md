@@ -1,5 +1,7 @@
 # YEREVANHUB
 
+Light, dark and system appearance, implementation notes and validation (Persian): [THEME_FA.md](THEME_FA.md). Run browser coverage in either appearance with `BROWSER_THEME=light npm run test:browser` or `BROWSER_THEME=dark npm run test:browser`.
+
 Hostel booking and rental discovery with a React/Vite client and a same-origin Express API. Reservations and accounts now live on the server, not in localStorage.
 
 ## Development
