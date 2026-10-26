@@ -134,7 +134,7 @@ export function SavedPlacesView({
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
           {t.saved}
         </h1>
-        <p className="text-slate-500">{copy.subtitle}</p>
+        <p className="text-muted">{copy.subtitle}</p>
       </header>
       <section className="space-y-4" aria-labelledby="comparison-title">
         <div className="flex gap-3 items-center">
@@ -142,15 +142,15 @@ export function SavedPlacesView({
           <h2 id="comparison-title" className="text-xl font-semibold">
             {copy.comparison}
           </h2>
-          <span className="text-sm text-slate-400">{selected.length} / 3</span>
+          <span className="text-sm text-muted">{selected.length} / 3</span>
         </div>
         {!selected.length ? (
-          <div className="surface p-5 text-sm text-slate-500">
+          <div className="surface p-5 text-sm text-muted">
             {copy.comparisonHint}
           </div>
         ) : (
           <div className="surface overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4">
+            <div className="p-5 border-b border-edge flex flex-wrap gap-4">
               <label htmlFor="compare-in" className="text-sm font-medium">
                 {t.checkIn}
                 <input
@@ -216,7 +216,7 @@ export function SavedPlacesView({
               </label>
             </div>
             {nights < 1 && (
-              <p role="alert" className="px-5 pt-4 text-sm text-red-700">
+              <p role="alert" className="px-5 pt-4 text-sm text-danger">
                 {copy.invalid}
               </p>
             )}
@@ -226,7 +226,7 @@ export function SavedPlacesView({
                   <tr>
                     <th
                       scope="col"
-                      className="p-5 text-start text-slate-500 font-medium"
+                      className="p-5 text-start text-muted font-medium"
                     >
                       {t.compare}
                     </th>
@@ -237,13 +237,13 @@ export function SavedPlacesView({
                         key={item.key}
                       >
                         <button
-                          className="font-semibold text-base text-start hover:text-emerald-800"
+                          className="font-semibold text-base text-start hover:text-success"
                           onClick={() => open(item)}
                         >
                           {item.name}
                         </button>
                         <button
-                          className="block mt-3 text-xs text-slate-400 underline"
+                          className="block mt-3 text-xs text-muted underline"
                           onClick={() => toggleCompared(item.key)}
                         >
                           {t.remove}
@@ -265,11 +265,11 @@ export function SavedPlacesView({
                   ).map(([key, label]) => (
                     <tr
                       key={key}
-                      className="border-t border-slate-100 even:bg-slate-50/40"
+                      className="border-t border-edge even:bg-canvas/40"
                     >
                       <th
                         scope="row"
-                        className="p-5 text-start font-medium text-slate-500"
+                        className="p-5 text-start font-medium text-muted"
                       >
                         {label}
                       </th>
@@ -286,7 +286,7 @@ export function SavedPlacesView({
                       ))}
                     </tr>
                   ))}
-                  <tr className="border-t border-slate-100 bg-emerald-50/30">
+                  <tr className="border-t border-edge bg-success-surface/30">
                     <th scope="row" className="p-5 text-start font-semibold">
                       {w("subtotal")} · {nights}
                     </th>
@@ -323,7 +323,7 @@ export function SavedPlacesView({
                 </tbody>
               </table>
             </div>
-            <p className="p-5 text-xs text-slate-500 border-t border-slate-100 leading-relaxed">
+            <p className="p-5 text-xs text-muted border-t border-edge leading-relaxed">
               {t.feesNotice}
             </p>
           </div>
@@ -332,15 +332,15 @@ export function SavedPlacesView({
       <section className="space-y-4" aria-labelledby="saved-title">
         <h2 id="saved-title" className="text-xl font-semibold">
           {copy.favourites}{" "}
-          <span className="text-slate-400 font-normal">
+          <span className="text-muted font-normal">
             ({favourites.length})
           </span>
         </h2>
         {!favourites.length && (
           <div className="surface py-14 px-6 text-center space-y-4">
-            <Heart className="mx-auto text-slate-300" size={34} />
+            <Heart className="mx-auto text-subtle" size={34} />
             <h3 className="text-xl font-semibold">{copy.empty}</h3>
-            <p className="text-slate-500 text-sm">{copy.emptyHint}</p>
+            <p className="text-muted text-sm">{copy.emptyHint}</p>
             <button
               className="button-primary mx-auto"
               onClick={() => onNavigate("hostels")}
@@ -356,14 +356,14 @@ export function SavedPlacesView({
               <img
                 src={item.photo}
                 alt={item.name}
-                className="aspect-[16/10] w-full object-cover bg-slate-100"
+                className="aspect-[16/10] w-full object-cover bg-surface-inset"
                 loading="lazy"
               />
               <div className="p-5 space-y-3">
                 <p className="eyebrow">{item.city}</p>
                 <button
                   type="button"
-                  className="text-lg font-semibold text-start hover:text-emerald-800"
+                  className="text-lg font-semibold text-start hover:text-success"
                   onClick={() => open(item)}
                 >
                   {item.name}
@@ -376,7 +376,7 @@ export function SavedPlacesView({
         {unavailable.map((key) => (
           <div
             key={key}
-            className="surface p-4 flex gap-3 items-center justify-between text-sm text-slate-500"
+            className="surface p-4 flex gap-3 items-center justify-between text-sm text-muted"
           >
             <span>{copy.unavailable}</span>
             <button

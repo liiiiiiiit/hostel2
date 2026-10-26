@@ -207,22 +207,22 @@ export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-8">
         <div className="space-y-3">
-          <span className="text-xs font-bold text-amber-700 uppercase">{content.aboutBadge}</span>
-          <h1 className="text-3xl font-black text-slate-900">{content.aboutTitle}</h1>
-          <p className="text-sm text-slate-600 leading-relaxed font-medium">
+          <span className="text-xs font-bold text-accent uppercase">{content.aboutBadge}</span>
+          <h1 className="text-3xl font-black text-content">{content.aboutTitle}</h1>
+          <p className="text-sm text-secondary leading-relaxed font-medium">
             {content.aboutIntro}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm text-slate-700 leading-relaxed">
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
-            <h3 className="font-bold text-slate-900 text-base">{content.aboutCard1Title}</h3>
-            <p className="text-slate-600 leading-relaxed">{content.aboutCard1Desc}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm text-secondary leading-relaxed">
+          <div className="p-6 rounded-3xl bg-surface border border-edge shadow-xs space-y-2">
+            <h3 className="font-bold text-content text-base">{content.aboutCard1Title}</h3>
+            <p className="text-secondary leading-relaxed">{content.aboutCard1Desc}</p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2">
-            <h3 className="font-bold text-slate-900 text-base">{content.aboutCard2Title}</h3>
-            <p className="text-slate-600 leading-relaxed">{content.aboutCard2Desc}</p>
+          <div className="p-6 rounded-3xl bg-surface border border-edge shadow-xs space-y-2">
+            <h3 className="font-bold text-content text-base">{content.aboutCard2Title}</h3>
+            <p className="text-secondary leading-relaxed">{content.aboutCard2Desc}</p>
           </div>
         </div>
       </div>
@@ -233,47 +233,47 @@ export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-8">
         <div className="space-y-3">
-          <span className="text-xs font-bold text-amber-700 uppercase">{content.contactBadge}</span>
-          <h1 className="text-3xl font-black text-slate-900">{content.contactTitle}</h1>
-          <p className="text-sm text-slate-600 font-medium">
+          <span className="text-xs font-bold text-accent uppercase">{content.contactBadge}</span>
+          <h1 className="text-3xl font-black text-content">{content.contactTitle}</h1>
+          <p className="text-sm text-secondary font-medium">
             {content.contactSubtitle}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
-            <Phone className="w-8 h-8 text-emerald-600 mx-auto" />
-            <h3 className="font-bold text-sm text-slate-900">{content.emergencyPhoneTitle}</h3>
-            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.emergencyHotline||unconfigured}</p>
-            <span className="text-[11px] text-slate-400 block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
+          <div className="p-6 rounded-3xl bg-surface border border-edge shadow-xs space-y-2 text-center">
+            <Phone className="w-8 h-8 text-success mx-auto" />
+            <h3 className="font-bold text-sm text-content">{content.emergencyPhoneTitle}</h3>
+            <p className="font-mono text-sm font-bold text-content ltr-isolate">{settings.emergencyHotline||unconfigured}</p>
+            <span className="text-[11px] text-muted block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
-            <Send className="w-8 h-8 text-sky-500 mx-auto" />
-            <h3 className="font-bold text-sm text-slate-900">{content.telegramTitle}</h3>
-            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.telegramSupport||unconfigured}</p>
-            <span className="text-[11px] text-slate-400 block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
+          <div className="p-6 rounded-3xl bg-surface border border-edge shadow-xs space-y-2 text-center">
+            <Send className="w-8 h-8 text-info mx-auto" />
+            <h3 className="font-bold text-sm text-content">{content.telegramTitle}</h3>
+            <p className="font-mono text-sm font-bold text-content ltr-isolate">{settings.telegramSupport||unconfigured}</p>
+            <span className="text-[11px] text-muted block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
-            <Clock className="w-8 h-8 text-amber-500 mx-auto" />
-            <h3 className="font-bold text-sm text-slate-900">{content.timezoneTitle}</h3>
-            <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{content.timezoneValue}</p>
-            <span className="text-[11px] text-slate-400 block">{content.timezoneDesc}</span>
+          <div className="p-6 rounded-3xl bg-surface border border-edge shadow-xs space-y-2 text-center">
+            <Clock className="w-8 h-8 text-accent mx-auto" />
+            <h3 className="font-bold text-sm text-content">{content.timezoneTitle}</h3>
+            <p className="font-mono text-sm font-bold text-content ltr-isolate">{content.timezoneValue}</p>
+            <span className="text-[11px] text-muted block">{content.timezoneDesc}</span>
           </div>
         </div>
 
         {/* FAQ */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-amber-600" />
+        <div className="bg-surface rounded-3xl p-6 sm:p-8 border border-edge shadow-xs space-y-4">
+          <h2 className="text-lg font-bold text-content flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-accent" />
             <span>{content.faqTitle}</span>
           </h2>
-          <div className="space-y-4 text-xs sm:text-sm text-slate-700 divide-y divide-slate-100">
+          <div className="space-y-4 text-xs sm:text-sm text-secondary divide-y divide-edge">
             {content.faqs.map((faq, i) => (
               <div key={i} className="pt-3 space-y-1">
-                <strong className="text-slate-900 block">{faq.q}</strong>
-                <p className="text-slate-600 leading-relaxed">{faq.a}</p>
+                <strong className="text-content block">{faq.q}</strong>
+                <p className="text-secondary leading-relaxed">{faq.a}</p>
               </div>
             ))}
           </div>
@@ -286,29 +286,29 @@ export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-8">
       <div className="space-y-3">
-        <span className="text-xs font-bold text-amber-700 uppercase">{content.rulesBadge}</span>
-        <h1 className="text-3xl font-black text-slate-900">{content.rulesTitle}</h1>
+        <span className="text-xs font-bold text-accent uppercase">{content.rulesBadge}</span>
+        <h1 className="text-3xl font-black text-content">{content.rulesTitle}</h1>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xs space-y-6 text-xs sm:text-sm text-slate-700 leading-relaxed">
+      <div className="bg-surface rounded-3xl p-6 sm:p-8 border border-edge/90 shadow-xs space-y-6 text-xs sm:text-sm text-secondary leading-relaxed">
         <div className="space-y-2">
-          <h2 className="font-bold text-slate-900 text-base">{content.rule1Title}</h2>
-          <p className="text-slate-600 leading-relaxed">{content.rule1Desc}</p>
+          <h2 className="font-bold text-content text-base">{content.rule1Title}</h2>
+          <p className="text-secondary leading-relaxed">{content.rule1Desc}</p>
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-bold text-slate-900 text-base">{content.rule2Title}</h2>
-          <p className="text-slate-600 leading-relaxed">{content.rule2Desc}</p>
+          <h2 className="font-bold text-content text-base">{content.rule2Title}</h2>
+          <p className="text-secondary leading-relaxed">{content.rule2Desc}</p>
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-bold text-slate-900 text-base">{content.rule3Title}</h2>
-          <p className="text-slate-600 leading-relaxed">{content.rule3Desc}</p>
+          <h2 className="font-bold text-content text-base">{content.rule3Title}</h2>
+          <p className="text-secondary leading-relaxed">{content.rule3Desc}</p>
         </div>
 
         <div className="space-y-2">
-          <h2 className="font-bold text-slate-900 text-base">{content.rule4Title}</h2>
-          <p className="text-slate-600 leading-relaxed">{content.rule4Desc}</p>
+          <h2 className="font-bold text-content text-base">{content.rule4Title}</h2>
+          <p className="text-secondary leading-relaxed">{content.rule4Desc}</p>
         </div>
       </div>
     </div>

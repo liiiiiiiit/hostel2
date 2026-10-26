@@ -104,7 +104,7 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
           ] as const
         ).map((label) => (
           <article className="surface p-5" key={label}>
-            <p className="text-sm text-slate-500">{w(label)}</p>
+            <p className="text-sm text-muted">{w(label)}</p>
             <strong className="block mt-3 text-xl">
               {report[
                 label === "bookingValue" ? "reservationValue" : label

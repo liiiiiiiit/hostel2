@@ -7,6 +7,7 @@ import './index.css';
 import { LanguageProvider,useLanguage } from './context/LanguageContext';
 import { SavedPlacesProvider } from './context/SavedPlacesContext';
 import { appStore } from './services/store';
+import { ThemeProvider } from './context/ThemeContext';
 function Bootstrap() {
   const {currentLang}=useLanguage();
   const [status, setStatus] = useState('loading');
@@ -18,4 +19,4 @@ function Bootstrap() {
 
   return <SavedPlacesProvider><App /></SavedPlacesProvider>;
 }
-createRoot(document.getElementById('root')!).render(<LanguageProvider><Bootstrap /></LanguageProvider>);
+createRoot(document.getElementById('root')!).render(<ThemeProvider><LanguageProvider><Bootstrap /></LanguageProvider></ThemeProvider>);

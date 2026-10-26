@@ -11,7 +11,8 @@
   },
   "git": {
     "deploymentEnabled": {
-      "codex/property-management-workflow": false
+      "codex/property-management-workflow": false,
+      "codex/accessible-dark-mode": false
     }
   },
   "rewrites": [

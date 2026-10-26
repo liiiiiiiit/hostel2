@@ -33,7 +33,7 @@ export function AccountSettings() {
   };
   return (
     <section className="surface p-5 space-y-5" data-testid="account-settings">
-      <h2 className="text-xl font-semibold">{w("profile")}</h2><p className="text-sm text-slate-500">{w("email")}: <bdi>{user.email}</bdi></p>
+      <h2 className="text-xl font-semibold">{w("profile")}</h2><p className="text-sm text-muted">{w("email")}: <bdi>{user.email}</bdi></p>
       {notice && <p role="status">{notice}</p>}
       <label className="block text-sm">
         {w("fullName")}

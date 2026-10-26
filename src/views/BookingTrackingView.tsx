@@ -312,41 +312,41 @@ export const BookingTrackingView: React.FC<Props> = ({
     switch (booking.status) {
       case 'confirmed':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success-surface text-success border border-success-edge font-bold text-xs sm:text-sm">
       <BookingWorkflow booking={booking}/>{['rejected','expired'].includes(booking.status)&&<RecommendationsView onNavigate={onNavigate} initial={{...booking.searchContext,arrivalTime:booking.estimatedArrivalTime,actualArrivalDate:booking.actualArrivalDate,arrivalMode:booking.arrivalMode,checkIn:booking.checkIn,checkOut:booking.checkOut,guests:booking.guestsCount,type:hostel?.roomTypes.find(room=>room.id===booking.roomTypeId)?.type}}/>}
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+            <CheckCircle2 className="w-4 h-4 text-success" />
             <span>{tr.confirmedBadge}</span>
           </div>
         );
       case 'pending':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs sm:text-sm animate-pulse">
-            <Clock className="w-4 h-4 text-amber-700" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-warning-surface text-accent border border-warning-edge font-bold text-xs sm:text-sm animate-pulse">
+            <Clock className="w-4 h-4 text-accent" />
             <span>{tr.pendingBadge}</span>
           </div>
         );
       case 'rejected':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-100 text-rose-900 border border-rose-300 font-bold text-xs sm:text-sm">
-            <XCircle className="w-4 h-4 text-rose-700" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-danger-surface text-danger border border-danger-edge font-bold text-xs sm:text-sm">
+            <XCircle className="w-4 h-4 text-danger" />
             <span>{tr.rejectedBadge}</span>
           </div>
         );
       case 'expired':
       case 'no_show':
-        return <div className="px-3 py-1.5 rounded-xl bg-slate-100 font-bold text-xs">{booking.status === 'expired'
+        return <div className="px-3 py-1.5 rounded-xl bg-surface-inset font-bold text-xs">{booking.status === 'expired'
           ? ({ fa: 'مهلت درخواست به پایان رسید', en: 'Request expired', ru: 'Срок запроса истёк', hy: 'Հարցման ժամկետն ավարտվել է' })[currentLang]
           : ({ fa: 'عدم حضور', en: 'No show', ru: 'Не заехал', hy: 'Չներկայացավ' })[currentLang]}</div>;
       case 'cancelled':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs sm:text-sm">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-inset text-content border border-control font-bold text-xs sm:text-sm">
             <span>{tr.cancelledBadge}</span>
           </div>
         );
       case 'completed':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-100 text-blue-900 border border-blue-300 font-bold text-xs sm:text-sm">
-            <CheckCircle2 className="w-4 h-4 text-blue-700" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-info-surface text-info border border-info-edge font-bold text-xs sm:text-sm">
+            <CheckCircle2 className="w-4 h-4 text-info" />
             <span>{tr.completedBadge}</span>
           </div>
         );
@@ -360,15 +360,15 @@ export const BookingTrackingView: React.FC<Props> = ({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
       {/* Top Banner */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+      <div className="bg-surface rounded-3xl p-6 sm:p-8 border border-edge/90 shadow-md space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-edge">
           <div>
-            <div className="text-xs font-semibold text-slate-400">{tr.trackingCodeLabel}</div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-wider">
+            <div className="text-xs font-semibold text-muted">{tr.trackingCodeLabel}</div>
+            <div className="text-2xl sm:text-3xl font-black text-content tracking-wider">
               {booking.trackingCode}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {tr.bookedFor} <span className="font-bold text-slate-800">{booking.guestName}</span>
+            <div className="text-xs text-muted mt-1">
+              {tr.bookedFor} <span className="font-bold text-content">{booking.guestName}</span>
             </div>
           </div>
 
@@ -377,8 +377,8 @@ export const BookingTrackingView: React.FC<Props> = ({
 
         {/* Pending Notice */}
         {booking.status === 'pending' && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs sm:text-sm text-slate-700 leading-relaxed space-y-2">
-            <p className="font-bold text-amber-900">
+          <div className="p-4 rounded-2xl bg-warning-surface border border-warning-edge text-xs sm:text-sm text-secondary leading-relaxed space-y-2">
+            <p className="font-bold text-accent">
               {tr.pendingNoticeTitle}
             </p>
             <p>
@@ -389,15 +389,15 @@ export const BookingTrackingView: React.FC<Props> = ({
 
         {/* Rejected or Cancelled Notice */}
         {(booking.status === 'rejected' || booking.status === 'cancelled') && (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 space-y-2">
-            <p className="font-bold text-slate-900">
+          <div className="p-4 rounded-2xl bg-canvas border border-edge text-xs sm:text-sm text-secondary space-y-2">
+            <p className="font-bold text-content">
               {tr.rejectionReasonPrefix} {booking.rejectionReason || booking.cancellationReason || tr.defaultRejectionReason}
             </p>
             <p>{tr.viewOtherHostelsNotice}</p>
             <button
               type="button"
               onClick={() => onNavigate('hostels')}
-              className="mt-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs cursor-pointer"
+              className="mt-2 px-4 py-2 rounded-xl bg-gold text-on-gold font-bold text-xs cursor-pointer"
             >
               {tr.viewOtherHostelsBtn}
             </button>
@@ -406,18 +406,18 @@ export const BookingTrackingView: React.FC<Props> = ({
 
         {/* Confirmed Arrival Pass Card (کارت راهنمای رسیدن به هاستل) */}
         {(booking.status === 'confirmed' || booking.status === 'completed') && hostel && (
-          <div className="bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-700/80 pb-4">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                <Shield className="w-5 h-5 text-amber-400" />
+          <div className="bg-gradient-to-tr from-brand via-brand-raised to-brand text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+            <div className="flex items-center justify-between border-b border-brand-edge/80 pb-4">
+              <div className="flex items-center gap-2 text-on-brand-gold font-bold text-sm">
+                <Shield className="w-5 h-5 text-on-brand-gold" />
                 <span>{tr.taxiPassHeader}</span>
               </div>
-              <span className="text-xs text-slate-400">{tr.verifiedPassTag}</span>
+              <span className="text-xs text-on-brand-muted">{tr.verifiedPassTag}</span>
             </div>
 
             {/* Armenian Address Big Box for Taxi Driver */}
             <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/20 space-y-2">
-              <span className="text-xs text-amber-300 font-bold uppercase tracking-wider block">
+              <span className="text-xs text-on-brand-gold font-bold uppercase tracking-wider block">
                 {tr.armenianAddressPrompt}
               </span>
               <p className="text-xl sm:text-2xl font-bold text-white armenian-text tracking-wide leading-relaxed" dir="ltr">
@@ -427,7 +427,7 @@ export const BookingTrackingView: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => handleCopy(hostel.addressArmenianForTaxi)}
-                  className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-lg bg-gold hover:bg-gold-hover text-on-gold font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>{copiedAddress ? tr.copiedCheck : tr.copyArmenianAddress}</span>
@@ -446,32 +446,32 @@ export const BookingTrackingView: React.FC<Props> = ({
             </div>
 
             {/* Entrance Details & Door Code */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-300">
-              <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
-                <span className="text-amber-400 font-bold flex items-center gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-on-brand-muted">
+              <div className="p-4 rounded-xl bg-brand-raised/80 border border-brand-edge space-y-1">
+                <span className="text-on-brand-gold font-bold flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   <span>{tr.entranceGuideTitle}</span>
                 </span>
                 <p>{({fa:hostel.directionsFa,en:hostel.directionsEn,ru:hostel.directionsRu,hy:hostel.directionsHy})[currentLang]||'—'}</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
-                <span className="text-amber-400 font-bold flex items-center gap-1">
+              <div className="p-4 rounded-xl bg-brand-raised/80 border border-brand-edge space-y-1">
+                <span className="text-on-brand-gold font-bold flex items-center gap-1">
                   <Key className="w-4 h-4" />
                   <span>{tr.doorCodeTitle}</span>
                 </span>
                 <p className="font-mono text-sm font-bold text-white">
                   {hostel.floorAndDoorCode || 'Reception desk on ground floor'}
                 </p>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-on-brand-muted block">
                   {tr.doorCodePrivateNote}
                 </span>
               </div>
             </div>
 
             {/* Contact Host & Emergency delay button */}
-            <div className="pt-2 border-t border-slate-700 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-slate-300 flex items-center gap-3">
+            <div className="pt-2 border-t border-brand-edge flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-on-brand-muted flex items-center gap-3">
                 <span>{tr.hostelPhoneLabel} <strong className="text-white ltr-isolate">{hostel.phone}</strong></span>
                 {hostel.whatsapp && (
                   <span>{tr.whatsappLabel} <strong className="text-white ltr-isolate">{hostel.whatsapp}</strong></span>
@@ -481,7 +481,7 @@ export const BookingTrackingView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setShowIssueModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-danger-solid/90 hover:bg-danger-solid-hover text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span>{tr.emergencyIssueBtn}</span>
@@ -492,27 +492,27 @@ export const BookingTrackingView: React.FC<Props> = ({
 
         {/* Issue submitted confirmation */}
         {issueSubmitted && (
-          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs sm:text-sm text-emerald-900 space-y-1">
+          <div className="p-4 rounded-2xl bg-success-surface border border-success-edge text-xs sm:text-sm text-success space-y-1">
             <p className="font-bold">{tr.emergencySentTitle}</p>
             <p>{tr.emergencySentDesc}</p>
           </div>
         )}
 
         {/* Booking Details Summary */}
-        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm space-y-3">
-          <h3 className="font-bold text-slate-900 text-sm">{tr.summaryTitle}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-600">
-            <div>{tr.hostelLabel} <strong className="text-slate-900">{hostelDisplayName}</strong></div>
-            <div>{tr.roomTypeLabel} <strong className="text-slate-900">{booking.roomTypeName}</strong></div>
-            <div>{tr.checkInLabel} <strong className="text-slate-900">{booking.checkIn}</strong></div>
-            <div>{tr.checkOutLabel} <strong className="text-slate-900">{booking.checkOut}</strong> ({booking.nights} {tr.nightsCount})</div>
-            <div>{tr.guestsCountLabel} <strong className="text-slate-900">{booking.guestsCount} {tr.guestsUnit}</strong></div>
-            <div>{tr.arrivalTimeLabel} <strong className="text-slate-900">{booking.estimatedArrivalTime}</strong></div>
+        <div className="p-5 rounded-2xl bg-canvas border border-edge text-xs sm:text-sm space-y-3">
+          <h3 className="font-bold text-content text-sm">{tr.summaryTitle}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-secondary">
+            <div>{tr.hostelLabel} <strong className="text-content">{hostelDisplayName}</strong></div>
+            <div>{tr.roomTypeLabel} <strong className="text-content">{booking.roomTypeName}</strong></div>
+            <div>{tr.checkInLabel} <strong className="text-content">{booking.checkIn}</strong></div>
+            <div>{tr.checkOutLabel} <strong className="text-content">{booking.checkOut}</strong> ({booking.nights} {tr.nightsCount})</div>
+            <div>{tr.guestsCountLabel} <strong className="text-content">{booking.guestsCount} {tr.guestsUnit}</strong></div>
+            <div>{tr.arrivalTimeLabel} <strong className="text-content">{booking.estimatedArrivalTime}</strong></div>
           </div>
 
-          <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-            <span className="font-bold text-slate-800">{tr.finalAmountLabel}</span>
-            <span className="text-lg font-black text-amber-700">
+          <div className="pt-3 border-t border-edge flex justify-between items-center">
+            <span className="font-bold text-content">{tr.finalAmountLabel}</span>
+            <span className="text-lg font-black text-accent">
               {booking.finalAmountAMD.toLocaleString()} AMD ֏
             </span>
           </div>
@@ -524,7 +524,7 @@ export const BookingTrackingView: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setShowCancelModal(true)}
-              className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer underline"
+              className="text-xs text-danger hover:text-danger font-semibold cursor-pointer underline"
             >
               {tr.cancelThisBooking}
             </button>
@@ -533,19 +533,19 @@ export const BookingTrackingView: React.FC<Props> = ({
 
         {/* Review Form (if completed and not reviewed) */}
         {booking.status === 'completed' && (
-          <div className="p-6 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-4">
-            <h3 className="font-bold text-sm text-slate-900">
+          <div className="p-6 rounded-2xl bg-warning-surface/50 border border-warning-edge space-y-4">
+            <h3 className="font-bold text-sm text-content">
               {tr.reviewTitle}
             </h3>
 
             {reviewSubmitted ? (
-              <p className="text-xs text-emerald-800 font-semibold">
+              <p className="text-xs text-success font-semibold">
                 {tr.reviewSuccessNote}
               </p>
             ) : (
               <form onSubmit={handleSubmitReview} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-secondary mb-1">
                     {tr.ratingPrompt}
                   </label>
                   <div className="flex gap-2">
@@ -559,8 +559,8 @@ export const BookingTrackingView: React.FC<Props> = ({
                         <Star
                           className={`w-6 h-6 ${
                             star <= rating
-                              ? 'text-amber-500 fill-amber-500'
-                              : 'text-slate-300'
+                              ? 'text-accent fill-gold'
+                              : 'text-subtle'
                           }`}
                         />
                       </button>
@@ -577,13 +577,13 @@ export const BookingTrackingView: React.FC<Props> = ({
                     placeholder={tr.reviewPlaceholder}
                     value={reviewComment}
                     onChange={e => setReviewComment(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-surface border border-edge rounded-xl p-3 text-xs focus:ring-2 focus:ring-focus"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gold hover:bg-gold-hover text-on-gold font-bold text-xs cursor-pointer"
                 >
                   {tr.submitReviewBtn}
                 </button>
@@ -596,9 +596,9 @@ export const BookingTrackingView: React.FC<Props> = ({
       {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
-            <h3 className="font-bold text-base text-slate-900">{tr.cancelModalTitle}</h3>
-            <p className="text-xs text-slate-600">
+          <div className="bg-surface rounded-3xl p-6 max-w-md w-full space-y-4">
+            <h3 className="font-bold text-base text-content">{tr.cancelModalTitle}</h3>
+            <p className="text-xs text-secondary">
               {tr.cancelModalPrompt}
             </p>
             <textarea
@@ -606,20 +606,20 @@ export const BookingTrackingView: React.FC<Props> = ({
               placeholder={tr.cancelReasonPlaceholder}
               value={cancelReason}
               onChange={e => setCancelReason(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+              className="w-full bg-canvas border border-edge rounded-xl p-2.5 text-xs"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setShowCancelModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-secondary hover:bg-surface-inset cursor-pointer"
               >
                 {tr.keepBookingBtn}
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-danger-solid text-white cursor-pointer"
               >
                 {tr.confirmCancelBtn}
               </button>
@@ -631,11 +631,11 @@ export const BookingTrackingView: React.FC<Props> = ({
       {/* Issue Modal */}
       {showIssueModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4">
-            <h3 className="font-bold text-base text-slate-900">
+          <div className="bg-surface rounded-3xl p-6 max-w-md w-full space-y-4">
+            <h3 className="font-bold text-base text-content">
               {tr.issueModalTitle}
             </h3>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-secondary">
               {tr.issueModalPrompt}
             </p>
             <textarea
@@ -643,20 +643,20 @@ export const BookingTrackingView: React.FC<Props> = ({
               placeholder={tr.issuePlaceholder}
               value={issueNote}
               onChange={e => setIssueNote(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs"
+              className="w-full bg-canvas border border-edge rounded-xl p-2.5 text-xs"
             />
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setShowIssueModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-secondary hover:bg-surface-inset cursor-pointer"
               >
                 {tr.closeModalBtn}
               </button>
               <button
                 type="button"
                 onClick={handleReportIssue}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-danger-solid text-white cursor-pointer"
               >
                 {tr.submitReportBtn}
               </button>

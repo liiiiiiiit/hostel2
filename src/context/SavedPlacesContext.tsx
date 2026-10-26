@@ -18,7 +18,7 @@ export function SavedPlacesProvider({ children }: { children: React.ReactNode })
   useEffect(() => { try { localStorage.setItem('yh_saved', JSON.stringify(guestSaved)); setStorageError(false); } catch { setStorageError(true); } }, [guestSaved]);
   useEffect(() => { const sync = (event: StorageEvent) => { if (event.key === 'yh_saved') setSaved(read('yh_saved')); }; window.addEventListener('storage', sync); return () => window.removeEventListener('storage', sync); }, []);
   return <Context.Provider value={{ saved, compared, toggleSaved: key => {if(state.currentUser){void appStore.action('toggleAccountSaved',[key]).then(result=>setSyncError(result.success?'':result.error??workflowText(currentLang)('error')));return;}setSaved(items => items.includes(key) ? items.filter(item => item !== key) : items.length < 100 ? [...items, key] : items);}, toggleCompared: key => setCompared(items => items.includes(key) ? items.filter(item => item !== key) : items.length < 3 ? [...items, key] : items) }}>
-    {syncError&&<p role="alert" className="p-3 text-center bg-rose-50 text-rose-800">{syncError}</p>}{storageError && <p role="status" className="p-2 text-center bg-amber-50">ذخیره‌سازی مرورگر در دسترس نیست / Browser storage unavailable</p>}{children}
+    {syncError&&<p role="alert" className="p-3 text-center bg-danger-surface text-danger">{syncError}</p>}{storageError && <p role="status" className="p-2 text-center bg-warning-surface">ذخیره‌سازی مرورگر در دسترس نیست / Browser storage unavailable</p>}{children}
   </Context.Provider>;
 }
 export function useSavedPlaces() { const context = useContext(Context); if (!context) throw new Error('SavedPlacesProvider is required'); return context; }

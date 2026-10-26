@@ -115,17 +115,17 @@ export const RentalTrackingView: React.FC<Props> = ({
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending_review':
-        return { text: tr.statusPending, color: 'bg-amber-100 text-amber-900 border-amber-300' };
+        return { text: tr.statusPending, color: 'bg-warning-surface text-accent border-warning-edge' };
       case 'coordinating':
-        return { text: tr.statusCoordinating, color: 'bg-blue-100 text-blue-900 border-blue-300' };
+        return { text: tr.statusCoordinating, color: 'bg-info-surface text-info border-info-edge' };
       case 'proposed_terms':
-        return { text: tr.statusProposed, color: 'bg-purple-100 text-purple-900 border-purple-300' };
+        return { text: tr.statusProposed, color: 'bg-notice-surface text-notice border-notice-edge' };
       case 'agreed':
-        return { text: tr.statusAgreed, color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+        return { text: tr.statusAgreed, color: 'bg-success-surface text-success border-success-edge' };
       case 'rejected':
-        return { text: tr.statusRejected, color: 'bg-rose-100 text-rose-900 border-rose-300' };
+        return { text: tr.statusRejected, color: 'bg-danger-surface text-danger border-danger-edge' };
       default:
-        return { text: status, color: 'bg-slate-100 text-slate-800' };
+        return { text: status, color: 'bg-surface-inset text-content' };
     }
   };
 
@@ -133,15 +133,15 @@ export const RentalTrackingView: React.FC<Props> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-md space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+      <div className="bg-surface rounded-3xl p-6 sm:p-8 border border-edge/90 shadow-md space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-edge">
           <div>
-            <span className="text-xs text-slate-400 font-semibold">{tr.trackingCodeLabel}</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">
+            <span className="text-xs text-muted font-semibold">{tr.trackingCodeLabel}</span>
+            <div className="text-2xl sm:text-3xl font-black text-content">
               {inquiry.trackingCode}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {tr.applicantLabel} <strong className="text-slate-800">{inquiry.guestName}</strong>
+            <div className="text-xs text-muted mt-1">
+              {tr.applicantLabel} <strong className="text-content">{inquiry.guestName}</strong>
             </div>
           </div>
 
@@ -151,7 +151,7 @@ export const RentalTrackingView: React.FC<Props> = ({
         </div>
 
         {inquiry.adminNotes && (
-          <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-xs sm:text-sm text-blue-950 space-y-1">
+          <div className="p-4 rounded-2xl bg-info-surface border border-info-edge text-xs sm:text-sm text-info space-y-1">
             <span className="font-bold block">{tr.adminNotesTitle}</span>
             <p>{inquiry.adminNotes}</p>
           </div>
@@ -159,16 +159,16 @@ export const RentalTrackingView: React.FC<Props> = ({
 
         {/* Property Brief */}
         {property && (
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex gap-4 items-center">
+          <div className="p-4 rounded-2xl bg-canvas border border-edge flex gap-4 items-center">
             <img
               src={property.photos[0]}
               alt={getLocalized(property.title, currentLang)}
               className="w-20 h-20 rounded-xl object-cover shrink-0"
             />
             <div className="space-y-1">
-              <span className="text-xs font-bold text-blue-600">{property.neighborhood}</span>
-              <h3 className="font-bold text-slate-900 text-sm">{getLocalized(property.title, currentLang)}</h3>
-              <p className="text-xs text-slate-500">
+              <span className="text-xs font-bold text-info">{property.neighborhood}</span>
+              <h3 className="font-bold text-content text-sm">{getLocalized(property.title, currentLang)}</h3>
+              <p className="text-xs text-muted">
                 {tr.depositLabel} {property.refundableDepositAMD.toLocaleString()} AMD
               </p>
             </div>
@@ -176,33 +176,33 @@ export const RentalTrackingView: React.FC<Props> = ({
         )}
 
         {/* Inquiry Summary */}
-        <div className="space-y-2 text-xs sm:text-sm text-slate-600">
-          <div>{tr.requestTypeLabel} <strong className="text-slate-900">{inquiry.requestType === 'visit' ? tr.typeVisit : tr.typeRent}</strong></div>
+        <div className="space-y-2 text-xs sm:text-sm text-secondary">
+          <div>{tr.requestTypeLabel} <strong className="text-content">{inquiry.requestType === 'visit' ? tr.typeVisit : tr.typeRent}</strong></div>
           {inquiry.proposedVisitDate && (
-            <div>{tr.proposedVisitDateLabel} <strong className="text-slate-900">{inquiry.proposedVisitDate}</strong></div>
+            <div>{tr.proposedVisitDateLabel} <strong className="text-content">{inquiry.proposedVisitDate}</strong></div>
           )}
           {inquiry.desiredStartDate && (
-            <div>{tr.desiredStartDateLabel} <strong className="text-slate-900">{inquiry.desiredStartDate}</strong></div>
+            <div>{tr.desiredStartDateLabel} <strong className="text-content">{inquiry.desiredStartDate}</strong></div>
           )}
           {inquiry.desiredDurationText && (
-            <div>{tr.durationLabel} <strong className="text-slate-900">{inquiry.desiredDurationText}</strong></div>
+            <div>{tr.durationLabel} <strong className="text-content">{inquiry.desiredDurationText}</strong></div>
           )}
-          <div>{tr.residentsLabel} <strong className="text-slate-900">{inquiry.residentsCount} {tr.residentsUnit}</strong></div>
-          {inquiry.notes && <div>{tr.notesLabel} <span className="text-slate-800">{inquiry.notes}</span></div>}
+          <div>{tr.residentsLabel} <strong className="text-content">{inquiry.residentsCount} {tr.residentsUnit}</strong></div>
+          {inquiry.notes && <div>{tr.notesLabel} <span className="text-content">{inquiry.notes}</span></div>}
         </div>
 
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+        <div className="pt-4 border-t border-edge flex items-center justify-between">
           <button
             type="button"
             onClick={() => onNavigate('rentals')}
-            className="text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1"
+            className="text-xs font-bold text-info hover:text-info cursor-pointer flex items-center gap-1"
           >
             <span>{tr.viewOtherProperties}</span>
             <ArrowIcon className="w-4 h-4" />
           </button>
 
-          <span className="text-xs text-slate-400">
-            {tr.supportHotline} <span className="ltr-isolate text-slate-700 font-semibold">+374 91 999 000</span>
+          <span className="text-xs text-muted">
+            {tr.supportHotline} <span className="ltr-isolate text-secondary font-semibold">+374 91 999 000</span>
           </span>
         </div>
       </div>

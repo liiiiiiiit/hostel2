@@ -281,7 +281,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell min-h-screen flex flex-col text-slate-900">
+    <div className="app-shell min-h-screen flex flex-col text-content">
       <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); mainRef.current?.focus(); mainRef.current?.scrollIntoView(); }}>{currentLang === 'fa' ? 'رفتن به محتوا' : 'Skip to content'}</a>
       {/* Top Header */}
       <Header
@@ -295,9 +295,9 @@ export default function App() {
       />
 
 
-      {storeState.previewMode && <div role="status" className="px-4 py-3 bg-amber-50 text-amber-950 text-center text-sm">{({ fa: 'پیش‌نمایش: مرور و مقایسه فعال است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.', en: 'Preview: browse and compare stays. Booking and sign-in are not enabled yet.', ru: 'Предпросмотр: просмотр и сравнение доступны. Бронирование и вход пока не включены.', hy: 'Նախադիտում․ դիտումն ու համեմատությունը հասանելի են։ Ամրագրումն ու մուտքը դեռ միացված չեն։' })[currentLang]}</div>}
+      {storeState.previewMode && <div role="status" className="px-4 py-3 bg-warning-surface text-accent text-center text-sm">{({ fa: 'پیش‌نمایش: مرور و مقایسه فعال است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.', en: 'Preview: browse and compare stays. Booking and sign-in are not enabled yet.', ru: 'Предпросмотр: просмотр и сравнение доступны. Бронирование и вход пока не включены.', hy: 'Նախադիտում․ դիտումն ու համեմատությունը հասանելի են։ Ամրագրումն ու մուտքը դեռ միացված չեն։' })[currentLang]}</div>}
       {/* Main Content Area */}
-      <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
+      <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 ">
         <Suspense fallback={<div className="p-8 text-center" role="status">YEREVANHUB…</div>}>
           {renderView()}
         </Suspense>

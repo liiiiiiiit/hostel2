@@ -71,14 +71,14 @@ export const GuideView: React.FC<Props> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto space-y-3">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-surface text-success text-xs font-bold">
           <BookOpen className="w-3.5 h-3.5" />
           <span>{t.guideRefBadge}</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
+        <h1 className="text-3xl sm:text-4xl font-black text-content">
           {t.guidePageTitle}
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500">
+        <p className="text-xs sm:text-sm text-muted">
           {t.guidePageSubtitle}
         </p>
       </div>
@@ -86,13 +86,13 @@ export const GuideView: React.FC<Props> = ({
       {/* Search & Categories Bar */}
       <div className="space-y-4">
         <div className="relative max-w-xl mx-auto">
-          <Search className="w-4 h-4 text-slate-400 absolute top-3.5 right-4 pointer-events-none" />
+          <Search className="w-4 h-4 text-muted absolute top-3.5 right-4 pointer-events-none" />
           <input
             type="text"
             placeholder={t.searchGuidePlaceholder}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-2xl py-3 px-4 pr-11 text-sm shadow-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            className="w-full bg-surface border border-edge rounded-2xl py-3 px-4 pr-11 text-sm shadow-xs focus:ring-2 focus:ring-focus "
           />
         </div>
 
@@ -105,8 +105,8 @@ export const GuideView: React.FC<Props> = ({
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
                 selectedCategory === cat.id
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  ? 'bg-success-solid text-white shadow-xs'
+                  : 'bg-surface border border-edge text-secondary hover:bg-canvas'
               }`}
             >
               {cat.label}
@@ -121,34 +121,34 @@ export const GuideView: React.FC<Props> = ({
           <div
             key={article.id}
             onClick={() => onNavigate('article-detail', { slug: article.slug })}
-            className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col cursor-pointer"
+            className="group bg-surface rounded-3xl overflow-hidden border border-edge/90 shadow-xs hover:shadow-xl transition-all duration-200 flex flex-col cursor-pointer"
           >
-            <div className="aspect-16/10 overflow-hidden bg-slate-100 relative">
+            <div className="aspect-16/10 overflow-hidden bg-surface-inset relative">
               <img
                 src={article.featuredImage}
                 alt={article.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
               />
-              <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-xs text-white text-[11px] font-medium shadow-xs">
+              <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-action/80 backdrop-blur-xs text-action-text text-[11px] font-medium shadow-xs">
                 {article.category}
               </span>
             </div>
 
             <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug">
+                <h2 className="text-base sm:text-lg font-bold text-content group-hover:text-success transition-colors line-clamp-2 leading-snug">
                   {article.title}
                 </h2>
-                <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">
+                <p className="text-xs text-muted line-clamp-3 leading-relaxed">
                   {article.summary}
                 </p>
               </div>
 
-              <div className="space-y-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <div className="flex items-center gap-1 text-emerald-800 font-medium">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="space-y-3 pt-3 border-t border-edge">
+                <div className="flex items-center justify-between text-[11px] text-muted">
+                  <div className="flex items-center gap-1 text-success font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-success" />
                     <span>{t.lastVerifiedLabel} {article.lastVerifiedDate}</span>
                   </div>
                 </div>
@@ -156,12 +156,12 @@ export const GuideView: React.FC<Props> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex flex-wrap gap-1">
                     {article.tags.slice(0, 2).map((tag, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-surface-inset text-secondary">
                         #{tag}
                       </span>
                     ))}
                   </div>
-                  <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                  <span className="text-xs font-bold text-success flex items-center gap-1 group-hover:gap-1.5 transition-all">
                     <span>{t.readMoreButton}</span>
                     <ArrowIcon className="w-3.5 h-3.5" />
                   </span>

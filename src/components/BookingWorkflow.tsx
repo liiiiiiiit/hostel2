@@ -45,11 +45,11 @@ export function BookingWorkflow({
   return (
     <section className="surface p-5 space-y-5" data-testid="booking-workflow">
       <h2 className="font-semibold">{w(manager ? "operations" : "terms")}</h2>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         {w("hours")}: {state.settings.supportHours?.[currentLang] || "—"}
       </p>
       {notice && (
-        <p role="status" className="text-sm bg-slate-50 rounded-xl p-3">
+        <p role="status" className="text-sm bg-canvas rounded-xl p-3">
           {notice}
         </p>
       )}
