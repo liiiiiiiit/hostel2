@@ -72,6 +72,7 @@ function validStoredItem(collection: string, value: unknown): boolean {
 }
 
 export interface AppStoreState {
+  unitBlocks?:import('../src/types/operations.js').UnitBlock[];bookingChanges?:import('../src/types/operations.js').BookingChange[];supportThreads?:import('../src/types/operations.js').SupportThread[];financeEntries?:import('../src/types/operations.js').FinanceEntry[];savedPlaces?:Record<string,string[]>;
   users: User[];
   capacities: import('../src/types/index.js').CapacityOverride[];
   credentials: Record<string, PasswordCredential>;
@@ -88,7 +89,7 @@ export interface AppStoreState {
   settings: {
     emergencyHotline: string;
     telegramSupport: string;
-    supportWorkingHoursFa: string;
+    supportHours?:Record<import('../src/types/index.js').AppLanguage,string>;supportWorkingHoursFa: string;
     immediateTimeoutMinutes: number;
   };
 }
@@ -100,6 +101,7 @@ export class Store {
   constructor(state?: AppStoreState, private detached = false) {
     this.state = state ? structuredClone(state) : this.loadState();
     this.state.capacities ??= [];
+    this.state.unitBlocks??=[];this.state.bookingChanges??=[];this.state.supportThreads??=[];this.state.financeEntries??=[];this.state.savedPlaces??={};
   }
 
   private loadState(): AppStoreState {
@@ -326,7 +328,10 @@ export class Store {
 
   // Bookings
   public createBooking(data: {
+    searchContext?:Booking['searchContext'];
     acceptedTerms?: boolean;
+    source?:'website'|'walk_in'|'telephone'|'external';
+    actualArrivalDate?:string;arrivalMode?:'previous_night'|'standard'|'early_check_in';selectedServiceIds?:string[];
     expectedHostelUpdatedAt?: string;
     idempotencyKey?: string;
     language?: import('../src/types/index.js').AppLanguage;
@@ -346,13 +351,13 @@ export class Store {
     couponCode?: string;
   }): { success: boolean; booking?: Booking; error?: string } {
     if (data.acceptedTerms !== true) return { success:false, error:'پذیرش شرایط رزرو الزامی است.' };
-    const requestFingerprint=createHash('sha256').update(JSON.stringify([this.state.currentUser?.id??null,data.hostelId,data.roomTypeId,data.guestName.trim(),data.contactType,data.guestContact.trim(),data.checkIn,data.checkOut,data.guestsCount,data.quantity,data.estimatedArrivalTime??null,data.specialRequests??null,!!data.isLowerBunkRequested,!!data.isImmediateArrival,data.couponCode?.trim().toUpperCase()??null,data.language??'fa'])).digest('hex');
+    const requestFingerprint=createHash('sha256').update(JSON.stringify([this.state.currentUser?.id??null,data.hostelId,data.roomTypeId,data.guestName.trim(),data.contactType,data.guestContact.trim(),data.checkIn,data.checkOut,data.guestsCount,data.quantity,data.estimatedArrivalTime??null,data.specialRequests??null,!!data.isLowerBunkRequested,!!data.isImmediateArrival,data.couponCode?.trim().toUpperCase()??null,data.language??'fa',data.actualArrivalDate??null,data.arrivalMode??null,data.selectedServiceIds??[],data.source??'website',data.searchContext??null])).digest('hex');
     if (data.idempotencyKey) {
       const previous=this.state.bookings.find(booking=>booking.idempotencyKey===data.idempotencyKey);
       if(previous) return previous.requestFingerprint===requestFingerprint?{success:true,booking:previous}:{success:false,error:'این درخواست تغییر کرده است؛ دوباره ثبت کنید.'};
     }
     const hostel = this.state.hostels.find(h => h.id === data.hostelId);
-    if (!hostel || !hostel.isPublished) return { success: false, error: 'هاستل یافت نشد.' };
+    if (!hostel || (!hostel.isPublished&&!(data.source&&data.source!=='website'&&this.canManageHostel(hostel.id)))) return { success: false, error: 'هاستل یافت نشد.' };
     if(data.expectedHostelUpdatedAt!==undefined&&data.expectedHostelUpdatedAt!==hostel.updatedAt)return {success:false,error:'اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.'};
 
     const roomType = hostel.roomTypes.find(rt => rt.id === data.roomTypeId);
@@ -367,7 +372,13 @@ export class Store {
         !data.guestName.trim() || !data.guestContact.trim()) {
       return { success: false, error: 'نام، اطلاعات تماس و تعداد مهمانان باید معتبر باشد.' };
     }
+    if(data.arrivalMode==='early_check_in'&&!hostel.earlyCheckInAvailable)return{success:false,error:'ورود زودهنگام ارائه نمی‌شود.'};
     const qty = data.quantity;
+    if(data.actualArrivalDate&&data.arrivalMode==='previous_night'&&(data.checkIn!==addCalendarDays(data.actualArrivalDate,-1)||!data.estimatedArrivalTime||data.estimatedArrivalTime>='06:00'))return{success:false,error:'شب ورود بامداد با تاریخ اقامت سازگار نیست.'};
+    const selectedServices=(data.selectedServiceIds??[]).map(id=>hostel.optionalServices?.find(service=>service.id===id&&service.active));
+    if(new Set(data.selectedServiceIds??[]).size!==selectedServices.length||selectedServices.some(service=>!service))return{success:false,error:'خدمات انتخاب‌شده معتبر نیست.'};
+    const serviceSnapshot=selectedServices.map(service=>({id:service!.id,unit:service!.unit,unitPriceAMD:service!.priceAMD,name:structuredClone(service!.name),amountAMD:service!.priceAMD*(service!.unit==='stay'?1:service!.unit==='night'?nights:nights*data.guestsCount)}));
+    const serviceFee=serviceSnapshot.reduce((sum,service)=>sum+service.amountAMD,0);
 
     // Check peak capacity in this local store. Production requires a server transaction.
     const activeConfirmed = this.state.bookings.filter(
@@ -396,8 +407,8 @@ export class Store {
       if (!match) return { success: false, error: 'ساعت ورود معتبر نیست.' };
       const arrival = analyzeArrivalHour(Number(match[1]));
       isOvernight = arrival.isOvernightArrival;
-      if (arrival.isEarlyMorning && hostel.earlyCheckInAvailable) earlyArrivalFee = hostel.earlyCheckInFeeAMD;
-      if (isOvernight && hostel.lateArrivalAvailable) lateArrivalFee = hostel.lateArrivalFeeAMD;
+      if (arrival.isEarlyMorning && hostel.earlyCheckInAvailable && (data.arrivalMode===undefined||data.arrivalMode==='early_check_in')) earlyArrivalFee = hostel.earlyCheckInFeeAMD;
+      if (isOvernight && hostel.lateArrivalAvailable && data.arrivalMode!=='standard'&&data.arrivalMode!=='early_check_in') lateArrivalFee = hostel.lateArrivalFeeAMD;
     }
 
     // Validate the coupon before reserving its usage.
@@ -421,7 +432,7 @@ export class Store {
       checkOut: data.checkOut,
       quantity: qty,
       discountPercent,
-      earlyCheckInFee: earlyArrivalFee,
+      extraServicesFee:serviceFee,earlyCheckInFee: earlyArrivalFee,
       lateCheckInFee: lateArrivalFee,
     });
 
@@ -432,13 +443,14 @@ export class Store {
     const trackingCode = `YVN-${bookingId}`;
     const privateToken = `yvn-trk-${crypto.randomUUID()}`;
 
-    const timeoutMin = data.isImmediateArrival ? this.state.settings.immediateTimeoutMinutes : 180;
+    const timeoutMin = data.isImmediateArrival ? this.state.settings.immediateTimeoutMinutes : (hostel.responseMinutes??180);
     const expiresAt = new Date(Date.now() + timeoutMin * 60 * 1000).toISOString();
 
     const booking: Booking = {
       id: `book-${bookingId}`,
+      searchContext:structuredClone(data.searchContext),source:data.source??'website',actualArrivalDate:data.actualArrivalDate,arrivalMode:data.arrivalMode,selectedServiceIds:data.selectedServiceIds,commissionRule:structuredClone(hostel.commissionRule??{type:'none',value:0,appliesOn:'completed'}),history:[{id:crypto.randomUUID(),at:new Date().toISOString(),actorId:this.state.currentUser?.id??'guest',action:'created',reason:data.source??'website'}],
       idempotencyKey:data.idempotencyKey, requestFingerprint, language:data.language??'fa',
-      agreement:{currency:'AMD',bookingUnit:roomType.type==='private'?'room':'bed',guestsPerUnit:guestsPerUnit(roomType)!,nightlyPriceAMD:roomType.pricePerNightAMD,nightlyLines:pricing.nightlyLines,discountSource:pricing.discountSource,cancellationPolicy:hostel.rules.cancellationPolicy,cancellationPolicyLocalized:structuredClone(hostel.rules.cancellationPolicyLocalized),paymentMethodsOnArrival:[...hostel.rules.acceptedPaymentMethodsOnArrival],acceptedAt:new Date().toISOString(),breakdown:{accommodationAMD:pricing.baseAmount,discountAMD:pricing.discountAmount,earlyArrivalAMD:earlyArrivalFee,lateArrivalAMD:lateArrivalFee,optionalServicesAMD:0,totalAMD:pricing.finalAmountToPayOnArrival}},
+      agreement:{discountPercent:pricing.discountPercent,checkInTime:hostel.checkInStandardTime,checkOutTime:hostel.checkOutStandardTime,cancellationRule:structuredClone(hostel.cancellationRule),optionalServices:serviceSnapshot,currency:'AMD',bookingUnit:roomType.type==='private'?'room':'bed',guestsPerUnit:guestsPerUnit(roomType)!,nightlyPriceAMD:roomType.pricePerNightAMD,nightlyLines:pricing.nightlyLines,discountSource:pricing.discountSource,cancellationPolicy:hostel.rules.cancellationPolicy,cancellationPolicyLocalized:structuredClone(hostel.rules.cancellationPolicyLocalized),paymentMethodsOnArrival:[...hostel.rules.acceptedPaymentMethodsOnArrival],acceptedAt:new Date().toISOString(),breakdown:{accommodationAMD:pricing.baseAmount,discountAMD:pricing.discountAmount,earlyArrivalAMD:earlyArrivalFee,lateArrivalAMD:lateArrivalFee,optionalServicesAMD:serviceFee,totalAMD:pricing.finalAmountToPayOnArrival}},
       trackingCode,
       privateToken,
       hostelId: hostel.id,
@@ -460,7 +472,7 @@ export class Store {
       isOvernightArrival: isOvernight,
       earlyCheckInFeeAMD: earlyArrivalFee,
       lateCheckInFeeAMD: lateArrivalFee,
-      extraServicesFeeAMD: 0,
+      extraServicesFeeAMD: serviceFee,
       baseAmountAMD: pricing.baseAmount,
       discountPercent: pricing.discountPercent,
       discountAmountAMD: pricing.discountAmount,
@@ -486,7 +498,8 @@ export class Store {
     let available = Number.MAX_SAFE_INTEGER;
     for (let date = checkIn; date < checkOut; date = addCalendarDays(date, 1)) {
       const capacity = this.state.capacities.find(item => item.hostelId === hostelId && item.roomTypeId === roomTypeId && item.date === date)?.capacity ?? room.totalBedsOrRooms;
-      available = Math.min(available, capacity - peakBookedQuantity(date, addCalendarDays(date, 1), bookings));
+      const blocked=(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostelId&&block.roomTypeId===roomTypeId&&date>=block.from&&date<block.to).reduce((count,block)=>count+block.unitIds.length,0);
+      available = Math.min(available, capacity - blocked - peakBookedQuantity(date, addCalendarDays(date, 1), bookings));
     }
     return Math.max(0, available);
   }
@@ -496,7 +509,8 @@ export class Store {
     const room = this.state.hostels.find(h => h.id === hostelId)?.roomTypes.find(r => r.id === roomTypeId);
     if (!room || !Number.isSafeInteger(capacity) || capacity < 0 || capacity > room.totalBedsOrRooms || calculateNights(date, addCalendarDays(date, 1)) !== 1) throw new Error('ظرفیت یا تاریخ معتبر نیست.');
     const booked = peakBookedQuantity(date, addCalendarDays(date, 1), this.state.bookings.filter(b => b.hostelId === hostelId && b.roomTypeId === roomTypeId && b.status === 'confirmed'));
-    if (capacity < booked) throw new Error('ظرفیت نمی‌تواند کمتر از رزروهای تأییدشده باشد.');
+    const blocked=(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostelId&&block.roomTypeId===roomTypeId&&date>=block.from&&date<block.to).reduce((sum,block)=>sum+block.unitIds.length,0);
+    if (capacity < booked+blocked) throw new Error('ظرفیت نمی‌تواند کمتر از رزروهای تأییدشده باشد.');
     this.state.capacities = this.state.capacities.filter(item => !(item.hostelId === hostelId && item.roomTypeId === roomTypeId && item.date === date));
     this.state.capacities.push({ hostelId, roomTypeId, date, capacity });
     this.logAudit('SET_CAPACITY', 'HOSTEL', hostelId, `${date}: ${capacity}`);
@@ -523,7 +537,7 @@ export class Store {
     this.persist();
   }
 
-  public updateArrivalGuide(hostelId: string, data: Pick<Hostel, 'addressArmenianForTaxi' | 'directionsFa' | 'directionsHy' | 'entrancePhoto' | 'floorAndDoorCode' | 'phone'>) {
+  public updateArrivalGuide(hostelId: string, data: Pick<Hostel, 'addressArmenianForTaxi' | 'directionsFa' | 'directionsHy' | 'directionsEn' | 'directionsRu' | 'entrancePhoto' | 'floorAndDoorCode' | 'phone'>) {
     if (!this.canManageHostel(hostelId)) throw new Error('دسترسی مجاز نیست.');
     const hostel = this.state.hostels.find(h => h.id === hostelId);
     if (!hostel) throw new Error('اقامتگاه یافت نشد.');
@@ -618,6 +632,8 @@ export class Store {
       }
     }
 
+    booking.history??=[];booking.history.push({id:crypto.randomUUID(),at:new Date().toISOString(),actorId:this.state.currentUser?.id??'guest',action:status,reason:reason??status});
+    booking.versionToken=crypto.randomUUID();
     booking.status = status;
     booking.updatedAt = new Date().toISOString();
     this.logAudit('UPDATE_BOOKING_STATUS', 'BOOKING', booking.id, `تغییر وضعیت رزرو ${booking.trackingCode} به ${status}`);
@@ -626,9 +642,9 @@ export class Store {
     return { success: true };
   }
 
-  public expirePendingBookings() {
+  public expirePendingBookings(now=Date.now()) {
     for (const booking of this.state.bookings) {
-      if (booking.status === 'pending' && Date.parse(booking.expiresAt) <= Date.now()) {
+      if (booking.status === 'pending' && Date.parse(booking.expiresAt) <= now) {
         this.transitionBookingStatus(booking.id, 'expired');
       }
     }
@@ -637,6 +653,12 @@ export class Store {
   public cancelBookingByGuest(token: string, reason: string): { success: boolean; error?: string } {
     const booking = this.getBookingByToken(token);
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
+    if(booking.status==='cancelled')return{success:true};
+    if(!['pending','confirmed'].includes(booking.status))return{success:false,error:'رزرو فعال نیست.'};
+    if(booking.checkedInAt)return{success:false,error:'برای لغو پس از ورود با پذیرش هماهنگ کنید.'};
+    const rule=booking.agreement?.cancellationRule;
+    if(booking.status==='confirmed'&&!rule)return{success:false,error:'برای بررسی شرایط لغو این رزرو با پذیرش هماهنگ کنید.'};
+    if(rule){const hostel=this.state.hostels.find(h=>h.id===booking.hostelId);const deadline=Date.parse(booking.checkIn+'T'+(booking.agreement?.checkInTime||hostel?.checkInStandardTime||'00:00')+':00+04:00')-rule.freeBeforeHours*3600000;booking.cancellationChargeAMD=Date.now()>deadline?Math.round(booking.finalAmountAMD*rule.penaltyPercent/100):0;}
     return this.transitionBookingStatus(booking.id, 'cancelled', reason);
   }
 
@@ -645,6 +667,7 @@ export class Store {
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
 
     if (booking.status !== 'confirmed') return { success: false, error: 'رزرو باید تأیید شده باشد.' };
+    this.state.supportThreads??=[];const existing=this.state.supportThreads.find(thread=>thread.bookingId===booking.id&&thread.category==='arrival'&&thread.status==='open');const now=new Date().toISOString();const message={id:crypto.randomUUID(),at:now,actorId:this.state.currentUser?.id??'guest',role:this.state.currentUser?.role??'guest',text:note||'Arrival problem'};if(existing){existing.messages.push(message);existing.updatedAt=now;}else this.state.supportThreads.push({id:crypto.randomUUID(),bookingId:booking.id,category:'arrival',status:'open',messages:[message],createdAt:now,updatedAt:now});
     booking.entranceIssueReported = true;
     booking.entranceIssueNote = note || 'مسافر اعلام کرد: در محل هستم اما هاستل پاسخگو نیست یا مشکلی در ورود وجود دارد.';
     booking.updatedAt = new Date().toISOString();
@@ -809,9 +832,11 @@ export class Store {
     for (const oldRoom of previous?.roomTypes ?? []) {
       const room = hostel.roomTypes.find(item => item.id === oldRoom.id);
       const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
-      if (active.length && (!room || room.type !== oldRoom.type || room.bookingUnit !== oldRoom.bookingUnit || room.maxGuestsPerUnit !== oldRoom.maxGuestsPerUnit || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
+      if (active.length && (!room || room.type !== oldRoom.type || (room.bookingUnit??(room.type==='private'?'room':'bed')) !== (oldRoom.bookingUnit??(oldRoom.type==='private'?'room':'bed')) || active.some(booking=>!occupancyIsValid(room,booking.guestsCount,booking.quantity)) || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
     }
     if(hostel.roomTypes.some(room=>this.state.capacities.some(day=>day.hostelId===hostel.id&&day.roomTypeId===room.id&&day.date>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})&&day.capacity>room.totalBedsOrRooms)))throw new Error('ابتدا ظرفیت‌های روزانه را با تعداد واحدهای جدید هماهنگ کنید.');
+    for(const oldRoom of previous?.roomTypes??[]){const room=hostel.roomTypes.find(r=>r.id===oldRoom.id);const required=new Set([...(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostel.id&&block.roomTypeId===oldRoom.id&&block.to>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})).flatMap(block=>block.unitIds),...commitments.filter(b=>b.roomTypeId===oldRoom.id).flatMap(b=>b.assignedUnitIds??[])]);if([...required].some(id=>!room?.physicalUnits?.some(unit=>unit.id===id)))throw new Error('واحدهای تخصیص‌یافته یا مسدود را نمی‌توان حذف کرد.');}
+    const physicalIds=hostel.roomTypes.flatMap(room=>room.physicalUnits?.map(unit=>unit.id)??[]);if(new Set(physicalIds).size!==physicalIds.length)throw new Error('شناسه واحد فیزیکی تکراری است.');
     if (hostel.media) hostel.photos = hostel.media.map(image => image.url);
     hostel.listingStatus ??= hostel.isPublished ? 'published' : 'draft';
     hostel.isPublished = hostel.listingStatus === 'published';

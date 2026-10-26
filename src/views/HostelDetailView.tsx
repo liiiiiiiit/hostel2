@@ -1,3 +1,4 @@
+import {workflowText} from '../i18n/workflows';
 import { pricingText } from '../i18n/pricing';
 import { requiredUnits, occupancyIsValid } from '../utils/occupancy';
 import { propertyText } from '../i18n/properties';
@@ -46,7 +47,7 @@ interface Props {
   hostel: Hostel;
   reviews: Review[];
   onNavigate: (view: string, params?: any) => void;
-  initialBooking?: { checkIn?: string; checkOut?: string; guests?: number; roomTypeId?: string };
+  initialBooking?: { checkIn?: string; checkOut?: string; guests?: number; roomTypeId?: string;city?:string;district?:string;type?:string;budget?:number;amenities?:string;arrivalTime?:string;actualArrivalDate?:string;arrivalMode?:'previous_night'|'standard'|'early_check_in' };
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
@@ -335,7 +336,9 @@ export const HostelDetailView: React.FC<Props> = ({
   const [guestName, setGuestName] = useState('');
   const [contactType, setContactType] = useState<'phone' | 'email'>('phone');
   const [guestContact, setGuestContact] = useState('');
-  const [arrivalTime, setArrivalTime] = useState('14:00');
+  const w=workflowText(currentLang);const [arrivalMode,setArrivalMode]=useState<'standard'|'previous_night'|'early_check_in'>(initialBooking?.arrivalMode??'standard');const [actualArrivalDate,setActualArrivalDate]=useState(initialBooking?.actualArrivalDate||initialBooking?.checkIn||yerevanToday());const [selectedServiceIds,setSelectedServiceIds]=useState<string[]>([]);
+  const [arrivalTime, setArrivalTime] = useState(initialBooking?.arrivalTime||'14:00');
+  useEffect(()=>{if(arrivalTime>='06:00'&&arrivalMode==='previous_night'){setArrivalMode('standard');setCheckIn(actualArrivalDate);}},[arrivalTime,arrivalMode,actualArrivalDate]);
   const [specialRequests, setSpecialRequests] = useState('');
   const [isLowerBunkRequested, setIsLowerBunkRequested] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -380,8 +383,8 @@ export const HostelDetailView: React.FC<Props> = ({
   const couponValidation = validateCoupon(appliedCouponCode,accommodationQuote.baseAmount,currentCoupon);
   const discountPercent = couponValidation.valid ? couponValidation.discountPercent : 0;
 
-  const earlyFee = (arrivalAnalysis.isEarlyMorning && hostel.earlyCheckInAvailable) ? hostel.earlyCheckInFeeAMD : 0;
-  const lateFee = (arrivalAnalysis.isOvernightArrival && hostel.lateArrivalAvailable) ? hostel.lateArrivalFeeAMD : 0;
+  const earlyFee = (arrivalMode==='early_check_in' && arrivalAnalysis.isEarlyMorning && hostel.earlyCheckInAvailable) ? hostel.earlyCheckInFeeAMD : 0;
+  const lateFee = (arrivalMode==='previous_night' && arrivalAnalysis.isOvernightArrival && hostel.lateArrivalAvailable) ? hostel.lateArrivalFeeAMD : 0;
 
   const pricing = calculateBookingPrice({
     pricePerNight: selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD,rules:selectedRoom?.pricingRules,
@@ -389,6 +392,7 @@ export const HostelDetailView: React.FC<Props> = ({
     checkOut,
     quantity,
     discountPercent,
+    extraServicesFee:(hostel.optionalServices??[]).filter(service=>service.active&&selectedServiceIds.includes(service.id)).reduce((total,service)=>total+service.priceAMD*(service.unit==='stay'?1:service.unit==='night'?nights:nights*guestsCount),0),
     earlyCheckInFee: earlyFee,
     lateCheckInFee: lateFee,
   });
@@ -451,10 +455,10 @@ export const HostelDetailView: React.FC<Props> = ({
     setIsSubmitting(true);
 
     try {
-      const fingerprint=JSON.stringify([hostel.id,selectedRoom.id,guestName,contactType,guestContact,checkIn,checkOut,quantity,guestsCount,arrivalTime,isLowerBunkRequested,specialRequests,appliedCouponCode,currentLang]);
+      const fingerprint=JSON.stringify([hostel.id,selectedRoom.id,guestName,contactType,guestContact,checkIn,checkOut,quantity,guestsCount,arrivalTime,isLowerBunkRequested,specialRequests,appliedCouponCode,currentLang,arrivalMode,actualArrivalDate,selectedServiceIds,initialBooking?.city,initialBooking?.district,initialBooking?.type,initialBooking?.budget,initialBooking?.amenities]);
       if(requestKey.current.fingerprint!==fingerprint)requestKey.current={fingerprint,key:crypto.randomUUID()};
       const result = await appStore.createBooking({
-        acceptedTerms:true,expectedHostelUpdatedAt:hostel.updatedAt,language:currentLang,idempotencyKey:requestKey.current.key,
+        searchContext:{city:initialBooking?.city,district:initialBooking?.district,type:initialBooking?.type,budget:initialBooking?.budget,amenities:initialBooking?.amenities?.split(',').filter(key=>['kitchen','metro','monthly','24h','elevator','coworking','tonight'].includes(key))},actualArrivalDate,arrivalMode:arrivalAnalysis.isEarlyMorning?arrivalMode:undefined,selectedServiceIds,acceptedTerms:true,expectedHostelUpdatedAt:hostel.updatedAt,language:currentLang,idempotencyKey:requestKey.current.key,
         hostelId: hostel.id,
         roomTypeId: selectedRoom.id,
         guestName,
@@ -490,7 +494,7 @@ export const HostelDetailView: React.FC<Props> = ({
     hy: { book: 'Ամրագրման հարցում', selected: 'Ընտրված է', rooms: 'Մահճակալներ և սենյակներ', requests: 'Ցանկություններ', coupon: 'Զեղչի կոդ', review: 'Հյուրերի կարծիքներ', payment: 'Վճարում տեղում', policies: 'Կանոններ և չեղարկում', checkTimes: 'Մուտք և ելք', pending: 'Ամրագրումը գործում է հոսթելի հաստատումից հետո։', terms: 'Ընդունում եմ կացության և չեղարկման կանոնները։', nights: 'գիշեր', guestInfo: 'Հյուրի տվյալներ', contact: 'Կոնտակտ', optional: 'Ըստ ցանկության', discount: 'Զեղչ', extra: 'Ժամանման վճարներ', total: 'Վճարման գումար', roomUnavailable: 'Այս օրերի համար հասանելի չէ', noRoom: 'Այս կացության համար սենյակներ նշված չեն։' },
   }[currentLang];
   const selectedCapacity = selectedRoom ? capacityFor(selectedRoom) : 0;
-  const canBook = selectedRoom && pricing.isValidDates && quantity <= selectedCapacity && selectedCapacity > 0 && occupancyIsValid(selectedRoom,guestsCount,quantity);
+  const canBook = selectedRoom && pricing.isValidDates && quantity <=100 && guestsCount<=100 && quantity <= selectedCapacity && selectedCapacity > 0 && occupancyIsValid(selectedRoom,guestsCount,quantity);
   const amenities = [
     hostel.amenities.wifi && tr.wifiFree, hostel.amenities.lockers && tr.lockersAmenity,
     hostel.freeLuggageStorage && tr.freeLuggage, hostel.amenities.kitchen && tr.sharedKitchen,
@@ -530,11 +534,13 @@ export const HostelDetailView: React.FC<Props> = ({
           <div className="flex gap-4 items-start justify-between border-b border-slate-100 pb-5"><div><h2 className="text-xl font-semibold">{copy.book}</h2><p className="text-sm text-slate-500 mt-1">{copy.payment}</p></div><div className="text-end"><strong className="block text-xl ltr-isolate">{(selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD).toLocaleString()} <span className="text-xs font-normal">AMD</span></strong><span className="text-xs text-slate-500">{t.perNight}</span></div></div>
           {formError && <p role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm">{formError}</p>}
           <form onSubmit={handleSubmitBooking} className="space-y-4" aria-busy={isSubmitting}>
-            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-in" className="text-sm font-medium">{ft.checkIn}<input id="booking-in" className="field mt-2" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value&&event.target.value>=checkOut)setCheckOut(addCalendarDays(event.target.value,1));}}/></label><label htmlFor="booking-out" className="text-sm font-medium">{ft.checkOut}<input id="booking-out" className="field mt-2" type="date" required min={addCalendarDays(checkIn||yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event=>setCheckOut(event.target.value)}/></label></div>
-            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<select aria-label={tr.guestsCount} id="booking-guests" className="field mt-2" value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<select aria-label={tr.bedQuantity} id="booking-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n} disabled={n>selectedCapacity}>{n}</option>)}</select></label></div>
+            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-in" className="text-sm font-medium">{ft.checkIn}<input id="booking-in" className="field mt-2" type="date" required min={arrivalMode==='previous_night'?addCalendarDays(yerevanToday(),-1):yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event=>{setCheckIn(event.target.value);setActualArrivalDate(event.target.value&&arrivalMode==='previous_night'?addCalendarDays(event.target.value,1):event.target.value);if(event.target.value&&event.target.value>=checkOut)setCheckOut(addCalendarDays(event.target.value,1));}}/></label><label htmlFor="booking-out" className="text-sm font-medium">{ft.checkOut}<input id="booking-out" className="field mt-2" type="date" required min={addCalendarDays(checkIn||yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event=>setCheckOut(event.target.value)}/></label></div>
+            <div className="grid grid-cols-2 gap-3"><label htmlFor="booking-guests" className="text-sm font-medium">{tr.guestsCount}<input aria-label={tr.guestsCount} id="booking-guests" className="field mt-2" type="number" required min={1} max={100} value={guestsCount} onChange={event=>setGuestsCount(Number(event.target.value))}/></label><label htmlFor="booking-quantity" className="text-sm font-medium">{tr.bedQuantity}<input aria-label={tr.bedQuantity} id="booking-quantity" className="field mt-2" type="number" required min={1} max={Math.min(100,selectedCapacity)} value={quantity} onChange={event=>setQuantity(Number(event.target.value))}/></label></div>
             {!pricing.isValidDates&&nights>0&&<p role="alert" className="text-sm text-amber-900">{pricingText(currentLang).unknown}</p>}
             {!canBook && <p role="status" className="text-sm text-amber-900">{ft.noCapacity}</p>}
             <label htmlFor="booking-arrival" className="block text-sm font-medium">{tr.approxArrival}<select id="booking-arrival" className="field mt-2" value={arrivalTime} onChange={event=>setArrivalTime(event.target.value)}><option value="14:00">{tr.arrival14}</option><option value="18:00">{tr.arrival18}</option><option value="22:00">{tr.arrival22}</option><option value="03:00">{tr.arrival03}</option><option value="07:00">{tr.arrival07}</option></select></label>
+            {arrivalAnalysis.isEarlyMorning&&<div className="space-y-3 rounded-xl bg-slate-50 p-4"><label className="block text-sm">{w('arrivalDate')}<input className="field w-full mt-2" type="date" min={yerevanToday()} value={actualArrivalDate} onChange={e=>{setActualArrivalDate(e.target.value);if(e.target.value)setCheckIn(arrivalMode==='previous_night'?addCalendarDays(e.target.value,-1):e.target.value);}}/></label><label className="block text-sm">{w('arrivalMode')}<select className="field w-full mt-2" value={arrivalMode} onChange={e=>{const mode=e.target.value as typeof arrivalMode;setArrivalMode(mode);if(!actualArrivalDate)return;setCheckIn(mode==='previous_night'?addCalendarDays(actualArrivalDate,-1):actualArrivalDate);}}><option value="standard">{w('standard')}</option>{arrivalTime<'06:00'&&<option value="previous_night">{w('previousNight')}</option>}{hostel.earlyCheckInAvailable&&<option value="early_check_in">{tr.approxArrival} · {hostel.earlyCheckInFeeAMD} AMD</option>}</select></label><p className="text-xs leading-6">{w('arrivalHint')}</p></div>}
+            {(hostel.optionalServices??[]).some(service=>service.active)&&<fieldset className="space-y-3"><legend className="text-sm font-medium mb-2">{w('optional')}</legend>{hostel.optionalServices?.filter(service=>service.active).map(service=><label key={service.id} className="flex gap-2 text-sm"><input type="checkbox" checked={selectedServiceIds.includes(service.id)} onChange={e=>setSelectedServiceIds(e.target.checked?[...selectedServiceIds,service.id]:selectedServiceIds.filter(id=>id!==service.id))}/>{service.name[currentLang]} · {service.priceAMD.toLocaleString(currentLang)} AMD / {w(service.unit==='stay'?'unitStay':service.unit==='night'?'unitNight':'unitGuestNight')}</label>)}</fieldset>}
             {arrivalAnalysis.isEarlyMorning && <details className="rounded-xl p-3 bg-amber-50 text-sm text-amber-950"><summary className="cursor-pointer font-medium">{tr.overnightTitle}</summary><p className="pt-2 leading-relaxed">{tr.overnightDesc}</p></details>}
             <div className="border-t border-slate-100 pt-4 space-y-3"><h3 className="font-medium text-sm">{copy.guestInfo}</h3><label htmlFor="booking-name" className="block text-sm">{tr.fullName}<input id="booking-name" autoComplete="name" className="field mt-2" required placeholder="Ali / John" value={guestName} onChange={event=>setGuestName(event.target.value)}/></label><div className="flex justify-between gap-2 text-sm"><label htmlFor="booking-contact">{copy.contact}</label><div className="flex gap-3"><button type="button" aria-pressed={contactType==='phone'} className={contactType==='phone'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('phone')}>{tr.phoneTab}</button><button type="button" aria-pressed={contactType==='email'} className={contactType==='email'?'text-emerald-800 font-semibold':'text-slate-400'} onClick={()=>setContactType('email')}>{tr.emailTab}</button></div></div><input id="booking-contact" className="field ltr-isolate" autoComplete={contactType==='phone'?'tel':'email'} required type={contactType==='phone'?'tel':'email'} placeholder={contactType==='phone'?'+374 91 ...':'name@example.com'} value={guestContact} onChange={event=>setGuestContact(event.target.value)}/></div>
             <details className="border-t border-slate-100 pt-4"><summary className="text-sm cursor-pointer font-medium">{copy.requests} <span className="text-slate-400 font-normal">· {copy.optional}</span></summary><div className="pt-4 space-y-3"><label className="flex gap-2 text-sm"><input type="checkbox" checked={isLowerBunkRequested} onChange={event=>setIsLowerBunkRequested(event.target.checked)}/>{tr.lowerBunk}</label><label className="block text-sm" htmlFor="booking-note">{tr.specialRequests}<textarea id="booking-note" className="field mt-2" rows={2} value={specialRequests} onChange={event=>setSpecialRequests(event.target.value)}/></label></div></details>

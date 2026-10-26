@@ -1,3 +1,9 @@
+import {TranslatorView} from './views/TranslatorView';
+import {articleInLanguage} from './utils/article-language';
+import {publicPage} from './utils/public-seo';
+import {RecommendationsView} from './views/RecommendationsView';
+import {parseBrowserRoute,browserPath} from './utils/public-routes';
+import {AccountActionView} from './components/AccountSettings';
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { AppLanguage, User } from './types';
 import { appStore } from './services/store';
@@ -16,7 +22,6 @@ const RentalDetailView = lazy(() => import('./views/RentalDetailView').then(modu
 const RentalTrackingView = lazy(() => import('./views/RentalTrackingView').then(module => ({ default: module.RentalTrackingView })));
 const GuideView = lazy(() => import('./views/GuideView').then(module => ({ default: module.GuideView })));
 const ArticleDetailView = lazy(() => import('./views/ArticleDetailView').then(module => ({ default: module.ArticleDetailView })));
-const TranslatorView = lazy(() => import('./views/TranslatorView').then(module => ({ default: module.TranslatorView })));
 const AdminPanelView = lazy(() => import('./views/AdminPanelView').then(module => ({ default: module.AdminPanelView })));
 const ManagerPanelView = lazy(() => import('./views/ManagerPanelView').then(module => ({ default: module.ManagerPanelView })));
 const TravelerAccountView = lazy(() => import('./views/TravelerAccountView').then(module => ({ default: module.TravelerAccountView })));
@@ -30,8 +35,8 @@ export default function App() {
   const navigationVersion = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
 
-  const [activeView, setActiveView] = useState<string>(() => parseRoute(window.location.hash).view);
-  const [viewParams, setViewParams] = useState<any>(() => parseRoute(window.location.hash).params);
+  const [activeView, setActiveView] = useState<string>(() => parseBrowserRoute(window.location.pathname+window.location.search,window.location.hash).view);
+  const [viewParams, setViewParams] = useState<any>(() => parseBrowserRoute(window.location.pathname+window.location.search,window.location.hash).params);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -50,7 +55,8 @@ export default function App() {
     let active = true;
     const handleHash = async () => {
       const version = ++navigationVersion.current;
-      const route = parseRoute(window.location.hash);
+      const route = parseBrowserRoute(window.location.pathname+window.location.search,window.location.hash);
+      const language=window.location.pathname.split('/')[1];if(['fa','en','ru','hy'].includes(language))setLanguage(language as AppLanguage);
       setTrackingError(''); setActiveView(route.view); setViewParams(route.params);
       const tracking = route.view === 'booking-track' || route.view === 'rental-track';
       setTrackingLoading(tracking);
@@ -62,13 +68,13 @@ export default function App() {
       if (active && version === navigationVersion.current) { setTrackingLoading(false); mainRef.current?.focus({ preventScroll: true }); }
     };
     void handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => { active = false; window.removeEventListener('hashchange', handleHash); };
+    window.addEventListener('hashchange', handleHash);window.addEventListener('popstate',handleHash);
+    return () => { active = false; window.removeEventListener('hashchange', handleHash);window.removeEventListener('popstate',handleHash); };
   }, []);
 
   const handleNavigate = (view: string, params: any = {}) => {
-    const hash = routeHash(view, params);
-    if (window.location.hash !== hash) window.location.hash = hash;
+    const path=browserPath(view,params,currentLang,appStore.getState());
+    if(window.location.pathname+window.location.search+window.location.hash!==path){window.history.pushState({},'',path);window.dispatchEvent(new PopStateEvent('popstate'));}
     window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
 
@@ -80,6 +86,17 @@ export default function App() {
     }
   };
 
+  useEffect(()=>{
+    const isPrivate=!!window.location.hash||['admin','manager','account','account-action','booking-track','rental-track','saved','not-found'].includes(activeView);
+    const pagePath=window.location.pathname==='/'?'/'+currentLang+'/':window.location.pathname;const page=publicPage(storeState,pagePath+window.location.search,window.location.origin);
+    document.title=isPrivate?'YEREVANHUB':page.title;
+    const meta=(name:string,value:string,property=false)=>{const selector=property?`meta[property="${name}"]`:`meta[name="${name}"]`;let element=document.head.querySelector(selector);if(!element){element=document.createElement('meta');element.setAttribute(property?'property':'name',name);document.head.appendChild(element);}element.setAttribute('content',value);};
+    meta('robots',isPrivate?'noindex,nofollow':page.status===404||page.noindex?'noindex,nofollow':'index,follow');meta('description',isPrivate?'':page.description??'');meta('og:title',isPrivate?'YEREVANHUB':page.title);meta('og:description',isPrivate?'':page.description??'');if(!isPrivate&&page.image)meta('og:image',new URL(page.image,window.location.origin).href,true);else document.head.querySelector('meta[property="og:image"]')?.remove();
+    meta('og:url',window.location.origin+(isPrivate?'/':pagePath));
+    const canonical=document.head.querySelector('link[rel="canonical"]')??document.head.appendChild(document.createElement('link'));canonical.setAttribute('rel','canonical');canonical.setAttribute('href',window.location.origin+(isPrivate?'/':pagePath));
+    for(const node of document.head.querySelectorAll('link[hreflang]'))node.remove();
+    if(!isPrivate&&page.status===200)for(const lang of ['fa','en','ru','hy']){if(activeView==='article-detail'){const original=storeState.articles.find(a=>a.slug===viewParams.slug||a.id===viewParams.slug);if(!original||!articleInLanguage(original,lang as AppLanguage))continue;}const link=document.createElement('link');link.rel='alternate';link.hreflang=lang;link.href=window.location.origin+pagePath.replace(/^\/(fa|en|ru|hy)/,'/'+lang);document.head.appendChild(link);}
+  },[activeView,currentLang,storeState,viewParams]);
   const currentUser = storeState.currentUser;
 
   const unavailable = () => (
@@ -94,6 +111,8 @@ export default function App() {
     if (trackingLoading) return <div className="p-8 text-center" role="status">YEREVANHUB…</div>;
     if (trackingError) return <div role="alert" className="p-8 text-center">{trackingError}</div>;
     switch (activeView) {
+      case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
+      case 'recommendations':return <RecommendationsView onNavigate={handleNavigate} initial={{...viewParams,amenities:typeof viewParams.amenities==='string'?viewParams.amenities.split(',').filter(Boolean):viewParams.amenities}}/>;
       case 'saved': return <SavedPlacesView onNavigate={handleNavigate} />;
       case 'home':
         return (
@@ -101,7 +120,7 @@ export default function App() {
             currentLang={currentLang}
             hostels={appStore.getHostels()}
             rentals={appStore.getRentals()}
-            articles={appStore.getArticles()}
+            articles={appStore.getArticles().flatMap(article=>articleInLanguage(article,currentLang)??[])}
             phrases={appStore.getPhrases()}
             onNavigate={handleNavigate}
             getHostelRating={id => appStore.getHostelAverageRating(id)}
@@ -194,14 +213,14 @@ export default function App() {
         return (
           <GuideView
             currentLang={currentLang}
-            articles={appStore.getArticles()}
+            articles={appStore.getArticles().flatMap(article=>articleInLanguage(article,currentLang)??[])}
             onNavigate={handleNavigate}
           />
         );
 
       case 'article-detail': {
         const slug = viewParams?.slug || 'armenia-visa-and-residency-guide-for-iranians-2026';
-        const article = appStore.getArticleBySlug(slug);
+        const originalArticle=appStore.getArticleBySlug(slug);const article=originalArticle?articleInLanguage(originalArticle,currentLang):undefined;
         if (!article || article.status !== 'published') return unavailable();
         const related = storeState.articles
           .filter(a => a.id !== article.id && a.category === article.category && a.status === 'published')
@@ -244,7 +263,7 @@ export default function App() {
             currentLang={currentLang}
             hostels={appStore.getHostels()}
             rentals={appStore.getRentals()}
-            articles={appStore.getArticles()}
+            articles={appStore.getArticles().flatMap(article=>articleInLanguage(article,currentLang)??[])}
             phrases={appStore.getPhrases()}
             onNavigate={handleNavigate}
             getHostelRating={id => appStore.getHostelAverageRating(id)}

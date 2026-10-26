@@ -2,7 +2,7 @@
 import { newHostel, newRental } from '../src/utils/properties.js';
 export const translatedFixture = (name = 'اقامتگاه آزمایشی') => ({fa:name,en:'Test property',ru:'Тестовый объект',hy:'Փորձնական օբյեկտ'});
 export function completeHostel() {
-  const hostel = newHostel();
+  const hostel = newHostel();hostel.cancellationRule={freeBeforeHours:24,penaltyPercent:0};hostel.responseMinutes=180;hostel.directionsFa='از در اصلی وارد شوید.';hostel.directionsEn='Use the main entrance.';hostel.directionsRu='Используйте главный вход.';hostel.directionsHy='Օգտվեք գլխավոր մուտքից։';
   Object.assign(hostel,{slug:`test-${hostel.id}`,name:translatedFixture(),description:translatedFixture('توضیح آزمایشی'),city:'Yerevan',district:'Kentron',address:translatedFixture('نشانی آزمایشی'),addressArmenianForTaxi:'Փորձնական հասցե',coordinates:{lat:40.18,lng:44.51},coordinatesProvided:true,phone:'+37491123456',reception24h:true,checkInStandardTime:'14:00',checkOutStandardTime:'11:00',languagesSpoken:['hy'],factsConfirmed:true});
   hostel.rules={...hostel.rules,cancellationPolicy:'لغو پیش از ورود رایگان است.',cancellationPolicyLocalized:translatedFixture('شرایط لغو'),acceptedPaymentMethodsOnArrival:['AMD cash']};
   hostel.roomTypes=[{id:crypto.randomUUID(),name:translatedFixture('تخت بانوان'),description:translatedFixture('توضیح اتاق'),type:'dorm_female',bookingUnit:'bed',maxGuestsPerUnit:1,totalBedsOrRooms:2,pricePerNightAMD:5000,physicalUnits:[{id:crypto.randomUUID(),label:'F1'},{id:crypto.randomUUID(),label:'F2'}]},{id:crypto.randomUUID(),name:translatedFixture('اتاق دو نفره'),description:translatedFixture('اتاق خصوصی'),type:'private',bookingUnit:'room',maxGuestsPerUnit:2,totalBedsOrRooms:1,pricePerNightAMD:18000,physicalUnits:[{id:crypto.randomUUID(),label:'P1'}]}];

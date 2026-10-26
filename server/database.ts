@@ -1,4 +1,4 @@
-import { migrateDatabase, readProperties, writeProperties } from './migrations.js';
+import { migrateDatabase, readProperties, writeProperties, readOperationalRecords, writeOperationalRecords, operationalCollections } from './migrations.js';
 import { createClient, type Client, type Transaction } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
 import { Store, type AppStoreState } from './domain.js';
@@ -70,10 +70,13 @@ export class Database {
         const result = await tx.execute('SELECT data FROM app_state WHERE id=1');
         const state = JSON.parse(String(result.rows[0].data)) as AppStoreState;
         await readProperties(tx, state);
+        await readOperationalRecords(tx,state);
         const value = await operation(state, tx);
         state.currentUser = null;
         await writeProperties(tx, state);
+        await writeOperationalRecords(tx,state);
         const { hostels: _hostels, rentals: _rentals, ...remaining } = state;
+        for(const key of operationalCollections)delete (remaining as Partial<AppStoreState>)[key];
         await tx.execute({ sql: 'UPDATE app_state SET data=? WHERE id=1', args: [JSON.stringify(remaining)] });
         await tx.commit();
         return value;

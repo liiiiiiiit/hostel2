@@ -11,7 +11,11 @@
     "lint": "tsc --noEmit && tsc --project api/tsconfig.json --noEmit",
     "test": "node --import tsx --test src/**/*.test.ts server/*.test.ts",
     "start": "NODE_ENV=production tsx server/dev.ts",
-    "test:browser": "node scripts/browser-smoke.mjs"
+    "test:browser": "node scripts/browser-smoke.mjs",
+    "worker": "tsx scripts/worker.ts",
+    "worker:once": "tsx scripts/worker.ts --once",
+    "backup": "tsx scripts/backup.ts",
+    "restore": "tsx scripts/backup.ts restore"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

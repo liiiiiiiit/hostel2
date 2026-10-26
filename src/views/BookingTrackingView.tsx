@@ -1,3 +1,5 @@
+import {RecommendationsView} from './RecommendationsView';
+import {BookingWorkflow} from '../components/BookingWorkflow';
 import { featureText } from '../i18n/features';
 import React, { useState } from 'react';
 import { AppLanguage, Booking, Hostel } from '../types';
@@ -311,6 +313,7 @@ export const BookingTrackingView: React.FC<Props> = ({
       case 'confirmed':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm">
+      <BookingWorkflow booking={booking}/>{['rejected','expired'].includes(booking.status)&&<RecommendationsView onNavigate={onNavigate} initial={{...booking.searchContext,arrivalTime:booking.estimatedArrivalTime,actualArrivalDate:booking.actualArrivalDate,arrivalMode:booking.arrivalMode,checkIn:booking.checkIn,checkOut:booking.checkOut,guests:booking.guestsCount,type:hostel?.roomTypes.find(room=>room.id===booking.roomTypeId)?.type}}/>}
             <CheckCircle2 className="w-4 h-4 text-emerald-700" />
             <span>{tr.confirmedBadge}</span>
           </div>
@@ -449,7 +452,7 @@ export const BookingTrackingView: React.FC<Props> = ({
                   <MapPin className="w-4 h-4" />
                   <span>{tr.entranceGuideTitle}</span>
                 </span>
-                <p>{hostel.directionsFa}</p>
+                <p>{({fa:hostel.directionsFa,en:hostel.directionsEn,ru:hostel.directionsRu,hy:hostel.directionsHy})[currentLang]||'—'}</p>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">

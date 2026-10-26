@@ -340,3 +340,89 @@ test('calendar pricing and minimum stays are enforced and an unused inferior cou
   await database.transaction(async state=>assert.equal(state.coupons.find(item=>item.code==='LOWER')!.usedCount,0));
   const old=hostel.updatedAt;const stale=await visitor.action('createBooking',[{...payload,checkOut:addCalendarDays(booking.checkIn,7),expectedHostelUpdatedAt:old}]);assert.equal(stale.data.success,false);assert.match(stale.data.error,/تغییر/);
 });
+
+test('reception records external bookings, blocks maintenance, assigns physical units and records real check-in/out with role checks',async t=>{
+ const {completeHostel}=await import('./property-fixtures.js');const {client,visitor}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';await admin.action('saveHostel',[hostel]);const room=hostel.roomTypes[0],from=yerevanToday(),to=addCalendarDays(from,2);
+ assert.equal((await visitor.action('blockUnits',[{hostelId:hostel.id,roomTypeId:room.id,unitIds:[room.physicalUnits![0].id],from,to,reason:'Repair'}])).response.status,403);
+ assert.equal((await admin.action('blockUnits',[{hostelId:hostel.id,roomTypeId:room.id,unitIds:[room.physicalUnits![0].id],from,to,reason:'Repair'}])).data.success,true);
+ const request={hostelId:hostel.id,roomTypeId:room.id,guestName:'Walk in guest',guestContact:'guest@example.test',contactType:'email',checkIn:from,checkOut:to,guestsCount:1,quantity:1,source:'walk_in',reason:'Guest accepted property terms',acceptedTerms:true,idempotencyKey:crypto.randomUUID()};
+ const booked=await admin.action('recordExternalBooking',[request]);assert.equal(booked.data.success,true);const booking=booked.data.booking;assert.equal(booking.status,'confirmed');assert.equal(booking.source,'walk_in');
+ assert.equal((await admin.action('recordExternalBooking',[request])).data.booking.id,booking.id);
+ assert.equal((await admin.action('assignUnits',[booking.id,[room.physicalUnits![0].id]])).response.status,400);
+ assert.equal((await admin.action('assignUnits',[booking.id,[room.physicalUnits![1].id]])).data.success,true);
+ assert.equal((await visitor.action('recordStayEvent',[booking.id,'check_in','Here'])).response.status,403);
+ assert.equal((await admin.action('recordStayEvent',[booking.id,'check_in','Passport checked at reception'])).data.success,true);
+ assert.equal((await admin.action('recordStayEvent',[booking.id,'no_show','Missing'])).data.success,false);
+ assert.equal((await admin.action('recordStayEvent',[booking.id,'check_out','Guest departed'])).data.success,true);
+ const saved=(await admin.get()).state.bookings.find(b=>b.id===booking.id)!;assert.ok(saved.checkedInAt);assert.ok(saved.checkedOutAt);assert.equal(saved.status,'completed');assert.ok(saved.history?.some(event=>event.action==='check_out'));
+});
+
+test('stay changes require token ownership, guest approval and a final transactional capacity check',async t=>{
+ const {completeHostel}=await import('./property-fixtures.js');const {client,visitor,booking:base,database}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';await admin.action('saveHostel',[hostel]);const created=(await visitor.action('createBooking',[{...base,hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,guestsCount:2}])).data.booking;await admin.action('updateBookingStatus',[created.id,'confirmed']);const change={checkIn:created.checkIn,checkOut:addCalendarDays(created.checkOut,1),guestsCount:2,reason:'Extend one night'};
+ assert.equal((await client().action('requestBookingChange',[created.id,change])).response.status,403);
+ const proposal=(await visitor.action('requestBookingChange',[created.privateToken,change])).data.proposal;assert.equal(proposal.differenceAMD,18000);
+ assert.equal((await admin.action('applyBookingChange',[proposal.id,'Approved'])).data.success,false);
+ assert.equal((await client().action('acceptBookingChange',[proposal.id,'invalid-token'])).response.status,403);
+ assert.equal((await visitor.action('acceptBookingChange',[proposal.id,created.privateToken])).data.success,true);
+ await database.transaction(async state=>state.capacities.push({hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,date:created.checkOut,capacity:0}));
+ assert.equal((await admin.action('applyBookingChange',[proposal.id,'Approved'])).data.success,false);
+ await database.transaction(async state=>{state.capacities=[];});
+ assert.equal((await admin.action('applyBookingChange',[proposal.id,'Approved after availability check'])).data.success,true);
+ const saved=(await visitor.get(created.privateToken)).state.bookings[0];assert.equal(saved.checkOut,change.checkOut);assert.equal(saved.finalAmountAMD,54000);assert.ok(saved.history?.some(event=>event.action==='change_applied'));
+ assert.equal((await admin.action('applyBookingChange',[proposal.id,'Again'])).data.success,false);
+});
+
+test('support is booking-scoped and financial collections are separate from reservation value',async t=>{
+ const {completeHostel}=await import('./property-fixtures.js');const {financeSummary}=await import('../src/utils/finance.js');const {client,visitor,booking:base}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';hostel.commissionRule={type:'percent',value:10,appliesOn:'confirmed'};await admin.action('saveHostel',[hostel]);const b=(await visitor.action('createBooking',[{...base,hostelId:hostel.id,roomTypeId:hostel.roomTypes[0].id}])).data.booking;await admin.action('updateBookingStatus',[b.id,'confirmed']);
+ const thread=(await visitor.action('createSupportThread',[b.privateToken,'arrival','Reception cannot find my booking'])).data.thread;
+ assert.equal((await client().get()).state.supportThreads?.length,0);assert.equal((await client().action('replySupportThread',[thread.id,b.id,'Unrelated guest'])).response.status,403);
+ assert.equal((await admin.action('replySupportThread',[thread.id,b.id,'Reception is checking'])).data.success,true);
+ assert.equal((await visitor.action('resolveSupportThread',[thread.id,b.privateToken,'resolved','Close'])).response.status,403);
+ let state=(await admin.get()).state;assert.equal(financeSummary(state.bookings,state.financeEntries??[]).propertyPayment,0);assert.equal(financeSummary(state.bookings,state.financeEntries??[]).expected,1000);
+ const requestId=crypto.randomUUID();assert.equal((await admin.action('recordFinanceEntry',[b.id,'property_payment',5000,'Cash paid',requestId])).data.success,true);assert.equal((await admin.action('recordFinanceEntry',[b.id,'property_payment',5000,'Cash paid',requestId])).data.success,true);
+ await admin.action('recordFinanceEntry',[b.id,'settlement',200,'Commission transfer',crypto.randomUUID()]);await admin.action('recordFinanceEntry',[b.id,'adjustment',-100,'Agreed reduction',crypto.randomUUID()]);
+ state=(await admin.get()).state;const report=financeSummary(state.bookings,state.financeEntries??[]);assert.equal(report.propertyPayment,5000);assert.equal(report.expected,900);assert.equal(report.received,200);assert.equal(report.balance,700);
+ assert.equal((await visitor.get(b.privateToken)).state.financeEntries?.length,0);
+});
+
+test('password recovery links expire, are single-use and revoke sessions; email verification proves booking claims',async t=>{
+ const previous=process.env.APP_URL;process.env.APP_URL='https://example.test';t.after(()=>{if(previous===undefined)delete process.env.APP_URL;else process.env.APP_URL=previous;});
+ const {client,visitor,database,booking}=await fixture(t);const guestBooking=(await visitor.action('createBooking',[booking])).data.booking;const account=client();const address='account-owner@example.test',oldPassword=crypto.randomUUID(),newPassword=crypto.randomUUID();await account.action('registerTraveler',['Account Owner',address,null,oldPassword]);
+ assert.equal((await account.action('claimGuestBooking',[guestBooking.privateToken])).response.status,403);
+ assert.equal((await account.action('requestEmailVerification',[])).data.success,true);
+ let emailToken='';await database.transaction(async(_state,tx)=>{const rows=(await tx.execute("SELECT text FROM outbox WHERE recipient='account-owner@example.test' ORDER BY created_at DESC")).rows;emailToken=String(rows[0].text).match(/\/email\/([a-f0-9]{64})/)![1];});
+ assert.equal((await account.action('verifyEmail',[emailToken])).data.success,true);assert.equal((await account.action('verifyEmail',[emailToken])).response.status,400);
+ assert.equal((await account.action('claimGuestBooking',['wrong-token'])).response.status,403);assert.equal((await account.action('claimGuestBooking',[guestBooking.privateToken])).data.success,true);
+ await account.action('mergeSavedPlaces',[['hostel:hostel-1']]);assert.deepEqual((await account.get()).state.savedPlaces,['hostel:hostel-1']);
+ const other=client();await other.action('login',[address,oldPassword]);assert.equal((await other.get()).state.bookings[0].id,guestBooking.id);
+ const known=await client().action('requestPasswordRecovery',[address,'en']),unknown=await client().action('requestPasswordRecovery',['missing-user@example.test','en']);assert.deepEqual(known.data,unknown.data);
+ let recovery='';await database.transaction(async(_state,tx)=>{const rows=(await tx.execute("SELECT text FROM outbox WHERE recipient='account-owner@example.test' ORDER BY created_at DESC")).rows;recovery=rows.map(row=>String(row.text).match(/\/password\/([a-f0-9]{64})/)?.[1]).find(Boolean)!;});
+ assert.equal((await client().action('resetPassword',[recovery,newPassword])).data.success,true);assert.equal((await other.get()).state.currentUser,null);assert.equal((await account.get()).state.currentUser,null);
+ assert.equal((await client().action('resetPassword',[recovery,newPassword])).response.status,400);assert.equal((await client().action('login',[address,oldPassword])).data.success,false);
+ const next=client();assert.equal((await next.action('login',[address,newPassword])).data.success,true);await next.action('requestPasswordRecovery',[address,'en']);
+ await database.transaction(async(_state,tx)=>{await tx.execute('UPDATE auth_tokens SET expires_at=0');});let expired='';await database.transaction(async(_state,tx)=>{expired=String((await tx.execute("SELECT text FROM outbox WHERE recipient='account-owner@example.test' ORDER BY created_at DESC LIMIT 1")).rows[0].text).match(/\/password\/([a-f0-9]{64})/)![1];});assert.equal((await client().action('resetPassword',[expired,newPassword])).response.status,400);
+});
+
+test('scheduled work reminds once, expires requests and escalates without page visits or fake delivery',async t=>{
+ const {scheduledWork}=await import('./jobs.js');const {visitor,booking,database}=await fixture(t);const b=(await visitor.action('createBooking',[booking])).data.booking;
+ await database.transaction(async state=>{const entry=state.bookings.find(e=>e.id===b.id)!;entry.createdAt=new Date(Date.now()-7200000).toISOString();entry.expiresAt=new Date(Date.now()+3600000).toISOString();});
+ const reminder=await scheduledWork(database,{deliver:false});assert.equal(reminder.reminders,1);assert.equal(reminder.sent,0);assert.equal((await scheduledWork(database,{deliver:false})).reminders,0);
+ await database.transaction(async state=>{state.bookings.find(e=>e.id===b.id)!.expiresAt=new Date(Date.now()-1000).toISOString();});const expired=await scheduledWork(database,{deliver:false});assert.equal(expired.expired,1);assert.equal(expired.sent,0);
+ await database.transaction(async state=>{const entry=state.bookings.find(e=>e.id===b.id)!;assert.equal(entry.status,'expired');assert.ok(entry.escalatedAt);});assert.equal((await scheduledWork(database,{deliver:false})).expired,0);
+});
+
+test('selected services and before-dawn previous-night pricing match the agreed booking; cancellation uses its frozen rule',async t=>{
+ const {completeHostel,translatedFixture}=await import('./property-fixtures.js');const {client,visitor,database}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';hostel.earlyCheckInAvailable=true;hostel.earlyCheckInFeeAMD=1000;hostel.lateArrivalAvailable=true;hostel.lateArrivalFeeAMD=500;hostel.cancellationRule={freeBeforeHours:24,penaltyPercent:50};const service={id:crypto.randomUUID(),name:translatedFixture(),unit:'guest_night' as const,priceAMD:200,active:true};hostel.optionalServices=[service];await admin.action('saveHostel',[hostel]);
+ const arrival=yerevanToday(),request={hostelId:hostel.id,roomTypeId:hostel.roomTypes[1].id,guestName:'Overnight guest',guestContact:'arrival@example.test',contactType:'email',guestsCount:2,quantity:1,checkIn:addCalendarDays(arrival,-1),checkOut:addCalendarDays(arrival,1),actualArrivalDate:arrival,arrivalMode:'previous_night',estimatedArrivalTime:'03:00'};
+ const b=(await visitor.action('createBooking',[{...request,selectedServiceIds:[service.id]}])).data.booking;assert.ok(b);assert.equal(b.nights,2);assert.equal(b.extraServicesFeeAMD,800);assert.equal(b.earlyCheckInFeeAMD,0);assert.equal(b.lateCheckInFeeAMD,500);assert.equal(b.finalAmountAMD,37300);
+ assert.equal((await visitor.action('createBooking',[{...request,checkIn:arrival}])).data.success,false);
+ await admin.action('updateBookingStatus',[b.id,'confirmed']);hostel.cancellationRule={freeBeforeHours:0,penaltyPercent:0};await admin.action('saveHostel',[hostel]);assert.equal((await visitor.action('cancelBookingByGuest',[b.privateToken,'Travel plans changed'])).data.success,true);
+ await database.transaction(async state=>{assert.equal(state.bookings.find(item=>item.id===b.id)!.cancellationChargeAMD,18650);assert.equal(state.financeEntries?.length,0);});
+ assert.equal((await visitor.action('cancelBookingByGuest',[b.privateToken,'Retry'])).data.success,true);
+});
+
+test('articles preserve their primary language and accept only the translations actually entered',async t=>{
+ const {client,visitor}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const now=new Date().toISOString(),article={id:crypto.randomUUID(),slug:'language-guide',title:'Original guide',summary:'Summary',content:'Original English content',category:'travel',tags:[],sources:[],language:'en',status:'published',featuredImage:'',author:'Editor',lastVerifiedDate:'',createdAt:now,updatedAt:now,translations:{}};
+ assert.equal((await admin.action('saveArticle',[article])).data.success,true);const state=(await visitor.get()).state;const {publicPage}=await import('../src/utils/public-seo.js');assert.equal(publicPage(state,'/ru/guides/language-guide','https://example.test').status,404);
+ const translated={...article,translations:{ru:{title:'Путеводитель',summary:'Описание',content:'Текст на русском'}}};assert.equal((await admin.action('saveArticle',[translated])).data.success,true);assert.ok(publicPage((await visitor.get()).state,'/ru/guides/language-guide','https://example.test').content.includes('Текст на русском'));
+});

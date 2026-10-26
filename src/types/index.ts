@@ -1,8 +1,12 @@
+import type {CancellationRule,CommissionRule,OptionalService,UnitBlock,BookingChange,BookingEvent,SupportThread,FinanceEntry} from './operations.js';
 export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 
 export type UserRole = 'admin' | 'hostel_manager' | 'traveler';
 
 export interface User {
+  emailVerifiedAt?:string;
+  language?:AppLanguage;
+  emailNotifications?:boolean;
   id: string;
   email: string;
   name: string;
@@ -50,6 +54,10 @@ export interface CapacityOverride { hostelId: string; roomTypeId: string; date: 
 export interface AvailabilityDay extends CapacityOverride { booked: number; available: number }
 export interface Verification { status: 'unverified' | 'verified'; checkedAt?: string; checkedBy?: string; note?: string }
 export interface Hostel {
+  optionalServices?:OptionalService[];
+  cancellationRule?:CancellationRule;
+  commissionRule?:CommissionRule;
+  responseMinutes?:number;
   listingStatus?: ListingStatus;
   description?: Record<AppLanguage, string>;
   media?: PropertyImage[];
@@ -73,6 +81,7 @@ export interface Hostel {
   entrancePhoto?: string;
   directionsFa: string;
   directionsHy: string;
+  directionsEn?: string;directionsRu?: string;
   floorAndDoorCode?: string;
   verification?: Verification;
   nearMetro?: boolean;
@@ -131,11 +140,21 @@ export type BookingStatus =
   | 'no_show';
 
 export interface Booking {
+  searchContext?:{city?:string;district?:string;type?:string;budget?:number;amenities?:string[]};
+  versionToken?:string;
+  source?:'website'|'walk_in'|'telephone'|'external';
+  assignedUnitIds?:string[];checkedInAt?:string;checkedOutAt?:string;history?:BookingEvent[];
+  cancellationChargeAMD?:number;
+  actualArrivalDate?:string;arrivalMode?:'previous_night'|'standard'|'early_check_in';
+  reminderAt?:string;escalatedAt?:string;
+  selectedServiceIds?:string[];
+  commissionRule?:CommissionRule;
+
   idempotencyKey?: string;
   requestFingerprint?: string;
   language?: AppLanguage;
   agreement?: {
-    currency: 'AMD'; bookingUnit: 'bed' | 'room'; guestsPerUnit: number;
+    discountPercent?:number;checkInTime?:string;checkOutTime?:string;cancellationRule?:CancellationRule;optionalServices?:{id:string;name:Record<AppLanguage,string>;amountAMD:number;unit?:'stay'|'night'|'guest_night';unitPriceAMD?:number}[]; currency: 'AMD'; bookingUnit: 'bed' | 'room'; guestsPerUnit: number;
     nightlyPriceAMD: number; nightlyLines?: {date:string;unitPriceAMD:number;quantity:number;totalAMD:number;source:'base'|'weekend'|'override'}[]; discountSource?:'none'|'coupon'|'weekly'|'monthly'; cancellationPolicy: string;
     cancellationPolicyLocalized?: Record<AppLanguage,string>;
     paymentMethodsOnArrival: string[]; acceptedAt: string;
@@ -299,6 +318,7 @@ export interface Review {
 }
 
 export interface Article {
+  translations?:Partial<Record<AppLanguage,{title:string;summary:string;content:string}>>;
   id: string;
   slug: string;
   title: string;
@@ -342,11 +362,12 @@ export interface AuditLog {
 }
 
 export interface ClientState {
+  unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
   users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];
   coupons: Coupon[]; bookings: Booking[]; rentalInquiries: RentalInquiry[]; reviews: Review[];
   articles: Article[]; phrases: TravelPhrase[]; auditLogs: AuditLog[]; capacities: CapacityOverride[];
   previewMode?: boolean;
   availability: AvailabilityDay[]; demoMode: boolean;
-  settings: { emergencyHotline: string; telegramSupport: string; supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
+  settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
-export interface ActionResult { success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }
+export interface ActionResult { proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

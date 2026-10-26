@@ -1,3 +1,4 @@
+import {workflowErrors} from './workflow-errors.js';
 import type { AppLanguage } from '../src/types/index.js';
 const errors: Record<string,[string,string,string]>={
   'ابتدا ظرفیت‌های روزانه را با تعداد واحدهای جدید هماهنگ کنید.':['Update daily capacities to match the new unit count first.','Сначала приведите дневную вместимость в соответствие с новым количеством единиц.','Նախ օրական տարողությունը համապատասխանեցրեք միավորների նոր քանակին։'],
@@ -32,5 +33,5 @@ const errors: Record<string,[string,string,string]>={
 export function localizeError(message:string,language:unknown){
   const lang=(typeof language==='string'?language:'fa') as AppLanguage;
   const index={en:0,ru:1,hy:2}[lang as 'en'|'ru'|'hy'];
-  return index===undefined?message:errors[message]?.[index]??message;
+  return index===undefined?message:(errors[message]??workflowErrors[message])?.[index]??( /[\u0600-\u06ff]/.test(message)?['Unable to complete. Check the information and try again.','Не удалось выполнить. Проверьте данные и повторите попытку.','Չհաջողվեց կատարել։ Ստուգեք տվյալները և փորձեք կրկին։'][index]:message);
 }

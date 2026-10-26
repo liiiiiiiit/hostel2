@@ -1,14 +1,17 @@
+import {bookingStatusText} from '../src/i18n/dashboard.js';
+import {workflowText} from '../src/i18n/workflows.js';
 import type { Transaction } from '@libsql/client';
 import type { AppStoreState } from './domain.js';
 import type { Booking } from '../src/types/index.js';
 
-export async function enqueueBookingNotification(tx: Transaction, state: AppStoreState, booking: Booking) {
-  const subject = `YEREVANHUB · ${booking.trackingCode} · ${booking.status}`;
+export async function enqueueBookingNotification(tx: Transaction, state: AppStoreState, booking: Booking,kind:'status'|'reminder'|'escalation'|'support'|'change'='status') {
+  const language=booking.language??'fa';const w=workflowText(language);
+  const subject = `YEREVANHUB · ${booking.trackingCode} · ${kind==='status'?bookingStatusText(booking.status,language):w(kind==='support'?'support':kind==='change'?'change':'deadline')}`;
   const path = `/#/booking/${booking.privateToken}`;
   const base = process.env.APP_URL && /^https:\/\//.test(process.env.APP_URL) ? process.env.APP_URL.replace(/\/$/, '') : '';
-  const text = `${subject}\n${booking.checkIn} → ${booking.checkOut}\n${booking.finalAmountAMD} AMD\n${base ? base + path : booking.trackingCode}`;
+  const text = `${subject}\n${booking.checkIn} → ${booking.checkOut}\n${booking.finalAmountAMD} AMD\n${w('deadline')}: ${booking.expiresAt}\n${base ? base + path : booking.trackingCode}`;
   const recipients = new Set<string>();
-  if (booking.contactType === 'email') recipients.add(booking.guestContact);
+  if (booking.contactType === 'email' && (!booking.travelerUserId || state.users.find(user=>user.id===booking.travelerUserId)?.emailNotifications!==false)) recipients.add(booking.guestContact);
   const hostel = state.hostels.find(item => item.id === booking.hostelId);
   if (hostel?.email && hostel.verification?.status === 'verified') recipients.add(hostel.email);
   for (const user of state.users) if (user.isActive && (user.role === 'admin' || (user.role === 'hostel_manager' && user.assignedHostelIds?.includes(booking.hostelId)))) recipients.add(user.email);
@@ -22,7 +25,7 @@ export async function deliverNotifications(database: import('./database.js').Dat
   const claimed = await database.transaction(async (_state, tx) => {
     const channels = [process.env.RESEND_API_KEY && process.env.NOTIFICATION_FROM ? 'email' : '', process.env.TELEGRAM_BOT_TOKEN ? 'telegram' : ''].filter(Boolean);
     if (!channels.length) return [];
-    const rows = await tx.execute({ sql: `SELECT * FROM outbox WHERE channel IN (${channels.map(() => '?').join(',')}) AND status IN ('pending','retry','sending') AND next_attempt <= ? AND attempts < 5 ORDER BY created_at LIMIT 2`, args: [...channels, Date.now()] });
+    const rows = await tx.execute({ sql: `SELECT * FROM outbox WHERE channel IN (${channels.map(() => '?').join(',')}) AND status IN ('pending','retry','sending') AND next_attempt <= ? AND attempts < 5 ORDER BY created_at LIMIT ${Math.max(1,Math.min(20,Number(process.env.NOTIFICATION_BATCH_SIZE)||10))}`, args: [...channels, Date.now()] });
     const configured = rows.rows;
     for (const row of configured) await tx.execute({ sql: "UPDATE outbox SET status='sending', attempts=attempts+1, next_attempt=? WHERE id=?", args: [Date.now() + 5 * 60_000, String(row.id)] });
     return configured;

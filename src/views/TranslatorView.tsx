@@ -74,9 +74,9 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   const handleSelectPhrase = (phrase: TravelPhrase) => {
     const inputPhrase = phrase[currentLang];
     setInputText(inputPhrase);
-    setOutputText(phrase.hy);setTranslationError('');setTranslatorNote('');
+    const destination=currentLang==='hy'?'fa':'hy';setOutputText(phrase[destination]);setTranslationError('');setTranslatorNote('');
     setSourceLang(currentLang);
-    setTargetLang('hy');
+    setTargetLang(destination);
   };
 
   const filteredPhrases = phrases.filter(

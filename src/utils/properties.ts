@@ -12,7 +12,7 @@ export function newRental(): RentalProperty {
   const now = new Date().toISOString();
   return { id: crypto.randomUUID(), slug: '', title: emptyTranslation(), description: emptyTranslation(), propertyType: 'apartment', rentalType: 'short_term', city: '', neighborhood: '', approximateLocationLabel: '', addressPublic: '', addressExactInternal: '', photos: [], media: [], areaSqm: 0, floor: 0, totalFloors: 0, hasElevator: false, bedroomsCount: 0, bedsCount: 0, bathroomsCount: 0, maxResidents: 0, isFurnished: false, refundableDepositAMD: 0, depositTerms: '', commissionType: 'none_direct', commissionAmountText: '', cleaningFeeAMD: 0, utilitiesBreakdown: { electricity: 'tenant', water: 'tenant', gas: 'tenant', internet: 'tenant', buildingMaintenance: 'tenant' }, amenities: { wifi: false, ac: false, centralHeating: false, washingMachine: false, dishwasher: false, balcony: false, parking: false, petFriendly: false }, verifiedBadge: false, verifiedExplanation: '', providerType: 'direct_owner', landlordInternalNotes: '', status: 'draft', lastCheckedAt: '', factsConfirmed: false, sampleContent: false, createdAt: now, updatedAt: now };
 }
-export type PublicationIssue = 'translations' | 'address' | 'coordinates' | 'contact' | 'reception' | 'policies' | 'rooms' | 'photos' | 'review' | 'rentalDetails' | 'rentalPrices';
+export type PublicationIssue = 'translations' | 'arrival' | 'address' | 'coordinates' | 'contact' | 'reception' | 'policies' | 'rooms' | 'photos' | 'review' | 'rentalDetails' | 'rentalPrices';
 const translated = (value?: Record<AppLanguage, string>) => !!value && propertyLanguages.every(lang => value[lang]?.trim());
 const time = (value?: string) => !!value && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 export function publicationIssues(value: Hostel | RentalProperty): PublicationIssue[] {
@@ -21,11 +21,12 @@ export function publicationIssues(value: Hostel | RentalProperty): PublicationIs
   if (!value.photos.length || !value.media?.length || value.media.some(image => !translated(image.alt))) issues.push('photos');
   if (!value.factsConfirmed || value.sampleContent) issues.push('review');
   if ('roomTypes' in value) {
+    if(![value.directionsFa,value.directionsEn,value.directionsRu,value.directionsHy].every(text=>text?.trim()))issues.push('arrival');
     if (!value.city.trim() || !translated(value.address) || !value.addressArmenianForTaxi.trim()) issues.push('address');
     if (value.coordinatesProvided === false || !Number.isFinite(value.coordinates.lat) || Math.abs(value.coordinates.lat) > 90 || !Number.isFinite(value.coordinates.lng) || Math.abs(value.coordinates.lng) > 180) issues.push('coordinates');
     if (!value.phone.trim() || !value.languagesSpoken.length) issues.push('contact');
     if (!time(value.checkInStandardTime) || !time(value.checkOutStandardTime) || (!value.reception24h && (!time(value.receptionOpenTime) || !time(value.receptionCloseTime)))) issues.push('reception');
-    if (!translated(value.rules.cancellationPolicyLocalized) || !value.rules.acceptedPaymentMethodsOnArrival.length) issues.push('policies');
+    if (!value.cancellationRule||!value.responseMinutes||value.optionalServices?.some(service=>service.active&&!translated(service.name))||!translated(value.rules.cancellationPolicyLocalized) || !value.rules.acceptedPaymentMethodsOnArrival.length) issues.push('policies');
     if (!value.roomTypes.length || value.roomTypes.some(room => !translated(room.name) || !translated(room.description) || room.totalBedsOrRooms < 1 || room.pricePerNightAMD < 1 || !room.maxGuestsPerUnit || room.bookingUnit !== (room.type === 'private' ? 'room' : 'bed') || (room.type !== 'private' && room.maxGuestsPerUnit !== 1) || room.physicalUnits?.length !== room.totalBedsOrRooms || room.physicalUnits.some(unit => !unit.label.trim()) || new Set(room.physicalUnits.map(unit => unit.label)).size !== room.totalBedsOrRooms)) issues.push('rooms');
   } else {
     if (!value.city.trim() || !value.addressPublic.trim() || !value.approximateLocationLabel.trim()) issues.push('address');

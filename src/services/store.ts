@@ -1,8 +1,9 @@
+import {OFFLINE_PHRASES} from '../content/phrasebook';
 import { calculateNights } from '../utils/pricing';
 import type { Store as DomainStore } from '../../server/domain';
 import type { ActionResult, ClientState, Hostel } from '../types';
 
-const emptyState: ClientState = { users: [], currentUser: null, hostels: [], rentals: [], coupons: [], bookings: [], rentalInquiries: [], reviews: [], articles: [], phrases: [], auditLogs: [], capacities: [], availability: [], demoMode: false, settings: { emergencyHotline: '', telegramSupport: '', supportWorkingHoursFa: '', immediateTimeoutMinutes: 30 } };
+const emptyState: ClientState = { users: [], currentUser: null, hostels: [], rentals: [], coupons: [], bookings: [], rentalInquiries: [], reviews: [], articles: [], phrases: OFFLINE_PHRASES, auditLogs: [], capacities: [], availability: [], demoMode: false, settings: { emergencyHotline: '', telegramSupport: '', supportWorkingHoursFa: '', immediateTimeoutMinutes: 30 } };
 class ApiStore {
   private state = structuredClone(emptyState);
   private listeners = new Set<() => void>();
@@ -27,7 +28,7 @@ class ApiStore {
   getHostelAverageRating = (id: string) => { const reviews = this.state.reviews.filter(r => r.hostelId === id && r.status === 'approved'); return { avg: reviews.length ? Math.round(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length * 10) / 10 : 0, count: reviews.length }; };
   async refresh() {
     const revision = ++this.revision;
-    const response = await fetch('/api/app', { headers: this.headers(), credentials: 'same-origin' });
+    const response = await fetch('/api/app', { headers: this.headers(), credentials: 'same-origin', signal:AbortSignal.timeout(15000) });
     const data = await response.json();
     if (!response.ok || !data.state) throw new Error(data.error || 'ارتباط با سرور برقرار نشد.');
     if (revision === this.revision) this.apply(data.state);
@@ -36,7 +37,7 @@ class ApiStore {
   async action(action: string, args: unknown[]): Promise<ActionResult> {
     const revision = ++this.revision;
     try {
-      const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', headers: this.headers(), body: JSON.stringify({ action, args }) });
+      const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', signal:AbortSignal.timeout(15000), headers: this.headers(), body: JSON.stringify({ action, args }) });
       const data = await response.json();
       if (data.state && revision === this.revision) this.apply(data.state);
       if (!response.ok) return { success: false, error: data.error || 'درخواست انجام نشد.' };

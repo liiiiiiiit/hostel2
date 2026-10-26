@@ -5,12 +5,27 @@
   "outputDirectory": "dist",
   "functions": {
     "api/app.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "dist/index.html"
     }
   },
   "git": {
     "deploymentEnabled": {
       "codex/property-management-workflow": false
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/app?publicPath=/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api/app?publicPath=/robots.txt"
+    },
+    {
+      "source": "/:lang(fa|en|ru|hy)/:path*",
+      "destination": "/api/app?publicPath=/:lang/:path*"
+    }
+  ]
 }

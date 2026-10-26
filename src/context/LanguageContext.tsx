@@ -27,6 +27,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentLang, setCurrentLangState] = useState<AppLanguage>(() => {
+    const routeLanguage=typeof window==='undefined'?'':window.location.pathname.split('/')[1];if(['fa','en','ru','hy'].includes(routeLanguage))return routeLanguage as AppLanguage;
     try {
       const saved = localStorage.getItem('yerevanhub_lang');
       if (saved === 'fa' || saved === 'en' || saved === 'ru' || saved === 'hy') {
@@ -54,6 +55,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const setLanguage = (lang: AppLanguage) => {
     setCurrentLangState(lang);
+    if(/^\/(fa|en|ru|hy)(\/|$)/.test(window.location.pathname)&&window.location.pathname.split('/')[1]!==lang){window.history.replaceState({},'',window.location.pathname.replace(/^\/(fa|en|ru|hy)/,'/'+lang)+window.location.search+window.location.hash);window.dispatchEvent(new PopStateEvent('popstate'));}
   };
 
   const t = UI_TRANSLATIONS[currentLang] || UI_TRANSLATIONS.fa;

@@ -1,3 +1,4 @@
+import {workflowText} from '../i18n/workflows';
 import { calculateBookingPrice } from '../utils/pricing';
 import { requiredUnits } from '../utils/occupancy';
 import React, { useMemo, useState } from 'react';
@@ -29,14 +30,14 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
   const [quantity, setQuantity] = useState(initialFilter?.guests || 1);
   const [city, setCity] = useState(initialFilter?.city || 'all');
   const [district, setDistrict] = useState(initialFilter?.district || 'all');
-  const [roomType, setRoomType] = useState('all');
-  const [maxPrice, setMaxPrice] = useState(30000);
-  const [amenities, setAmenities] = useState<string[]>([]);
+  const [roomType, setRoomType] = useState(initialFilter?.type||'all');
+  const [maxPrice, setMaxPrice] = useState<number|null>(initialFilter?.budget??null);
+  const [amenities, setAmenities] = useState<string[]>((initialFilter?.amenities||'').split(',').filter((key:string)=>['kitchen','metro','monthly','24h','elevator','coworking','tonight'].includes(key)));
   const [sort, setSort] = useState('recommended');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const nights = calculateNights(checkIn, checkOut);
   const quote=(room:Hostel['roomTypes'][number])=>calculateBookingPrice({pricePerNight:room.pricePerNightAMD,checkIn,checkOut,quantity:requiredUnits(room,quantity)??0,rules:room.pricingRules});
-  const rooms=(hostel:Hostel)=>hostel.roomTypes.filter(room=>(roomType==='all'||room.type===roomType)&&quote(room).isValidDates&&quote(room).finalAmountToPayOnArrival/nights<=maxPrice&&appStore.remainingCapacity(hostel,room.id,checkIn,checkOut)>=(requiredUnits(room,quantity)??Infinity));
+  const rooms=(hostel:Hostel)=>hostel.roomTypes.filter(room=>(roomType==='all'||room.type===roomType)&&quote(room).isValidDates&&(maxPrice===null||quote(room).finalAmountToPayOnArrival/nights<=maxPrice)&&appStore.remainingCapacity(hostel,room.id,checkIn,checkOut)>=(requiredUnits(room,quantity)??Infinity));
   const bestRoom=(hostel:Hostel)=>rooms(hostel).sort((a,b)=>quote(a).finalAmountToPayOnArrival-quote(b).finalAmountToPayOnArrival)[0];
   const nightly=(hostel:Hostel)=>{const room=bestRoom(hostel);return room?quote(room).finalAmountToPayOnArrival/nights:Infinity;};
   const filtered = useMemo(() => hostels.filter(h => {
@@ -46,8 +47,9 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
     return amenities.every(key => key === 'kitchen' ? h.amenities.kitchen : key === 'metro' ? h.nearMetro : key === 'monthly' ? h.monthlyStayAvailable : key === '24h' ? h.reception24h : key === 'elevator' ? h.amenities.elevator : key === 'coworking' ? h.amenities.coworking : h.roomTypes.some(room => appStore.remainingCapacity(h, room.id, yerevanToday(), addCalendarDays(yerevanToday(),1)) >= quantity));
   }).sort((a,b) => sort === 'price_asc' ? nightly(a)-nightly(b) : sort === 'price_desc' ? nightly(b)-nightly(a) : sort === 'rating' ? getHostelRating(b.id).avg-getHostelRating(a.id).avg : 0),
   [hostels, checkIn, checkOut, quantity, city, district, roomType, maxPrice, amenities, sort, getHostelRating]);
-  const clear = () => { setCity('all'); setDistrict('all'); setRoomType('all'); setMaxPrice(30000); setAmenities([]); };
-  const filterCount = amenities.length + Number(city !== 'all') + Number(district !== 'all') + Number(roomType !== 'all') + Number(maxPrice !== 30000);
+  const budgetMax=Math.ceil(Math.max(30000,...hostels.flatMap(hostel=>hostel.roomTypes.map(room=>{const amount=quote(room).finalAmountToPayOnArrival/Math.max(1,nights);return Number.isFinite(amount)?amount:0;})))/1000)*1000;
+  const clear = () => { setCity('all'); setDistrict('all'); setRoomType('all'); setMaxPrice(null); setAmenities([]); };
+  const filterCount = amenities.length + Number(city !== 'all') + Number(district !== 'all') + Number(roomType !== 'all') + Number(maxPrice !== null);
   const toggle = (key: string) => setAmenities(items => items.includes(key) ? items.filter(item => item !== key) : [...items,key]);
   const options = [['kitchen',ft.kitchen],['metro',ft.metro],['monthly',ft.monthlyStay],['24h',t.reception24hBadge],['elevator',getAmenityLabel('elevator',currentLang)],['coworking',getAmenityLabel('coworking',currentLang)],['tonight',copy.tonight]];
   return <div className="page-shell py-8 sm:py-12 space-y-7">
@@ -57,20 +59,21 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
         <label htmlFor="stay-city" className="text-sm font-medium">{t.cityLabel}<select id="stay-city" className="field mt-2" value={city} onChange={event => { setCity(event.target.value); setDistrict('all'); }}><option value="all">{t.allCities}</option>{[...new Set(hostels.map(h=>h.city))].map(item=><option key={item} value={item}>{getCityName(item,currentLang)}</option>)}</select></label>
         <label htmlFor="stay-check-in" className="text-sm font-medium">{ft.checkIn}<input id="stay-check-in" aria-label={ft.checkIn} type="date" min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} className="field mt-2" value={checkIn} onChange={event=>{setCheckIn(event.target.value);if(event.target.value && event.target.value >= checkOut)setCheckOut(addCalendarDays(event.target.value,1));}} /></label>
         <label htmlFor="stay-check-out" className="text-sm font-medium">{ft.checkOut}<input id="stay-check-out" aria-label={ft.checkOut} type="date" min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} className="field mt-2" value={checkOut} onChange={event=>setCheckOut(event.target.value)} /></label>
-        <label htmlFor="stay-quantity" className="text-sm font-medium">{ft.guests}<select id="stay-quantity" className="field mt-2" value={quantity} onChange={event=>setQuantity(Number(event.target.value))}>{[1,2,3,4,5,6].map(n=><option key={n}>{n}</option>)}</select></label>
+        <label htmlFor="stay-quantity" className="text-sm font-medium">{ft.guests}<input id="stay-quantity" className="field mt-2" type="number" min={1} max={100} value={quantity} onChange={event=>setQuantity(Number(event.target.value))}/></label>
         <button type="button" className="button-secondary col-span-2 lg:col-span-1" aria-expanded={filtersOpen} aria-controls="stay-extra-filters" onClick={()=>setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17}/>{filtersOpen ? copy.less : copy.filters}{filterCount > 0 && <span className="rounded-full bg-slate-100 px-2">{filterCount}</span>}</button>
       </div>
       {filtersOpen && <div id="stay-extra-filters" className="border-t border-slate-100 pt-5 space-y-5">
         <div className="grid sm:grid-cols-3 gap-4">
           <label htmlFor="stay-district" className="text-sm">{ft.location}<select id="stay-district" className="field mt-2" value={district} onChange={event=>setDistrict(event.target.value)}><option value="all">{t.allCities}</option>{[...new Set(hostels.filter(h=>city==='all'||h.city===city).map(h=>h.district))].map(value=><option key={value}>{value}</option>)}</select></label>
           <label htmlFor="stay-room-type" className="text-sm">{copy.room}<select id="stay-room-type" className="field mt-2" value={roomType} onChange={event=>setRoomType(event.target.value)}>{['all','dorm_mixed','dorm_female','dorm_male','private'].map(value=><option key={value} value={value}>{getRoomTypeFilterName(value,currentLang)}</option>)}</select></label>
-          <label htmlFor="stay-budget" className="text-sm">{copy.maxNightly}<div className="mt-3 font-semibold ltr-isolate">{maxPrice.toLocaleString()} AMD</div><input id="stay-budget" className="w-full accent-emerald-700 mt-3" type="range" min={0} max={30000} step={1000} value={maxPrice} onChange={event=>setMaxPrice(Number(event.target.value))}/></label>
+          <label htmlFor="stay-budget" className="text-sm">{copy.maxNightly}<div className="mt-3 font-semibold ltr-isolate">{maxPrice===null?workflowText(currentLang)('all'):maxPrice.toLocaleString()+' AMD'}</div><input id="stay-budget" className="w-full accent-emerald-700 mt-3" type="range" min={0} max={budgetMax} step={1000} value={maxPrice??budgetMax} onChange={event=>setMaxPrice(Number(event.target.value))}/></label>
         </div>
         <div className="flex gap-3 flex-wrap">{options.map(([key,label])=><label key={key} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm cursor-pointer"><input type="checkbox" checked={amenities.includes(key)} onChange={()=>toggle(key)}/>{label}</label>)}</div>
         <button type="button" className="text-sm underline underline-offset-4" onClick={clear}>{t.clearFilters}</button>
       </div>}
       {nights < 1 && <p role="alert" className="text-sm text-red-700">{copy.invalid}</p>}
     </section>
+    <button className="button-secondary" onClick={()=>onNavigate('recommendations',{checkIn,checkOut,guests:quantity,type:roomType,city,district,budget:maxPrice??undefined,amenities:amenities.join(',')})}>{workflowText(currentLang)('recommend')}</button>
     <div className="flex items-center justify-between gap-3"><p className="text-sm text-slate-500"><strong className="text-slate-900">{filtered.length}</strong> {copy.results}</p><label className="flex items-center gap-2 text-sm" htmlFor="stay-sort"><span className="hidden sm:inline text-slate-500">{t.sortByLabel}</span><select id="stay-sort" className="field !w-auto" value={sort} onChange={event=>setSort(event.target.value)}><option value="recommended">{t.sortRecommended}</option><option value="price_asc">{t.sortPriceAsc}</option><option value="price_desc">{t.sortPriceDesc}</option><option value="rating">{t.sortRating}</option></select></label></div>
     {!filtered.length ? <div className="surface px-6 py-16 text-center space-y-3"><Building2 className="mx-auto text-slate-400" size={36}/><h2 className="text-xl font-semibold">{copy.empty}</h2><p className="text-slate-500">{copy.emptyHint}</p><button type="button" className="button-secondary mx-auto" onClick={clear}>{t.clearFilters}</button></div> : <div className="grid gap-5">{filtered.map(hostel=>{
       const rating=getHostelRating(hostel.id),name=getLocalized(hostel.name,currentLang),price=nightly(hostel);
@@ -78,9 +81,9 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
         <div className="relative aspect-[16/10] md:aspect-auto min-h-56 bg-slate-100"><img src={hostel.photos[0]} alt={name} loading="lazy" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"/>{hostel.verification?.status==='verified' && <span className="absolute top-4 start-4 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-emerald-800">✓ {ft.verified}</span>}</div>
         <div className="p-5 sm:p-7 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="eyebrow">{getCityName(hostel.city,currentLang)} · {hostel.district}</p><span className="inline-flex items-center gap-1 text-sm text-slate-500">{rating.count>0 ? <><Star size={15} className="text-amber-600 fill-amber-500"/><strong className="text-slate-900">{rating.avg}</strong> ({rating.count})</> : copy.noReviews}</span></div>
-          <div><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,roomTypeId:bestRoom(hostel)?.id})}>{name}</button><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
+          <div><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,city,district,type:roomType,budget:maxPrice??undefined,amenities:amenities.join(','),roomTypeId:bestRoom(hostel)?.id})}>{name}</button><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">{hostel.amenities.wifi&&<span className="inline-flex gap-1.5 items-center"><Wifi size={16}/>{getAmenityLabel('wifi',currentLang)}</span>}{hostel.amenities.lockers&&<span className="inline-flex gap-1.5 items-center"><Lock size={16}/>{getAmenityLabel('lockers',currentLang)}</span>}{hostel.reception24h&&<span>{t.reception24hBadge}</span>}</div>
-          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end"><div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div><div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,roomTypeId:bestRoom(hostel)?.id})}>{t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
+          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end"><div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div><div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>onNavigate('hostel-detail',{id:hostel.id,checkIn,checkOut,guests:quantity,city,district,type:roomType,budget:maxPrice??undefined,amenities:amenities.join(','),roomTypeId:bestRoom(hostel)?.id})}>{t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
         </div>
       </article>;
     })}</div>}

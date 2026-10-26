@@ -1,3 +1,6 @@
+import {scheduledWork} from './jobs.js';
+import {accountSchemas,accountAction} from './accounts.js';
+import {operationSchemas,operate} from './operations.js';
 import express from 'express';
 import { translateOnServer } from './translator.js';
 import { localizeError } from './locale.js';
@@ -27,12 +30,13 @@ const entity = z.object({ id: text }).passthrough();
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
+  ...operationSchemas,...accountSchemas,
   translateText:z.tuple([z.string().trim().min(1).max(2000),z.enum(['auto','fa','en','ru','hy']),z.enum(['fa','en','ru','hy'])]),
   login: z.tuple([email, password]), logout: z.tuple([]),
   registerTraveler: z.tuple([text, email, optionalText.nullable(), password]),
-  createBooking: z.tuple([z.object({ acceptedTerms:z.literal(true), expectedHostelUpdatedAt:z.string().min(1).max(100), idempotencyKey:z.uuid(), language:z.enum(['fa','en','ru','hy']).optional(), hostelId: text, roomTypeId: text, guestName: text, contactType: z.enum(['phone','email']), guestContact: text, checkIn: date, checkOut: date, guestsCount: positive, quantity: positive, estimatedArrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), specialRequests: optionalText, isLowerBunkRequested: z.boolean().optional(), isImmediateArrival: z.boolean().optional(), couponCode: optionalText }).refine(value => calculateNights(value.checkIn, value.checkOut) >= 1 && calculateNights(value.checkIn, value.checkOut) <= 90 && value.checkIn >= yerevanToday() && value.checkOut <= addCalendarDays(yerevanToday(),89), 'Invalid stay dates').refine(value => value.contactType !== 'email' || z.email().safeParse(value.guestContact).success, 'Invalid contact')]),
+  createBooking: z.tuple([z.object({ acceptedTerms:z.literal(true), expectedHostelUpdatedAt:z.string().min(1).max(100), idempotencyKey:z.uuid(), language:z.enum(['fa','en','ru','hy']).optional(),searchContext:z.object({city:text.optional(),district:text.optional(),type:z.string().max(50).optional(),budget:z.number().min(0).max(100000000000).optional(),amenities:z.array(z.enum(['kitchen','metro','monthly','24h','elevator','coworking','tonight'])).max(10).optional()}).optional(),actualArrivalDate:date.optional(),arrivalMode:z.enum(['previous_night','standard','early_check_in']).optional(),selectedServiceIds:z.array(text).max(30).optional(), hostelId: text, roomTypeId: text, guestName: text, contactType: z.enum(['phone','email']), guestContact: text, checkIn: date, checkOut: date, guestsCount: positive, quantity: positive, estimatedArrivalTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(), specialRequests: optionalText, isLowerBunkRequested: z.boolean().optional(), isImmediateArrival: z.boolean().optional(), couponCode: optionalText }).refine(value => calculateNights(value.checkIn, value.checkOut) >= 1 && calculateNights(value.checkIn, value.checkOut) <= 90 && value.checkIn >= (value.arrivalMode==='previous_night'&&value.actualArrivalDate===yerevanToday()?addCalendarDays(yerevanToday(),-1):yerevanToday()) && value.checkOut <= addCalendarDays(yerevanToday(),89), 'Invalid stay dates').refine(value => value.contactType !== 'email' || z.email().safeParse(value.guestContact).success, 'Invalid contact')]),
   updateBookingStatus: z.tuple([text, status, optionalText]),
-  cancelBookingByGuest: z.tuple([text, z.string().max(1000)]), reportEntranceIssue: z.tuple([text, z.string().max(2000)]),
+  cancelBookingByGuest: z.tuple([text, z.string().trim().min(1).max(1000)]), reportEntranceIssue: z.tuple([text, z.string().max(2000)]),
   submitReview: z.tuple([text, z.number().int().min(1).max(5), z.string().trim().min(1).max(3000), scores.optional()]),
   createRentalInquiry: z.tuple([z.object({ propertyId: text, guestName: text, contact: text, requestType: z.enum(['rent','visit']), desiredStartDate: date.optional(), desiredDurationText: optionalText, proposedVisitDate: optionalText, residentsCount: positive, notes: optionalText })]),
   setCapacity: z.tuple([text, text, date, z.number().int().min(0).max(100)]),
@@ -45,10 +49,10 @@ const schemas = {
   toggleCoupon: z.tuple([text]), deleteCoupon: z.tuple([text]),
   moderateReview: z.tuple([text, z.enum(['approved','rejected']), optionalText]),
   updateRentalInquiryStatus: z.tuple([text, z.enum(['pending_review','coordinating','proposed_terms','agreed','rejected','cancelled','completed']), optionalText]),
-  saveArticle: z.tuple([entity.extend({ title: text, slug: text, content: z.string().max(100000), tags: z.array(z.string()), sources: z.array(z.string()), status: z.enum(['draft','published']) }).passthrough()]),
+  saveArticle: z.tuple([entity.extend({ translations:z.partialRecord(z.enum(['fa','en','ru','hy']),z.object({title:z.string().max(500),summary:z.string().max(10000),content:z.string().max(100000)})).optional(), title: text, slug: text, content: z.string().max(100000), tags: z.array(z.string()), sources: z.array(z.string()), status: z.enum(['draft','published']) }).passthrough()]),
   deleteArticle: z.tuple([text]), notificationStatus: z.tuple([]), sendNotifications: z.tuple([]),
   updateHostelLocation: z.tuple([text, coordinates.extend({ verified: z.boolean(), note: z.string().trim().max(1000).optional() })]),
-  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), entrancePhoto: z.union([z.literal(''),z.string().url()]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
+  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), directionsEn:z.string().max(5000).optional(),directionsRu:z.string().max(5000).optional(), entrancePhoto: z.union([z.literal(''),z.string().url()]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
 };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(part => part.includes('=')).map(part => { const split = part.indexOf('='); return [part.slice(0, split).trim(), part.slice(split + 1)]; }));
@@ -57,7 +61,7 @@ export function createApi(database: Database) {
   const app = express();
   app.disable('x-powered-by');
   if (process.env.VERCEL) app.set('trust proxy', 1);
-  app.use(express.json({ limit: '256kb' }));
+  app.use(express.json({ limit: '1mb' }));
   const production = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
   const cookieName = production ? '__Host-yh_session' : 'yh_session';
   app.use(['/api','/api/app'], (_req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' }); next(); });
@@ -120,7 +124,7 @@ export function createApi(database: Database) {
     try {
       if (req.query.worker === 'notifications') {
         if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) { res.status(401).json({ error: 'Unauthorized' }); return; }
-        res.json(await deliverNotifications(database)); return;
+        res.json(await scheduledWork(database)); return;
       }
       const data = await database.transaction(async (state, tx) => {
         const actor = await session(req, state, tx);
@@ -145,7 +149,7 @@ export function createApi(database: Database) {
         await tx.execute({ sql: 'DELETE FROM rate_limits WHERE expires_at<?', args: [now] });
         await tx.execute({ sql: 'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', args: [bucket, now + 60_000] });
         const rate = await tx.execute({ sql: 'SELECT count FROM rate_limits WHERE key=?', args: [bucket] });
-        const max = ['login','registerTraveler','translateText'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+        const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
         if (Number(rate.rows[0].count) > max) return { success: false, error: 'تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', rateLimited: true };
         let actor = await session(req, state, tx);
         const store = new Store(state, true); store.getState().currentUser = actor;
@@ -165,6 +169,11 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: production, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action in accountSchemas){
+          actionResult=await accountAction(store.getState(),tx,envelope.action as keyof typeof accountSchemas,args);actor=store.getState().currentUser;
+          if(!actor)res.cookie(cookieName,'',{httpOnly:true,secure:production,sameSite:'lax',path:'/',maxAge:0});
+        } else if(envelope.action in operationSchemas){
+          actionResult=await operate(store,envelope.action as keyof typeof operationSchemas,args);
         } else if(envelope.action==='translateText'){
           const [text,source,target]=args as [string,'auto'|'fa'|'en'|'ru'|'hy','fa'|'en'|'ru'|'hy'];
           return {success:true,translationInput:{text,source,target}};
@@ -181,6 +190,7 @@ export function createApi(database: Database) {
           const rows = await tx.execute('SELECT status, COUNT(*) AS count FROM outbox GROUP BY status');
           return { success: true, notifications: rows.rows, configured: { email: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFICATION_FROM), telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) } };
         } else {
+          if(envelope.action==='updateBookingStatus'){const b=store.getState().bookings.find(b=>b.id===args[0]);if(b&&args[1]==='completed'&&(!b.checkedInAt||!b.checkedOutAt))throw new Error('ورود و خروج واقعی را از بخش پذیرش ثبت کنید.');if(b&&args[1]==='no_show'&&(b.checkedInAt||b.checkIn>yerevanToday()))throw new Error('وضعیت عدم حضور معتبر نیست.');if(['rejected','cancelled','no_show'].includes(String(args[1]))&&!String(args[2]??'').trim())throw new Error('دلیل تغییر وضعیت الزامی است.');}
           if (envelope.action === 'submitReview') {
             const booking = store.getBookingByToken(String(args[0]));
             if (!booking || booking.checkOut > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Yerevan' })) return { success: false, error: 'پس از پایان اقامت می‌توانید نظر بدهید.' };
@@ -206,12 +216,14 @@ export function createApi(database: Database) {
           const user = state.users.find(user => user.id === args[0]);
           if (user && !user.isActive) await tx.execute({ sql: 'DELETE FROM sessions WHERE user_id=?', args: [user.id] });
         }
+        const additional=envelope.action==='reportEntranceIssue'?state.bookings.find(b=>b.privateToken===args[0]):['createSupportThread','replySupportThread','resolveSupportThread'].includes(envelope.action)&&actionResult.thread?state.bookings.find(b=>b.id===actionResult.thread!.bookingId):['requestBookingChange','applyBookingChange','rejectBookingChange'].includes(envelope.action)?state.bookings.find(b=>b.id===(actionResult.proposal?.bookingId??state.bookingChanges?.find(change=>change.id===args[0])?.bookingId)):undefined;
+        if(additional)await enqueueBookingNotification(tx,state,additional,envelope.action.includes('Support')||envelope.action==='reportEntranceIssue'?'support':'change');
         const changed = state.bookings.filter(booking => before.get(booking.id) !== booking.status);
         for (const booking of changed) await enqueueBookingNotification(tx, state, booking);
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
-        if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; actionResult={...actionResult,booking:safe}; }
-        return { ...actionResult, dispatch: changed.length > 0 && !database.demo, state: publicState(state, actor, database.demo, bookingToken, inquiryToken) };
+        if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; if(actor?.role!=='admin'&&!(actor?.role==='hostel_manager'&&actor.assignedHostelIds?.includes(safe.hostelId)))delete safe.commissionRule;actionResult={...actionResult,booking:safe}; }
+        return { ...actionResult, dispatch: (changed.length > 0||!!additional) && !database.demo, state: publicState(state, actor, database.demo, bookingToken, inquiryToken) };
       });
       if('translationInput' in result&&result.translationInput){res.json({success:true,translation:await translateOnServer(result.translationInput)});return;}
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }
@@ -224,10 +236,11 @@ export function createApi(database: Database) {
   });
   app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large') { res.status(413).json({success:false,error:localizeError('حجم فایل بیش از حد مجاز است.',req.headers['x-app-language'])}); return; }
+    if(error&&typeof error==='object'&&'type' in error&&error.type==='entity.parse.failed'){res.status(400).json({success:false,error:localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language'])});return;}
     if (error instanceof z.ZodError) { res.status(400).json({ success: false, error: localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language']) }); return; }
     if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : error.message.includes('ترجمه') ? 503 : 400).json({ success: false, error: localizeError(error.message,req.headers['x-app-language']) }); return; }
     const forbidden = error instanceof Error && error.message === 'دسترسی مجاز نیست.';
-    res.status(forbidden ? 403 : 500).json({ success: false, error: forbidden ? 'دسترسی مجاز نیست.' : 'سرویس در دسترس نیست. تنظیمات سرور را بررسی کنید.' });
+    res.status(forbidden ? 403 : 500).json({ success: false, error:localizeError(forbidden ? 'دسترسی مجاز نیست.' : 'سرویس در دسترس نیست. تنظیمات سرور را بررسی کنید.',req.headers['x-app-language']) });
   });
   return app;
 }

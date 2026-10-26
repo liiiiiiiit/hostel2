@@ -245,14 +245,14 @@ export const StaticPages: React.FC<Props> = ({ currentLang, pageType }) => {
             <Phone className="w-8 h-8 text-emerald-600 mx-auto" />
             <h3 className="font-bold text-sm text-slate-900">{content.emergencyPhoneTitle}</h3>
             <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.emergencyHotline||unconfigured}</p>
-            <span className="text-[11px] text-slate-400 block">{currentLang==='fa'&&settings.supportWorkingHoursFa||unconfigured}</span>
+            <span className="text-[11px] text-slate-400 block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
           </div>
 
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">
             <Send className="w-8 h-8 text-sky-500 mx-auto" />
             <h3 className="font-bold text-sm text-slate-900">{content.telegramTitle}</h3>
             <p className="font-mono text-sm font-bold text-slate-800 ltr-isolate">{settings.telegramSupport||unconfigured}</p>
-            <span className="text-[11px] text-slate-400 block">{currentLang==='fa'&&settings.supportWorkingHoursFa||unconfigured}</span>
+            <span className="text-[11px] text-slate-400 block">{settings.supportHours?.[currentLang]||(currentLang==='fa'?settings.supportWorkingHoursFa:'')||unconfigured}</span>
           </div>
 
           <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 text-center">

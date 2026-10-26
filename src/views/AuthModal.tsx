@@ -1,3 +1,4 @@
+import {workflowText} from '../i18n/workflows';
 import React, { useEffect, useRef, useState } from 'react';
 import type { AppLanguage, User } from '../types';
 import { X, ArrowRight, Eye, EyeOff, LockKeyhole } from 'lucide-react';
@@ -56,7 +57,7 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
           {tab === 'register' && <div><label className="field-label" htmlFor="auth-phone">{t.phone}</label><input id="auth-phone" type="tel" autoComplete="tel" dir="ltr" maxLength={50} value={phone} onChange={event => setPhone(event.target.value)} className="field" /></div>}
           {error && <p role="alert" className="bg-rose-50 text-rose-800 rounded-xl p-3 text-sm">{error}</p>}
           <button type="submit" disabled={busy} className="button-primary w-full !mt-6">{busy ? t.working : tab === 'login' ? t.submit : t.create}<ArrowRight size={17} className={currentLang === 'fa' ? 'rotate-180' : ''} /></button>
-        </form>
+        {tab==='login'&&<button type="button" className="text-sm underline" disabled={busy||!email} onClick={async()=>{setBusy(true);try{const result=await appStore.action('requestPasswordRecovery',[email,currentLang]);setError(result.success?workflowText(currentLang)('recoverySent'):result.error||t.error);}finally{setBusy(false);}}}>{workflowText(currentLang)('forgot')}</button>}</form>
         {appStore.getState().demoMode && <details className="border-t border-slate-100 pt-4 mt-6 text-xs"><summary className="text-slate-500">{t.demo}</summary><div className="flex gap-2 mt-3">{(['admin','manager','traveler'] as const).map(role => <button key={role} type="button" disabled={busy} onClick={() => demo(role)} className="border rounded-lg p-2 flex-1">{t[role]}</button>)}</div></details>}
         <p className="flex gap-2 justify-center items-center text-xs text-slate-500 mt-6"><LockKeyhole size={13} />{t.private}</p>
       </>}

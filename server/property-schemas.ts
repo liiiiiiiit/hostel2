@@ -16,10 +16,10 @@ const base = {
 const calendarDate=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value);
 const pricingRules=z.object({minimumNights:z.number().int().min(1).max(90),weekendDays:z.array(z.number().int().min(0).max(6)).max(7),weekendPriceAMD:money.optional(),overrides:z.array(z.object({id,from:calendarDate,to:calendarDate,priceAMD:money}).refine(rate=>rate.to>rate.from)).max(100),weeklyDiscountPercent:z.number().min(0).max(100),monthlyDiscountPercent:z.number().min(0).max(100)});
 export const hostelSchema = z.object({
-  ...base, name: localizedPropertyText, listingStatus: status.optional(), address: localizedPropertyText,
+  ...base, optionalServices:z.array(z.object({id,name:localizedPropertyText,priceAMD:money,unit:z.enum(['stay','night','guest_night']),active:z.boolean()})).max(30).optional(),cancellationRule:z.object({freeBeforeHours:z.number().int().min(0).max(8760),penaltyPercent:z.number().min(0).max(100)}).optional(),commissionRule:z.object({type:z.enum(['none','percent','fixed']),value:z.number().min(0).max(1000000000),appliesOn:z.enum(['confirmed','completed'])}).refine(rule=>rule.type==='percent'?rule.value<=100:Number.isInteger(rule.value)).optional(),responseMinutes:z.number().int().min(15).max(1440).optional(), name: localizedPropertyText, listingStatus: status.optional(), address: localizedPropertyText,
   district: short, addressArmenianForTaxi: short, coordinates: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }), coordinatesProvided: z.boolean().optional(),
   phone: short, whatsapp: short.optional(), telegram: short.optional(), email: z.union([z.literal(''),z.email()]),
-  entrancePhoto: z.union([z.literal(''),imageUrl]).optional(), directionsFa: long, directionsHy: long, floorAndDoorCode: short.optional(),
+  entrancePhoto: z.union([z.literal(''),imageUrl]).optional(), directionsFa: long, directionsHy: long, directionsEn:long.optional(),directionsRu:long.optional(), floorAndDoorCode: short.optional(),
   nearMetro: z.boolean().optional(), monthlyStayAvailable: z.boolean().optional(), minPricePerNightAMD: money,
   reception24h: z.boolean(), receptionOpenTime: short.optional(), receptionCloseTime: short.optional(), checkInStandardTime: short, checkOutStandardTime: short,
   earlyCheckInAvailable: z.boolean(), earlyCheckInFeeAMD: money, lateArrivalAvailable: z.boolean(), lateArrivalFeeAMD: money,

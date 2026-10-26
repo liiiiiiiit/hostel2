@@ -15,6 +15,7 @@ function fixture() {
   const store = new Store();
   store.getState().bookings = [];
   const hostel = store.getHostels()[0];
+  hostel.cancellationRule={freeBeforeHours:0,penaltyPercent:0};
   const room = hostel.roomTypes[0];
   room.totalBedsOrRooms = 2;
   const data = { acceptedTerms:true, hostelId: hostel.id, roomTypeId: room.id, guestName: 'Test Guest', contactType: 'email' as const,
