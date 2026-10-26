@@ -9,7 +9,7 @@ const directory = await mkdtemp(path.join(tmpdir(), 'yh-browser-'));
 const socket = createServer(); await new Promise(resolve => socket.listen(0,'127.0.0.1',resolve));
 const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
 const origin=`http://127.0.0.1:${port}`;
-const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_URL:`file:${directory}/test.db`,MEDIA_DIRECTORY:path.join(directory,'uploads'),DEMO_MODE:'true',DISABLE_HMR:'false',NODE_ENV:'development'},stdio:['ignore','pipe','pipe']});
+const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_URL:`file:${directory}/test.db`,MEDIA_DIRECTORY:path.join(directory,'uploads'),DEMO_MODE:'true',DISABLE_HMR:process.env.BROWSER_DISABLE_HMR || 'false',NODE_ENV:'development'},stdio:['ignore','pipe','pipe']});
 let browser;let activePage;let serverOutput="";
 server.stderr.on("data",chunk=>serverOutput+=String(chunk));
 const errors=[];
@@ -22,7 +22,7 @@ try {
   });
   browser=await chromium.launch({executablePath:process.env.BROWSER_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const context=await browser.newContext();
-  await context.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
+  await context.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');window.__socketAttempts=0;const NativeSocket=window.WebSocket;window.WebSocket=class extends NativeSocket{constructor(...args){super(...args);window.__socketAttempts++;}};});
   await context.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const page=await context.newPage();activePage=page;page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack || error.message));
   page.on('dialog',dialog=>dialog.accept());
@@ -191,7 +191,9 @@ try {
   console.log('PASS mobile home, admin and manager workspaces and document direction in all four languages');
   const offlineContext=await browser.newContext();await offlineContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await offlineContext.route('**/*',route=>{const url=route.request().url();return url.startsWith(origin)&&!url.includes('/api/app')?route.continue():route.abort();});const offlinePage=await offlineContext.newPage();offlinePage.on('pageerror',error=>errors.push(error.stack||error.message));await offlinePage.goto(origin+'/');await offlinePage.getByRole('alert').waitFor();await offlinePage.getByText('Please take me to Republic Square.',{exact:true}).waitFor();await offlineContext.close();console.log('PASS offline phrasebook remains usable when the reservation API cannot be reached');
   await managerContext.close();
-  assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
+  assert.deepEqual(errors,[]);
+  if(process.env.BROWSER_DISABLE_HMR==='true'){assert.equal(await page.evaluate(()=>window.__socketAttempts),0);console.log('PASS hosted preview opens without WebSocket attempts');}
+  console.log('PASS no uncaught browser errors');
   await context.close();await other.close();
 } catch(error) {console.error("Browser body:",await activePage?.locator("body").innerText().catch(()=>"unavailable"));console.error(serverOutput.slice(-5000));throw error;} finally {
   if(browser)await browser.close();server.kill('SIGTERM');await rm(directory,{recursive:true,force:true});

@@ -1,3 +1,4 @@
+import {previewSocketsDisabled} from './vite-preview.js';
 import {renderPublicHtml,sitemap,robots} from './public-pages.js';
 import {publicState} from './public-state.js';
 import {readFile} from 'node:fs/promises';
@@ -20,7 +21,8 @@ if (production) {
   app.get('*', (_req, res) => res.sendFile(path.resolve('dist/index.html')));
 } else {
   const { createServer } = await import('vite');
-  const vite = await createServer({ server: { middlewareMode: true, hmr: process.env.DISABLE_HMR !== 'true', ws: process.env.DISABLE_HMR === 'true' ? false : { server } }, appType: 'spa' });
+  const disableSockets = previewSocketsDisabled();
+  const vite = await createServer({ server: { middlewareMode: true, hmr: !disableSockets, ws: disableSockets ? false : { server }, forwardConsole: false }, appType: 'spa' });
   app.use(publicHandler(async url=>vite.transformIndexHtml(url,await readFile('index.html','utf8'))));
   app.use(vite.middlewares);
 }
