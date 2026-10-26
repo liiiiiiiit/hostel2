@@ -4,6 +4,13 @@
   "installCommand": "npm ci",
   "outputDirectory": "dist",
   "functions": {
-    "api/app.ts": { "maxDuration": 30 }
+    "api/app.ts": {
+      "maxDuration": 30
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "codex/property-management-workflow": false
+    }
   }
 }
