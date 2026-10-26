@@ -1,4 +1,7 @@
 import express from 'express';
+import { localizeError } from './locale.js';
+import { optimizeImage, storeImage, deleteStoredImage, readStoredImage, MAX_IMAGE_BYTES } from './media.js';
+import { hostelSchema, rentalSchema } from './property-schemas.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { Database } from './database.js';
@@ -21,7 +24,7 @@ const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z
 const localized = z.object({ fa: z.string(), en: z.string(), ru: z.string(), hy: z.string() });
 const entity = z.object({ id: text }).passthrough();
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
-const hostel = entity.extend({ coordinates, name: localized, slug: text, roomTypes: z.array(entity.extend({ name: localized, pricePerNightAMD: z.number().min(0), totalBedsOrRooms: positive })).min(1), amenities: z.record(z.string(), z.union([z.boolean(), z.number()])), rules: z.object({ quietHours: z.string(), cancellationPolicy: z.string(), acceptedPaymentMethodsOnArrival: z.array(z.string()) }).passthrough(), photos: z.array(z.string().url()), address: localized }).passthrough();
+
 const schemas = {
   login: z.tuple([email, password]), logout: z.tuple([]),
   registerTraveler: z.tuple([text, email, optionalText.nullable(), password]),
@@ -33,7 +36,7 @@ const schemas = {
   setCapacity: z.tuple([text, text, date, z.number().int().min(0).max(100)]),
   setVerification: z.tuple([z.enum(['hostel','rental']), text, z.boolean(), z.string().max(1000)]),
   checkCoupon: z.tuple([text, z.number().min(0)]),
-  saveHostel: z.tuple([hostel]), toggleHostelPublished: z.tuple([text]), toggleRentalAvailability: z.tuple([text]),
+  saveHostel: z.tuple([hostelSchema]), saveRental: z.tuple([rentalSchema]), setHostelStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), setRentalStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), toggleHostelPublished: z.tuple([text]), toggleRentalAvailability: z.tuple([text]),
   createHostelManager: z.tuple([z.object({ name: text, email, initialPassword: password, phone: optionalText, assignedHostelIds: z.array(text).min(1) })]),
   toggleManagerActive: z.tuple([text]),
   addCoupon: z.tuple([z.object({ code: text, percent: z.number().min(0).max(100), minAmountAMD: z.number().min(0), maxUses: z.number().int().min(0), usedCount: z.literal(0), active: z.boolean(), startsAt: text, expiresAt: text, description: z.string().max(1000) })]),
@@ -63,6 +66,54 @@ export function createApi(database: Database) {
     const result = await tx.execute({ sql: 'SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?', args: [digest(token), Date.now()] });
     return state.users.find(user => user.id === result.rows[0]?.user_id && user.isActive) ?? null;
   };
+  app.get(paths, async (req, res, next) => {
+    if (!req.query.media) { next(); return; }
+    if (typeof req.query.media !== 'string' || !/^[a-f0-9-]{36}$/.test(req.query.media)) { res.sendStatus(404); return; }
+    try {
+      const asset = await database.transaction(async (_state, tx) => (await tx.execute({ sql:'SELECT * FROM media_assets WHERE id=?', args:[String(req.query.media)] })).rows[0]);
+      if (!asset || asset.backend !== 'local') { res.sendStatus(404); return; }
+      res.type('webp').set('Cache-Control','public, max-age=86400').send(await readStoredImage(String(asset.storage_key)));
+    } catch { res.sendStatus(404); }
+  });
+  app.post(paths, express.raw({ type:['image/jpeg','image/png','image/webp'], limit:MAX_IMAGE_BYTES }), async (req, res, next) => {
+    if (!req.query.upload && !req.query.deleteMedia) { next(); return; }
+    try {
+      if (req.headers['x-requested-with'] !== 'YerevanHub' || req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) { res.sendStatus(403); return; }
+      const actor = await database.transaction(async(state,tx) => {
+        const user = await session(req,state,tx);
+        if (user?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+        const bucket = `media:${user.id}:${Math.floor(Date.now()/60000)}`;
+        await tx.execute({sql:'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1',args:[bucket,Date.now()+60000]});
+        const rate = await tx.execute({sql:'SELECT count FROM rate_limits WHERE key=?',args:[bucket]});
+        if (Number(rate.rows[0].count) > 30) throw new Error('تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.');
+        return user;
+      });
+      if (req.query.deleteMedia) {
+        const id = z.uuid().parse(req.query.deleteMedia);
+        await database.transaction(async(state,tx) => {
+          if ((await session(req,state,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+          if ([...state.hostels,...state.rentals].some(item=>item.media?.some(image=>image.id===id))) throw new Error('ابتدا تصویر را از ملک جدا و تغییرات را ذخیره کنید.');
+          const asset = (await tx.execute({sql:'SELECT * FROM media_assets WHERE id=?',args:[id]})).rows[0];
+          if (asset) {
+            await deleteStoredImage({backend:String(asset.backend),storage_key:String(asset.storage_key)});
+            await tx.execute({sql:'DELETE FROM media_assets WHERE id=?',args:[id]});
+          }
+        });
+        res.json({success:true}); return;
+      }
+      if (!Buffer.isBuffer(req.body)) throw new Error('فایل تصویر معتبر ارسال کنید.');
+      const bytes = await optimizeImage(req.body,String(req.headers['content-type']).split(';')[0]);
+      const id = crypto.randomUUID();
+      const stored = await storeImage(id,bytes);
+      try {
+        await database.transaction(async(state,tx)=> {
+          if ((await session(req,state,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+          await tx.execute({sql:'INSERT INTO media_assets VALUES(?,?,?,?,?,?,?)',args:[id,stored.url,stored.key,stored.backend,bytes.length,actor.id,new Date().toISOString()]});
+        });
+      } catch(error) { await deleteStoredImage({backend:stored.backend,storage_key:stored.key}); throw error; }
+      res.json({success:true,image:{id,url:stored.url,alt:{fa:'',en:'',ru:'',hy:''}}});
+    } catch(error) { next(error); }
+  });
   app.get(paths, async (req, res, next) => {
     try {
       if (req.query.worker === 'notifications') {
@@ -163,9 +214,10 @@ export function createApi(database: Database) {
       res.status('rateLimited' in result ? 429 : res.statusCode).json(result);
     } catch (error) { next(error); }
   });
-  app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    if (error instanceof z.ZodError) { res.status(400).json({ success: false, error: 'اطلاعات واردشده معتبر نیست.' }); return; }
-    if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : 400).json({ success: false, error: error.message }); return; }
+  app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large') { res.status(413).json({success:false,error:localizeError('حجم فایل بیش از حد مجاز است.',req.headers['x-app-language'])}); return; }
+    if (error instanceof z.ZodError) { res.status(400).json({ success: false, error: localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language']) }); return; }
+    if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : 400).json({ success: false, error: localizeError(error.message,req.headers['x-app-language']) }); return; }
     const forbidden = error instanceof Error && error.message === 'دسترسی مجاز نیست.';
     res.status(forbidden ? 403 : 500).json({ success: false, error: forbidden ? 'دسترسی مجاز نیست.' : 'سرویس در دسترس نیست. تنظیمات سرور را بررسی کنید.' });
   });

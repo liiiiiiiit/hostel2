@@ -80,7 +80,11 @@ test('guest booking persists and exact private tracking works in an unrelated br
   await admin.action('updateArrivalGuide',[booking.hostelId,{addressArmenianForTaxi:'Երևան',directionsFa:'ورودی',directionsHy:'Մուտք',entrancePhoto:'',floorAndDoorCode:'PRIVATE-CODE-87',phone:'+37491123456'}]);
   assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   assert.equal((await admin.action('updateBookingStatus',[created.data.booking.id,'confirmed'])).data.success,true);
+  assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
+  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkIn=yerevanToday();entry.checkOut=addCalendarDays(yerevanToday(),1);});
   assert.ok(JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
+  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkOut=yerevanToday();});
+  assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   assert.ok(!JSON.stringify((await client().get()).state.hostels).includes('PRIVATE-CODE-87'));
   await database.transaction(async (_state,tx) => { assert.ok((await tx.execute('SELECT id FROM outbox')).rows.length>0); });
 });
@@ -208,4 +212,71 @@ test('hostel location updates are scoped, validated and require explicit admin v
   assert.equal(publicHostel.locationVerification?.checkedBy, undefined);
   assert.equal((await manager.action('updateHostelLocation', [hostel.id, point])).data.success, true);
   assert.equal((await visitor.get()).state.hostels.find(h => h.id === hostel.id)!.locationVerification?.status, 'unverified');
+});
+
+test('administrator creates, edits, previews and publishes female beds, private rooms and an apartment without code changes', async t => {
+  const { completeHostel, completeRental } = await import('./property-fixtures.js');
+  const { client, visitor, database } = await fixture(t);
+  const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const hostel=completeHostel();
+  assert.equal((await visitor.action('saveHostel',[hostel])).response.status,403);
+  const manager=client();await manager.action('login',['manager.kentron@yerevanhub.com','Hostel@2026']);
+  assert.equal((await manager.action('saveHostel',[hostel])).response.status,403);
+  assert.equal((await admin.action('saveHostel',[hostel])).data.success,true);
+  assert.ok(!(await visitor.get()).state.hostels.some(item=>item.id===hostel.id));
+  assert.ok((await admin.get()).state.hostels.some(item=>item.id===hostel.id));
+  hostel.name.en='Updated hostel';hostel.isPublished=true;hostel.listingStatus='published';
+  assert.equal((await admin.action('saveHostel',[hostel])).data.success,true);
+  const published=(await visitor.get()).state.hostels.find(item=>item.id===hostel.id)!;
+  assert.equal(published.name.en,'Updated hostel');assert.equal(published.roomTypes.length,2);
+  assert.equal(published.roomTypes[1].maxGuestsPerUnit,2);assert.equal(published.roomTypes[1].physicalUnits,undefined);
+  const rental=completeRental();rental.status='published';
+  assert.equal((await manager.action('saveRental',[rental])).response.status,403);
+  assert.equal((await admin.action('saveRental',[rental])).data.success,true);
+  const publicRental=(await visitor.get()).state.rentals.find(item=>item.id===rental.id)!;
+  assert.equal(publicRental.addressExactInternal,'');assert.equal(publicRental.landlordInternalNotes,'');
+  const inquiry=await visitor.action('createRentalInquiry',[{propertyId:rental.id,guestName:'Rental guest',contact:'guest@example.test',requestType:'visit',residentsCount:2}]);
+  assert.equal(inquiry.data.success,true);
+  await admin.action('updateRentalInquiryStatus',[inquiry.data.inquiry.id,'agreed','PRIVATE-ADMIN-NOTE']);
+  const tracked=await visitor.get('',inquiry.data.inquiry.privateToken);
+  assert.ok(!JSON.stringify(tracked.state).includes('PRIVATE-ADMIN-NOTE'));
+  await database.transaction(async state=>{assert.equal(state.bookings.filter(item=>item.hostelId===rental.id).length,0);});
+  assert.equal((await admin.action('setRentalStatus',[rental.id,'archived'])).data.success,true);
+  assert.ok(!(await visitor.get()).state.rentals.some(item=>item.id===rental.id));
+});
+
+test('publication rejects incomplete drafts, forged verification, duplicate slugs, invalid room units and inventory reductions', async t => {
+  const { completeHostel }=await import('./property-fixtures.js');
+  const { newHostel }=await import('../src/utils/properties.js');
+  const {client,visitor,booking}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const draft=newHostel();assert.equal((await admin.action('saveHostel',[draft])).data.success,true);
+  assert.equal((await admin.action('setHostelStatus',[draft.id,'published'])).response.status,400);
+  const hostel=completeHostel();hostel.isPublished=true;hostel.listingStatus='published';
+  assert.equal((await admin.action('saveHostel',[{...hostel,locationVerification:{status:'verified'},verification:{status:'verified'}}])).data.success,true);
+  const state=(await admin.get()).state;assert.equal(state.hostels.find(item=>item.id===hostel.id)?.verification?.status,'unverified');
+  assert.equal((await admin.action('saveHostel',[{...hostel,id:crypto.randomUUID()}])).response.status,400);
+  const invalid=structuredClone(hostel);invalid.roomTypes[0].bookingUnit='room';assert.equal((await admin.action('saveHostel',[invalid])).response.status,400);
+  const created=await visitor.action('createBooking',[{...booking,hostelId:hostel.id,roomTypeId:hostel.roomTypes[0].id}]);
+  assert.equal(created.data.success,true);assert.equal((await admin.action('updateBookingStatus',[created.data.booking.id,'confirmed'])).data.success,true);
+  hostel.roomTypes[0].totalBedsOrRooms=0;
+  assert.equal((await admin.action('saveHostel',[hostel])).response.status,400);
+});
+
+test('image uploads require admin, validate actual bytes, optimize and delete only detached images', async t => {
+  const sharp=(await import('sharp')).default;
+  const { client,base,visitor }=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const headers={'X-Requested-With':'YerevanHub','Content-Type':'image/png',cookie:admin.cookie};
+  const bytes=await sharp({create:{width:2200,height:1200,channels:3,background:'#123456'}}).png().toBuffer();
+  assert.equal((await fetch(base+'?upload=1',{method:'POST',headers:{...headers,cookie:''},body:bytes})).status,403);
+  assert.equal((await fetch(base+'?upload=1',{method:'POST',headers,body:Buffer.from('not an image')})).status,400);
+  const uploaded=await fetch(base+'?upload=1',{method:'POST',headers,body:bytes});assert.equal(uploaded.status,200);
+  const {image}=await uploaded.json();t.after(async()=>{await fetch(base+`?deleteMedia=${image.id}`,{method:'POST',headers:{...headers,'Content-Type':'application/json'}}).catch(()=>{});});
+  const file=await fetch(new URL(image.url,base));assert.equal(file.status,200);assert.match(file.headers.get('content-type')!,/webp/);
+  const metadata=await sharp(Buffer.from(await file.arrayBuffer())).metadata();assert.equal(metadata.width,1920);assert.equal(metadata.exif,undefined);
+  const {newHostel}=await import('../src/utils/properties.js');const hostel=newHostel();hostel.media=[image];hostel.photos=[image.url];
+  assert.equal((await admin.action('saveHostel',[hostel])).data.success,true);
+  assert.equal((await fetch(base+`?deleteMedia=${image.id}`,{method:'POST',headers:{...headers,'Content-Type':'application/json'}})).status,400);
+  hostel.media=[];hostel.photos=[];await admin.action('saveHostel',[hostel]);
+  assert.equal((await fetch(base+`?deleteMedia=${image.id}`,{method:'POST',headers:{...headers,'Content-Type':'application/json'}})).status,200);
+  assert.equal((await fetch(new URL(image.url,base))).status,404);
 });

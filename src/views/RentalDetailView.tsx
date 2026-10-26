@@ -1,3 +1,4 @@
+import { ListingDisclosure } from '../components/ListingDisclosure';
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, BedDouble, Building2, Check, MapPin, Users, Ruler, AlertCircle, Loader2 } from 'lucide-react';
 import { AppLanguage, RentalProperty } from '../types';
@@ -35,6 +36,8 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
   const photoCount=rental.photos.length;
   return <div className="page-shell py-7 sm:py-10 space-y-7">
     <nav aria-label={currentLang==='fa'?'مسیر صفحه':'Breadcrumb'} className="flex items-center gap-2 text-sm text-slate-500"><button type="button" className="inline-flex items-center gap-2 hover:text-slate-900" onClick={()=>onNavigate('rentals')}><Back className="w-4 h-4" />{t.navRentals}</button><span aria-hidden="true">/</span><span className="truncate max-w-[65%]">{title}</span></nav>
+    <ListingDisclosure currentLang={currentLang} factsConfirmed={rental.factsConfirmed} sampleContent={rental.sampleContent}/>
+    {rental.description&&<p className="leading-8 text-slate-600 whitespace-pre-line max-w-3xl">{getLocalized(rental.description,currentLang)}</p>}
     <header className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div className="space-y-3"><p className="eyebrow inline-flex items-center gap-1.5"><MapPin className="w-4 h-4" />{getCityName(rental.city,currentLang)} · {rental.neighborhood}</p><h1 className="text-3xl sm:text-4xl font-semibold leading-tight tracking-tight max-w-3xl">{title}</h1><p className="text-slate-500 text-sm">{rental.addressPublic || rental.approximateLocationLabel}</p></div><PlaceActions kind="rental" id={rental.id} /></header>
     <div className={`grid gap-3 ${photoCount>1?'md:grid-cols-[1.7fr_1fr]':''}`}>
       <div className="aspect-[16/10] max-h-[510px] rounded-3xl overflow-hidden bg-slate-100">{rental.photos[0]&&<img src={rental.photos[0]} alt={title} className="w-full h-full object-cover" />}</div>

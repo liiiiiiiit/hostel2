@@ -1,3 +1,4 @@
+import { migrateDatabase, readProperties, writeProperties } from './migrations.js';
 import { createClient, type Client, type Transaction } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
 import { Store, type AppStoreState } from './domain.js';
@@ -26,19 +27,20 @@ export class Database {
       `CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, channel TEXT NOT NULL, recipient TEXT NOT NULL, subject TEXT NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, last_error TEXT)`,
     ], 'write');
     const existing = await this.client.execute('SELECT id FROM app_state WHERE id=1');
-    if (existing.rows.length) { await this.bootstrapAdmin(options); return; }
+    if (existing.rows.length) { await migrateDatabase(this.client); await this.bootstrapAdmin(options); return; }
     const state = new Store(undefined, true).getState();
     state.currentUser = null;
     // Sample content is retained; identities, private guest records and claims are not production seeds.
     state.credentials = {};
     state.users = this.demo ? state.users : [];
     state.bookings = []; state.rentalInquiries = []; state.reviews = []; state.auditLogs = [];
-    for (const hostel of state.hostels) { hostel.verification = { status: 'unverified' }; delete hostel.floorAndDoorCode; }
-    for (const rental of state.rentals) { rental.verifiedBadge = false; rental.verifiedExplanation = ''; rental.lastCheckedAt = ''; }
+    for (const hostel of state.hostels) { hostel.sampleContent = true; hostel.factsConfirmed = false; if (!this.demo) { hostel.isPublished = false; hostel.listingStatus = 'draft'; } hostel.verification = { status: 'unverified' }; delete hostel.floorAndDoorCode; }
+    for (const rental of state.rentals) { rental.sampleContent = true; rental.factsConfirmed = false; if (!this.demo) rental.status = 'draft'; rental.verifiedBadge = false; rental.verifiedExplanation = ''; rental.lastCheckedAt = ''; }
     if (this.demo) {
       for (const user of state.users) state.credentials[user.id] = await createPasswordCredential(user.role === 'admin' ? 'Admin@2026' : user.role === 'hostel_manager' ? 'Hostel@2026' : 'Traveler@2026');
     }
     await this.client.execute({ sql: 'INSERT OR IGNORE INTO app_state(id,data) VALUES(1,?)', args: [JSON.stringify(state)] });
+    await migrateDatabase(this.client);
     await this.bootstrapAdmin(options);
   }
   private async bootstrapAdmin(options: DatabaseOptions) {
@@ -67,9 +69,12 @@ export class Database {
       try {
         const result = await tx.execute('SELECT data FROM app_state WHERE id=1');
         const state = JSON.parse(String(result.rows[0].data)) as AppStoreState;
+        await readProperties(tx, state);
         const value = await operation(state, tx);
         state.currentUser = null;
-        await tx.execute({ sql: 'UPDATE app_state SET data=? WHERE id=1', args: [JSON.stringify(state)] });
+        await writeProperties(tx, state);
+        const { hostels: _hostels, rentals: _rentals, ...remaining } = state;
+        await tx.execute({ sql: 'UPDATE app_state SET data=? WHERE id=1', args: [JSON.stringify(remaining)] });
         await tx.commit();
         return value;
       } catch (error) { await tx.rollback(); throw error; }

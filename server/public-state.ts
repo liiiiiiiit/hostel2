@@ -12,7 +12,8 @@ export function publicState(state: AppStoreState, actor: User | null, demoMode: 
     const copy = structuredClone(hostel);
     copy.locationVerification ??= { status: 'unverified' };
     if (!manages(hostel.id) && copy.locationVerification) { delete copy.locationVerification.checkedBy; }
-    if (!manages(hostel.id) && !bookings.some(b => b.hostelId === hostel.id && b.privateToken === bookingToken && b.status === 'confirmed')) delete copy.floorAndDoorCode;
+    if (!manages(hostel.id) && !bookings.some(b => b.hostelId === hostel.id && (b.privateToken === bookingToken || actor && b.travelerUserId === actor.id) && b.status === 'confirmed' && b.checkIn <= yerevanToday() && b.checkOut > yerevanToday())) delete copy.floorAndDoorCode;
+    if (!manages(hostel.id)) { for (const room of copy.roomTypes) delete room.physicalUnits; }
     return copy;
   });
   const availability: ClientState['availability'] = [];
@@ -28,7 +29,7 @@ export function publicState(state: AppStoreState, actor: User | null, demoMode: 
   return {
     currentUser: actor, demoMode, users: admin ? state.users : actor ? [actor] : [], hostels,
     rentals: state.rentals.filter(r => admin || r.status === 'published').map(r => admin ? r : { ...r, addressExactInternal: '', landlordInternalNotes: '' }),
-    bookings, rentalInquiries: inquiries, coupons: state.coupons,
+    bookings, rentalInquiries: inquiries.map(inquiry => admin ? inquiry : { ...inquiry, adminNotes: undefined }), coupons: state.coupons,
     reviews: state.reviews.filter(r => admin || r.status === 'approved').map(r => admin ? r : { ...r, bookingId: '', guestName: r.guestName.split(' ')[0] }),
     articles: state.articles.filter(a => admin || a.status === 'published'), phrases: state.phrases,
     auditLogs: admin ? state.auditLogs : [], capacities: state.capacities.filter(c => manages(c.hostelId)), availability, settings: state.settings,

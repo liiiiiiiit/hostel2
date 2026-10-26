@@ -9,7 +9,7 @@ class ApiStore {
   private bookingToken = '';
   private inquiryToken = '';
   private revision = 0;
-  private headers() { return { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', 'X-Booking-Token': this.bookingToken, 'X-Inquiry-Token': this.inquiryToken }; }
+  private headers() { return { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', 'X-App-Language': document.documentElement.lang || 'fa', 'X-Booking-Token': this.bookingToken, 'X-Inquiry-Token': this.inquiryToken }; }
   private apply(state: ClientState) { this.state = state; for (const listener of this.listeners) listener(); }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getState = () => this.state;
@@ -59,6 +59,9 @@ class ApiStore {
   setCapacity = (...args: Parameters<DomainStore['setCapacity']>) => this.action('setCapacity', args);
   setVerification = (...args: Parameters<DomainStore['setVerification']>) => this.action('setVerification', args);
   saveHostel = (...args: Parameters<DomainStore['saveHostel']>) => this.action('saveHostel', args);
+  saveRental = (...args: Parameters<DomainStore['saveRental']>) => this.action('saveRental', args);
+  setHostelStatus = (...args: Parameters<DomainStore['setHostelStatus']>) => this.action('setHostelStatus', args);
+  setRentalStatus = (...args: Parameters<DomainStore['setRentalStatus']>) => this.action('setRentalStatus', args);
   toggleHostelPublished = (...args: Parameters<DomainStore['toggleHostelPublished']>) => this.action('toggleHostelPublished', args);
   toggleRentalAvailability = (...args: Parameters<DomainStore['toggleRentalAvailability']>) => this.action('toggleRentalAvailability', args);
   createHostelManager = (...args: Parameters<DomainStore['createHostelManager']>) => this.action('createHostelManager', args);

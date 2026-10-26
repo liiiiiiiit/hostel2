@@ -8,7 +8,7 @@ import { mapText } from '../i18n/maps';
 interface Props { hostel: Hostel; currentLang: AppLanguage }
 export const HostelLocationMap: React.FC<Props> = ({ hostel, currentLang }) => {
   const t = mapText(currentLang);
-  const links = getMapLinks(hostel.coordinates);
+  const links = hostel.coordinatesProvided === false ? null : getMapLinks(hostel.coordinates);
   const name = getLocalized(hostel.name, currentLang);
   const address = getLocalized(hostel.address, currentLang);
   const verified = hostel.locationVerification?.status === 'verified';

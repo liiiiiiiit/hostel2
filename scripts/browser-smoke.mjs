@@ -9,8 +9,9 @@ const directory = await mkdtemp(path.join(tmpdir(), 'yh-browser-'));
 const socket = createServer(); await new Promise(resolve => socket.listen(0,'127.0.0.1',resolve));
 const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
 const origin=`http://127.0.0.1:${port}`;
-const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_URL:`file:${directory}/test.db`,DEMO_MODE:'true',DISABLE_HMR:'false',NODE_ENV:'development'},stdio:['ignore','pipe','pipe']});
-let browser;
+const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:process.cwd(),env:{...process.env,PORT:String(port),DATABASE_URL:`file:${directory}/test.db`,MEDIA_DIRECTORY:path.join(directory,'uploads'),DEMO_MODE:'true',DISABLE_HMR:'false',NODE_ENV:'development'},stdio:['ignore','pipe','pipe']});
+let browser;let activePage;let serverOutput="";
+server.stderr.on("data",chunk=>serverOutput+=String(chunk));
 const errors=[];
 try {
   await new Promise((resolve,reject)=>{
@@ -20,15 +21,15 @@ try {
   });
   browser=await chromium.launch({executablePath:process.env.BROWSER_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const context=await browser.newContext();
-  await context.addInitScript(()=>localStorage.setItem('yerevanhub_lang','en'));
+  await context.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
   await context.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
-  const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack || error.message));
+  const page=await context.newPage();activePage=page;page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack || error.message));
   page.on('dialog',dialog=>dialog.accept());
   const today=await page.evaluate(()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'}));
   const checkIn=new Date(Date.parse(today+'T00:00:00Z')+2*86400000).toISOString().slice(0,10);
   const checkOut=new Date(Date.parse(today+'T00:00:00Z')+4*86400000).toISOString().slice(0,10);
   await page.goto(origin+'/#/booking/invalid-token');await page.getByRole('alert').waitFor();
-  assert.match(await page.locator('main').innerText(),/Page not found/);
+  await page.locator('main').getByText('Page not found or access unavailable.',{exact:true}).waitFor();
   await page.goto(origin+'/');
   await page.getByRole('button',{name:'Details & Booking',exact:true}).first().click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
@@ -47,7 +48,7 @@ try {
   await page.locator('button[type=submit]').click();
   await page.waitForURL(/#\/booking\/yvn-trk-/);await page.getByText('Browser Guest',{exact:true}).waitFor();
   const tracking=page.url();
-  const other=await browser.newContext();await other.addInitScript(()=>localStorage.setItem('yerevanhub_lang','en'));
+  const other=await browser.newContext();await other.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
   await other.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const otherPage=await other.newPage();otherPage.on('pageerror',error=>errors.push(error.stack || error.message));
   await otherPage.goto(tracking);await otherPage.getByText('Browser Guest',{exact:true}).waitFor();
@@ -62,8 +63,70 @@ try {
   await page.getByRole('button',{name:'Save changes',exact:true}).click();await page.getByText('Changes saved.',{exact:true}).waitFor();
   assert.ok((await context.cookies()).some(cookie=>cookie.httpOnly && cookie.name==='yh_session'));
   console.log('PASS password checks, HttpOnly session and manager daily-capacity UI');
+  await page.getByRole('button',{name:'Properties',exact:true}).click();
+  await page.getByTestId('property-management').getByRole('button',{name:'Add',exact:true}).click();
+  const editor=page.getByTestId('property-editor');
+  async function translations(scope,label){for(const lang of ['فارسی','English','Русский','Հայերեն']) await scope.getByLabel(`${label} · ${lang}`,{exact:true}).fill(`${label} ${lang}`);}
+  await translations(editor,'Name');await translations(editor,'Description');await translations(editor,'Public address');
+  await editor.getByLabel('Page slug',{exact:true}).fill('browser-hostel');await editor.getByLabel('City',{exact:true}).fill('Yerevan');
+  await editor.getByLabel('Armenian taxi address',{exact:true}).fill('Փորձնական հասցե');
+  await editor.getByLabel('Latitude',{exact:true}).fill('40.181');await editor.getByLabel('Longitude',{exact:true}).fill('44.514');
+  await editor.getByLabel('Reception phone',{exact:true}).fill('+37491123456');
+  await editor.getByRole('button',{name:'2. Details & policies',exact:true}).click();
+  await editor.getByLabel('Հայերեն',{exact:true}).check();await editor.getByLabel('24-hour reception',{exact:true}).check();
+  await editor.getByLabel('Check-in time',{exact:true}).fill('14:00');await editor.getByLabel('Check-out time',{exact:true}).fill('11:00');
+  await translations(editor,'Cancellation policy');await editor.getByLabel('Payment methods at property (comma-separated)',{exact:true}).fill('AMD cash, card');
+  await editor.getByRole('button',{name:'3. Rooms & beds',exact:true}).click();
+  async function addRoom(type,units,guests,labels){
+    await editor.getByRole('button',{name:'Add · Room',exact:true}).click();const room=editor.getByTestId('room-editor').last();
+    await translations(room,'Name');await translations(room,'Description');await room.getByLabel('Type',{exact:true}).selectOption(type);
+    await room.getByLabel('Bookable units',{exact:true}).fill(String(units));if(type==='private')await room.getByLabel('Guests per unit',{exact:true}).fill(String(guests));
+    await room.getByLabel('Nightly price / unit · AMD',{exact:true}).fill(type==='private'?'18000':'5000');
+    await room.getByLabel('Physical bed or room labels (one per line)',{exact:true}).fill(labels);
+  }
+  await addRoom('dorm_female',2,1,'F1\nF2');await addRoom('private',1,2,'P1');
+  await editor.getByRole('button',{name:'4. Images',exact:true}).click();
+  const sharp=(await import('sharp')).default;const image=await sharp({create:{width:300,height:200,channels:3,background:'#365947'}}).png().toBuffer();
+  await editor.getByLabel('Upload image',{exact:true}).setInputFiles({name:'test.png',mimeType:'image/png',buffer:image});
+  await editor.getByText('Cover image',{exact:true}).waitFor();await translations(editor,'Image description');
+  await editor.getByRole('button',{name:'5. Preview & publish',exact:true}).click();
+  await editor.getByLabel('I checked facts, amenities and costs with the owner; images show this property.',{exact:true}).check();
+  await editor.getByText('Required fields are complete; map verification is separate.',{exact:true}).waitFor();
+  await editor.getByLabel('Save & publish',{exact:true}).selectOption('published');await editor.getByRole('button',{name:'Save & publish',exact:true}).click();
+  await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();
+  await editor.getByRole('button',{name:'Close editor',exact:true}).click();
+  await page.getByTestId('property-management').getByRole('heading',{name:'Name English',exact:true}).waitFor();
+  console.log('PASS administrator creates and publishes female beds and a double private room through the complete editor');
+  const propertyPanel=page.getByTestId('property-management');
+  await propertyPanel.getByRole('button',{name:'Homes & apartments',exact:true}).click();await propertyPanel.getByRole('button',{name:'Add',exact:true}).click();
+  await translations(editor,'Name');await translations(editor,'Description');
+  await editor.getByLabel('Page slug',{exact:true}).fill('browser-apartment');await editor.getByLabel('City',{exact:true}).fill('Yerevan');
+  await editor.getByLabel('Approximate public location',{exact:true}).fill('Kentron');await editor.getByLabel('Public address',{exact:true}).fill('Kentron area');
+  await editor.getByLabel('Internal exact address',{exact:true}).fill('PRIVATE-BROWSER-ADDRESS');
+  await editor.getByRole('button',{name:'2. Details & policies',exact:true}).click();
+  for(const [label,amount] of [['Area · m²','50'],['Floor','2'],['Total floors','4'],['Beds','2'],['Bedrooms','1'],['Bathrooms','1'],['Maximum residents','2'],['Nightly price / unit · AMD','22000'],['Minimum nights','2']])await editor.getByLabel(label,{exact:true}).fill(amount);
+  await editor.getByLabel('Deposit terms',{exact:true}).fill('Refundable following inspection');
+  await editor.getByRole('button',{name:'3. Images',exact:true}).click();await editor.getByLabel('Upload image',{exact:true}).setInputFiles({name:'apartment.png',mimeType:'image/png',buffer:image});
+  await editor.getByText('Cover image',{exact:true}).waitFor();await translations(editor,'Image description');
+  await editor.getByRole('button',{name:'4. Preview & publish',exact:true}).click();
+  await editor.getByLabel('I checked facts, amenities and costs with the owner; images show this property.',{exact:true}).check();
+  await editor.getByText('Required fields are complete; map verification is separate.',{exact:true}).waitFor();
+  await editor.getByLabel('Save & publish',{exact:true}).selectOption('published');await editor.getByRole('button',{name:'Save & publish',exact:true}).click();
+  await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();await editor.getByRole('button',{name:'Close editor',exact:true}).click();
+  const publicState=await (await otherPage.request.get(origin+'/api/app')).json();assert.ok(!JSON.stringify(publicState).includes('PRIVATE-BROWSER-ADDRESS'));
+  console.log('PASS administrator creates an apartment through the complete editor and exact address stays private');
+  for(const language of ['fa','en','ru','hy']){
+    const mobile=await browser.newContext({viewport:{width:390,height:844}});
+    await mobile.addInitScript(lang=>{if(window===window.top)localStorage.setItem('yerevanhub_lang',lang);},language);
+    await mobile.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+    const screen=await mobile.newPage();screen.on('pageerror',error=>errors.push(error.stack||error.message));await screen.goto(origin+'/');
+    await screen.getByRole('heading',{level:1}).waitFor();assert.equal(await screen.locator('html').getAttribute('dir'),language==='fa'?'rtl':'ltr');
+    assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: mobile overflow`);
+    await mobile.close();
+  }
+  console.log('PASS mobile home and document direction in all four languages');
   assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
   await context.close();await other.close();
-} finally {
+} catch(error) {console.error("Browser body:",await activePage?.locator("body").innerText().catch(()=>"unavailable"));console.error(serverOutput.slice(-5000));throw error;} finally {
   if(browser)await browser.close();server.kill('SIGTERM');await rm(directory,{recursive:true,force:true});
 }

@@ -1,3 +1,5 @@
+import { publicationIssues } from '../src/utils/properties.js';
+import { hostelSchema, rentalSchema } from './property-schemas.js';
 import { isValidCoordinates } from '../src/utils/maps.js';
 import { addCalendarDays } from '../src/utils/dates.js';
 import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords.js';
@@ -757,61 +759,75 @@ export class Store {
   }
 
   // Admin Rentals Management
-  public saveRental(property: RentalProperty) {
+  public saveRental(input: RentalProperty) {
     this.requireAdmin();
-    const idx = this.state.rentals.findIndex(r => r.id === property.id);
-    if (idx >= 0) {
-      this.state.rentals[idx] = { ...property, updatedAt: new Date().toISOString(), lastCheckedAt: this.state.rentals[idx].lastCheckedAt };
-    } else {
-      property.id = `rental-${Date.now()}`;
-      property.createdAt = new Date().toISOString();
-      property.updatedAt = new Date().toISOString();
-      property.lastCheckedAt = new Date().toISOString();
-      this.state.rentals.unshift(property);
-    }
-    this.logAudit('SAVE_RENTAL', 'RENTAL', property.id, `ذخیره ملک ${property.title.fa}`);
+    const property = rentalSchema.parse(input) as RentalProperty;
+    const previous = this.state.rentals.find(item => item.id === property.id);
+    if (property.slug && this.state.rentals.some(item => item.id !== property.id && item.slug === property.slug)) throw new Error('نشانی صفحه تکراری است.');
+    if (property.media) property.photos = property.media.map(image => image.url);
+    if (property.status === 'published' && (!property.slug || publicationIssues(property).length)) throw new Error('اطلاعات انتشار ملک کامل نیست.');
+    const now = new Date().toISOString();
+    const saved = { ...property, verifiedBadge: previous?.verifiedBadge ?? false, verifiedExplanation: previous?.verifiedExplanation ?? '', lastCheckedAt: previous?.lastCheckedAt ?? '', createdAt: previous?.createdAt ?? now, updatedAt: now };
+    const index = this.state.rentals.findIndex(item => item.id === saved.id);
+    if (index >= 0) this.state.rentals[index] = saved;
+    else this.state.rentals.unshift(saved);
+    this.logAudit('SAVE_RENTAL', 'RENTAL', saved.id, `ذخیره ملک ${saved.title.fa}`);
     this.persist();
   }
 
-  // Admin Hostels Management
-  public saveHostel(hostel: Hostel) {
+  public saveHostel(input: Hostel) {
     this.requireAdmin();
-    if (!isValidCoordinates(hostel.coordinates)) throw new Error('مختصات جغرافیایی معتبر نیست.');
+    let hostel = hostelSchema.parse(input) as Hostel;
     const previous = this.state.hostels.find(item => item.id === hostel.id);
-    // Verification is issued only by the explicit reviewed-location action.
-    hostel = { ...hostel, locationVerification: previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng
-      ? previous.locationVerification : { status: 'unverified' } };
-    const idx = this.state.hostels.findIndex(h => h.id === hostel.id);
-    if (idx >= 0) {
-      this.state.hostels[idx] = { ...hostel, updatedAt: new Date().toISOString() };
-    } else {
-      hostel.id = `hostel-${Date.now()}`;
-      hostel.createdAt = new Date().toISOString();
-      hostel.updatedAt = new Date().toISOString();
-      this.state.hostels.push(hostel);
+    if (hostel.slug && this.state.hostels.some(item => item.id !== hostel.id && item.slug === hostel.slug)) throw new Error('نشانی صفحه تکراری است.');
+    if (new Set(hostel.roomTypes.map(room => room.id)).size !== hostel.roomTypes.length) throw new Error('شناسه نوع اتاق تکراری است.');
+    for (const room of hostel.roomTypes) {
+      if (room.bookingUnit && room.bookingUnit !== (room.type === 'private' ? 'room' : 'bed')) throw new Error('واحد رزرو با نوع اتاق سازگار نیست.');
+      if (room.type !== 'private' && room.maxGuestsPerUnit && room.maxGuestsPerUnit !== 1) throw new Error('هر تخت فقط برای یک مهمان است.');
+      if (room.physicalUnits && new Set(room.physicalUnits.map(unit => unit.id)).size !== room.physicalUnits.length) throw new Error('شناسه واحد فیزیکی تکراری است.');
     }
+    if (hostel.media?.some(image => image.roomTypeId && !hostel.roomTypes.some(room => room.id === image.roomTypeId))) throw new Error('اتاق مربوط به تصویر موجود نیست.');
+    const commitments = this.state.bookings.filter(booking => booking.hostelId === hostel.id && booking.checkOut > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Yerevan' }) && booking.status === 'confirmed');
+    for (const oldRoom of previous?.roomTypes ?? []) {
+      const room = hostel.roomTypes.find(item => item.id === oldRoom.id);
+      const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
+      if (active.length && (!room || room.type !== oldRoom.type || room.bookingUnit !== oldRoom.bookingUnit || room.maxGuestsPerUnit !== oldRoom.maxGuestsPerUnit || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
+    }
+    if (hostel.media) hostel.photos = hostel.media.map(image => image.url);
+    hostel.listingStatus ??= hostel.isPublished ? 'published' : 'draft';
+    hostel.isPublished = hostel.listingStatus === 'published';
+    if (hostel.isPublished && (!hostel.slug || publicationIssues(hostel).length)) throw new Error('اطلاعات انتشار هاستل کامل نیست.');
+    const sameLocation = previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng;
+    const now = new Date().toISOString();
+    hostel = { ...hostel, minPricePerNightAMD: hostel.roomTypes.length ? Math.min(...hostel.roomTypes.map(room => room.pricePerNightAMD)) : 0, verification: previous?.verification ?? { status: 'unverified' }, locationVerification: sameLocation ? previous.locationVerification : { status: 'unverified' }, createdAt: previous?.createdAt ?? now, updatedAt: now };
+    const index = this.state.hostels.findIndex(item => item.id === hostel.id);
+    if (index >= 0) this.state.hostels[index] = hostel;
+    else this.state.hostels.push(hostel);
     this.logAudit('SAVE_HOSTEL', 'HOSTEL', hostel.id, `ذخیره هاستل ${hostel.name.fa}`);
     this.persist();
   }
 
+  public setHostelStatus(id: string, status: import('../src/types/index.js').ListingStatus) {
+    this.requireAdmin();
+    const hostel = this.state.hostels.find(item => item.id === id);
+    if (!hostel) throw new Error('هاستل یافت نشد.');
+    this.saveHostel({ ...hostel, listingStatus: status, isPublished: status === 'published' });
+  }
+  public setRentalStatus(id: string, status: import('../src/types/index.js').ListingStatus) {
+    this.requireAdmin();
+    const rental = this.state.rentals.find(item => item.id === id);
+    if (!rental) throw new Error('ملک یافت نشد.');
+    this.saveRental({ ...rental, status });
+  }
   public toggleHostelPublished(id: string) {
     this.requireAdmin();
-    const h = this.state.hostels.find(item => item.id === id);
-    if (!h) return;
-    h.isPublished = !h.isPublished;
-    h.updatedAt = new Date().toISOString();
-    this.logAudit('TOGGLE_HOSTEL', 'HOSTEL', id, `تغییر وضعیت انتشار هاستل به ${h.isPublished ? 'منتشرشده' : 'پیش‌نویس'}`);
-    this.persist();
+    const hostel = this.state.hostels.find(item => item.id === id);
+    if (hostel) this.setHostelStatus(id, hostel.isPublished ? 'hidden' : 'published');
   }
-
   public toggleRentalAvailability(id: string) {
     this.requireAdmin();
-    const r = this.state.rentals.find(item => item.id === id);
-    if (!r) return;
-    r.status = r.status === 'published' ? 'hidden' : 'published';
-    r.updatedAt = new Date().toISOString();
-    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.status === 'published' ? 'منتشرشده' : 'پنهان'}`);
-    this.persist();
+    const rental = this.state.rentals.find(item => item.id === id);
+    if (rental) this.setRentalStatus(id, rental.status === 'published' ? 'hidden' : 'published');
   }
 
   // Coupons

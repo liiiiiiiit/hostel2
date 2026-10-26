@@ -57,3 +57,5 @@ The existing browser-local demo data is not imported automatically: it was user-
 This is a small-site foundation using one transactional JSON state row plus SQL session/outbox/rate-limit tables. It serializes writes; use normalized tables/pagination and retention policies before large-scale use. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
 
 Password reset, email ownership verification, multi-factor authentication and automated backups are not part of this release. Live hosted-database/provider delivery requires your own configuration and has not been validated using real credentials. The phrasebook works offline; live Gemini remains optional and untested. Never embed production API secrets in `VITE_` variables.
+
+Property management, media storage and migration/rollback guide (Persian): [PROPERTY_MANAGEMENT_FA.md](PROPERTY_MANAGEMENT_FA.md). Implementation status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md).

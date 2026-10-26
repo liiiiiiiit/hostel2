@@ -14,10 +14,20 @@ export interface User {
   createdAt: string;
 }
 
+export type ListingStatus = 'draft' | 'published' | 'hidden' | 'archived';
+export interface PropertyImage {
+  id: string;
+  url: string;
+  alt: Record<AppLanguage, string>;
+  roomTypeId?: string;
+}
 export interface RoomType {
   id: string;
   name: Record<AppLanguage, string>;
   type: 'dorm_mixed' | 'dorm_female' | 'dorm_male' | 'private';
+  bookingUnit?: 'bed' | 'room';
+  maxGuestsPerUnit?: number;
+  physicalUnits?: { id: string; label: string }[];
   totalBedsOrRooms: number;
   pricePerNightAMD: number;
   hasCurtain?: boolean;
@@ -31,6 +41,12 @@ export interface CapacityOverride { hostelId: string; roomTypeId: string; date: 
 export interface AvailabilityDay extends CapacityOverride { booked: number; available: number }
 export interface Verification { status: 'unverified' | 'verified'; checkedAt?: string; checkedBy?: string; note?: string }
 export interface Hostel {
+  listingStatus?: ListingStatus;
+  description?: Record<AppLanguage, string>;
+  media?: PropertyImage[];
+  factsConfirmed?: boolean;
+  sampleContent?: boolean;
+  coordinatesProvided?: boolean;
   id: string;
   slug: string;
   name: Record<AppLanguage, string>;
@@ -87,6 +103,7 @@ export interface Hostel {
     smokingAllowed: boolean;
     petsAllowed: boolean;
     cancellationPolicy: string;
+    cancellationPolicyLocalized?: Record<AppLanguage, string>;
     acceptedPaymentMethodsOnArrival: string[];
   };
   roomTypes: RoomType[];
@@ -147,6 +164,10 @@ export interface Booking {
 }
 
 export interface RentalProperty {
+  description?: Record<AppLanguage, string>;
+  media?: PropertyImage[];
+  factsConfirmed?: boolean;
+  sampleContent?: boolean;
   id: string;
   slug: string;
   title: Record<AppLanguage, string>;

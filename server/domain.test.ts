@@ -1,3 +1,4 @@
+import { completeRental } from './property-fixtures.js';
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -175,8 +176,9 @@ test('private tracking requires the exact token and review rejects invalid ratin
 
 test('rental publication toggle affects public listings and hidden listings reject inquiries', async () => {
   const store = new Store();
-  const rental = store.getRentals()[0];
   await admin(store);
+  const rental = completeRental(); rental.status = 'published';
+  store.saveRental(rental);
   store.toggleRentalAvailability(rental.id);
   assert.equal(store.getRentals().some(item => item.id === rental.id), false);
   assert.equal(store.createRentalInquiry({ propertyId: rental.id, guestName: 'Guest', contact: 'test@example.com', requestType: 'visit' }).success, false);
