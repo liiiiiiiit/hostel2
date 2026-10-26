@@ -1,6 +1,6 @@
 import { chromium } from 'playwright-core';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
@@ -13,6 +13,7 @@ const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:proc
 let browser;let activePage;let serverOutput="";
 server.stderr.on("data",chunk=>serverOutput+=String(chunk));
 const errors=[];
+const artifactDirectory=process.env.BROWSER_ARTIFACTS_DIR;if(artifactDirectory)await mkdir(artifactDirectory,{recursive:true});
 try {
   await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(new Error('Server startup timed out')),20000);
@@ -94,6 +95,7 @@ try {
   await editor.getByText('Required fields are complete; map verification is separate.',{exact:true}).waitFor();
   await editor.getByLabel('Save & publish',{exact:true}).selectOption('published');await editor.getByRole('button',{name:'Save & publish',exact:true}).click();
   await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();
+  if(artifactDirectory){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(artifactDirectory,'admin-property-desktop.png'),fullPage:true});}
   await editor.getByRole('button',{name:'Close editor',exact:true}).click();
   await page.getByTestId('property-management').getByRole('heading',{name:'Name English',exact:true}).waitFor();
   console.log('PASS administrator creates and publishes female beds and a double private room through the complete editor');
@@ -126,6 +128,8 @@ try {
   await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();await editor.getByRole('button',{name:'Close editor',exact:true}).click();
   const publicState=await (await otherPage.request.get(origin+'/api/app')).json();assert.ok(!JSON.stringify(publicState).includes('PRIVATE-BROWSER-ADDRESS'));
   console.log('PASS administrator creates an apartment through the complete editor and exact address stays private');
+  const multiHostPassword=crypto.randomUUID();
+  const managerCreated=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'createHostelManager',args:[{name:'Multi-property browser host',email:'multi-host@example.test',initialPassword:multiHostPassword,assignedHostelIds:publicHostels.slice(0,2).map(item=>item.id)}]}});assert.equal((await managerCreated.json()).success,true);
   for(const language of ['fa','en','ru','hy']){
     const mobile=await browser.newContext({viewport:{width:390,height:844}});
     await mobile.addInitScript(lang=>{if(window===window.top)localStorage.setItem('yerevanhub_lang',lang);},language);
@@ -133,9 +137,25 @@ try {
     const screen=await mobile.newPage();screen.on('pageerror',error=>errors.push(error.stack||error.message));await screen.goto(origin+'/');
     await screen.getByRole('heading',{level:1}).waitFor();assert.equal(await screen.locator('html').getAttribute('dir'),language==='fa'?'rtl':'ltr');
     assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: mobile overflow`);
+    if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,'home-fa-mobile.png'),fullPage:true});
+    for(const [role,address,password] of [['admin','admin@yerevanhub.com','Admin@2026'],['manager','multi-host@example.test',multiHostPassword]]){
+      await mobile.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'logout',args:[]}});
+      const login=await mobile.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:[address,password]}});assert.equal((await login.json()).success,true);
+      await screen.goto(origin+`/#/${role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();
+      assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} mobile overflow`);
+      if(role==='manager'){
+        await screen.getByTestId('workspace-tab-operations').click();
+        await screen.getByTestId('workspace-property').selectOption(publicHostels[1].id);
+        assert.equal(await screen.getByTestId('operations-property').inputValue(),publicHostels[1].id);
+        await screen.getByTestId('operations-property').selectOption(publicHostels[0].id);
+        assert.equal(await screen.getByTestId('workspace-property').inputValue(),publicHostels[0].id);
+        assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: operations mobile overflow`);
+      }
+      if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,`${role}-fa-mobile.png`),fullPage:true});
+    }
     await mobile.close();
   }
-  console.log('PASS mobile home and document direction in all four languages');
+  console.log('PASS mobile home, admin and manager workspaces and document direction in all four languages');
   assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
   await context.close();await other.close();
 } catch(error) {console.error("Browser body:",await activePage?.locator("body").innerText().catch(()=>"unavailable"));console.error(serverOutput.slice(-5000));throw error;} finally {

@@ -285,7 +285,7 @@ export default function App() {
       </main>
 
       {/* Global Footer */}
-      <Footer currentLang={currentLang} onNavigate={handleNavigate} />
+      {!['admin','manager','account'].includes(activeView)&&<Footer currentLang={currentLang} onNavigate={handleNavigate} />}
 
       {/* Auth Modal */}
       {showAuthModal && (

@@ -12,11 +12,13 @@ const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-
 const secondary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50';
 const guideFor = (hostel: Hostel) => ({ addressArmenianForTaxi: hostel.addressArmenianForTaxi ?? '', directionsFa: hostel.directionsFa ?? '', directionsHy: hostel.directionsHy ?? '', entrancePhoto: hostel.entrancePhoto ?? '', floorAndDoorCode: hostel.floorAndDoorCode ?? '', phone: hostel.phone ?? '' });
 
-export function PropertyOperationsPanel({ initialSection = 'capacity' }: { initialSection?: Section }) {
+export function PropertyOperationsPanel({ initialSection = 'capacity', selectedHostelId, onHostelChange }: { initialSection?: Section; selectedHostelId?:string; onHostelChange?:(id:string)=>void }) {
   const { currentLang, getLocalized } = useLanguage(); const t = operationsText(currentLang);
   const state = appStore.getState(); const admin = state.currentUser?.role === 'admin';
   const hostels = state.hostels.filter(h => admin || state.currentUser?.assignedHostelIds?.includes(h.id));
-  const [selection, setSelection] = useState(hostels[0]?.id ?? '');
+  const [localSelection, setLocalSelection] = useState(hostels[0]?.id ?? '');
+  const selection=selectedHostelId??localSelection;
+  const setSelection=(id:string)=>{setLocalSelection(id);onHostelChange?.(id);};
   const hostel = hostels.find(h => h.id === selection) ?? hostels[0];
   const [roomSelection, setRoomSelection] = useState('');
   const room = hostel?.roomTypes.find(r => r.id === roomSelection) ?? hostel?.roomTypes[0];
@@ -48,7 +50,7 @@ export function PropertyOperationsPanel({ initialSection = 'capacity' }: { initi
     <div className="border-b border-slate-100 px-5 pt-5 sm:px-6"><h2 className="text-lg font-bold text-[#142f2a]">{t.title}</h2><div className="mt-4 flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label={t.title}>{tabs.map(tab => <button key={tab.id} type="button" role="tab" id={`operations-${tab.id}`} aria-selected={section === tab.id} aria-controls="operations-content" onClick={() => { setSection(tab.id); setNotice(null); }} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition ${section === tab.id ? 'border-[#142f2a] text-[#142f2a]' : 'border-transparent text-slate-500 hover:text-slate-900'}`}><tab.icon className="h-4 w-4" />{tab.label}</button>)}</div></div>
     <div id="operations-content" role="tabpanel" aria-labelledby={`operations-${section}`} className="space-y-6 p-5 sm:p-6">
       {notice && <div role={notice.ok ? 'status' : 'alert'} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${notice.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>{notice.ok && <CheckCircle2 className="h-4 w-4" />}{notice.text}</div>}
-      {needsProperty && <label className="block max-w-md text-sm font-medium">{t.property}<select className={field} value={hostel?.id ?? ''} disabled={busy || !hostels.length} onChange={event => { setSelection(event.target.value); setRoomSelection(''); setNotice(null); }}>{hostels.map(h => <option value={h.id} key={h.id}>{getLocalized(h.name)}</option>)}</select></label>}
+      {needsProperty && <label className="block max-w-md text-sm font-medium">{t.property}<select data-testid="operations-property" aria-label={t.property} className={field} value={hostel?.id ?? ''} disabled={busy || !hostels.length} onChange={event => { setSelection(event.target.value); setRoomSelection(''); setNotice(null); }}>{hostels.map(h => <option value={h.id} key={h.id}>{getLocalized(h.name)}</option>)}</select></label>}
       {needsProperty && !hostel && <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">{t.empty}</p>}
       {section === 'capacity' && hostel && room && <>
         <form onSubmit={event => { event.preventDefault(); void run(() => appStore.setCapacity(hostel.id, room.id, date, Number(capacity)), () => setCapacityDraft(null)); }} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
