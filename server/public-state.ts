@@ -64,7 +64,7 @@ export function publicState(
     });
   const availability: ClientState["availability"] = [];
   const start = addCalendarDays(yerevanToday(), -1);
-  for (const hostel of hostels)
+  for (const hostel of hostels.filter(hostel => !hostel.publicPreview))
     for (const room of hostel.roomTypes) {
       for (let offset = 0; offset < 91; offset++) {
         const date = addCalendarDays(start, offset);

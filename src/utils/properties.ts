@@ -18,6 +18,12 @@ const time = (value?: string) => !!value && /^([01]\d|2[0-3]):[0-5]\d$/.test(val
 export function publicationIssues(value: Hostel | RentalProperty): PublicationIssue[] {
   const issues: PublicationIssue[] = [];
   if (!translated('name' in value ? value.name : value.title) || !translated(value.description)) issues.push('translations');
+  // Public previews require descriptive content, but never advertise bookable inventory.
+  if (value.publicPreview) {
+    if (!value.city.trim()) issues.push('address');
+    if (!value.sampleContent || value.factsConfirmed) issues.push('review');
+    return issues;
+  }
   if (!value.photos.length || !value.media?.length || value.media.some(image => !translated(image.alt))) issues.push('photos');
   if (!value.factsConfirmed || value.sampleContent) issues.push('review');
   if ('roomTypes' in value) {

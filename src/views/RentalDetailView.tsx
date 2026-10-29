@@ -1,3 +1,4 @@
+import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import { ListingDisclosure } from '../components/ListingDisclosure';
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, BedDouble, Building2, Check, MapPin, Users, Ruler, AlertCircle, Loader2 } from 'lucide-react';
@@ -36,7 +37,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
   const photoCount=rental.photos.length;
   return <div className="page-shell py-7 sm:py-10 space-y-7">
     <nav aria-label={currentLang==='fa'?'مسیر صفحه':'Breadcrumb'} className="flex items-center gap-2 text-sm text-slate-500"><button type="button" className="inline-flex items-center gap-2 hover:text-slate-900" onClick={()=>onNavigate('rentals')}><Back className="w-4 h-4" />{t.navRentals}</button><span aria-hidden="true">/</span><span className="truncate max-w-[65%]">{title}</span></nav>
-    <ListingDisclosure currentLang={currentLang} factsConfirmed={rental.factsConfirmed} sampleContent={rental.sampleContent}/>
+    {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <ListingDisclosure currentLang={currentLang} factsConfirmed={rental.factsConfirmed} sampleContent={rental.sampleContent}/>}
     {rental.description&&<p className="leading-8 text-slate-600 whitespace-pre-line max-w-3xl">{getLocalized(rental.description,currentLang)}</p>}
     <header className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div className="space-y-3"><p className="eyebrow inline-flex items-center gap-1.5"><MapPin className="w-4 h-4" />{getCityName(rental.city,currentLang)} · {rental.neighborhood}</p><h1 className="text-3xl sm:text-4xl font-semibold leading-tight tracking-tight max-w-3xl">{title}</h1><p className="text-slate-500 text-sm">{rental.addressPublic || rental.approximateLocationLabel}</p></div><PlaceActions kind="rental" id={rental.id} /></header>
     <div className={`grid gap-3 ${photoCount>1?'md:grid-cols-[1.7fr_1fr]':''}`}>
@@ -49,7 +50,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           [Ruler,c.area,`${rental.areaSqm} m²`],[BedDouble,c.bedrooms,rental.bedroomsCount],[Building2,c.floor,`${rental.floor} / ${rental.totalFloors}`],[Users,c.residents,rental.maxResidents],
         ].map(([Icon,label,value])=>{const Symbol=Icon as typeof Ruler;return <div key={String(label)} className="space-y-2"><Symbol className="w-5 h-5 text-slate-400" /><dt className="text-sm text-slate-500">{String(label)}</dt><dd className="font-semibold text-lg">{String(value)}</dd></div>;})}</dl><p className="text-sm text-slate-500 border-t border-slate-100 pt-4">{rental.hasElevator?c.elevator:c.noElevator}{rental.approximateLocationLabel?` · ${rental.approximateLocationLabel}`:''}</p></section>
         <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.amenities}</h2><ul className="grid sm:grid-cols-2 gap-4">{(Object.entries(rental.amenities) as [keyof RentalProperty['amenities'],boolean][]).filter(([,available])=>available).map(([key])=><li key={key} className="flex items-center gap-3 text-sm"><span className="rounded-full bg-emerald-50 p-1"><Check className="w-3.5 h-3.5 text-emerald-700" /></span>{c[key]}</li>)}</ul></section>
-        <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.costs}</h2><dl className="divide-y divide-slate-100 text-sm">
+        {!rental.publicPreview && <>        <section className="surface p-5 sm:p-7 space-y-5"><h2 className="text-xl font-semibold">{c.costs}</h2><dl className="divide-y divide-slate-100 text-sm">
           {rental.pricePerNightAMD!==undefined&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.nightly}</dt><dd className="font-semibold">{rental.pricePerNightAMD.toLocaleString(currentLang)} AMD</dd></div>}
           {rental.pricePerMonthAMD!==undefined&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.monthly}</dt><dd className="font-semibold">{rental.pricePerMonthAMD.toLocaleString(currentLang)} AMD</dd></div>}
           <div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.deposit}</dt><dd className="font-semibold">{rental.refundableDepositAMD.toLocaleString(currentLang)} AMD</dd></div>
@@ -58,9 +59,10 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           {(rental.minStayNights || rental.minStayMonths)&&<div className="flex justify-between gap-4 py-3"><dt className="text-slate-500">{c.minimum}</dt><dd>{[rental.minStayNights?`${rental.minStayNights} ${c.nights}`:'',rental.minStayMonths?`${rental.minStayMonths} ${c.months}`:''].filter(Boolean).join(' · ')}</dd></div>}
         </dl><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer py-1">{c.terms}</summary><p className="text-sm text-slate-600 leading-7 mt-3 whitespace-pre-line">{rental.depositTerms}</p></details></section>
         <details className="surface p-5 sm:p-7"><summary className="text-xl font-semibold cursor-pointer">{c.utilities}</summary><dl className="divide-y divide-slate-100 text-sm mt-4">{(Object.entries(rental.utilitiesBreakdown) as [keyof RentalProperty['utilitiesBreakdown'],string][]).map(([key,value])=><div className="flex justify-between gap-4 py-3" key={key}><dt className="text-slate-500">{({electricity:c.electricity,water:c.water,gas:c.gas,internet:c.internet,buildingMaintenance:c.maintenance})[key]}</dt><dd>{utilityValue(value)}</dd></div>)}</dl></details>
+</>}
         <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
       </div>
-      <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>
+      {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>
         <div className="space-y-2 border-b border-slate-100 pb-5"><p className="text-3xl font-semibold tabular-nums">{primaryPrice?.toLocaleString(currentLang)??'—'} <span className="text-sm font-normal text-slate-500">AMD {rental.pricePerMonthAMD?c.monthly:c.nightly}</span></p><h2 className="text-lg font-medium">{c.request}</h2></div>
         {formError&&<div role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm flex gap-2"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{formError}</div>}
         <form onSubmit={onSubmit} className="space-y-4" aria-busy={isSubmitting}>
@@ -76,7 +78,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           <button type="submit" disabled={isSubmitting} className="button-primary w-full inline-flex items-center justify-center gap-2">{isSubmitting?<Loader2 className="w-4 h-4 animate-spin" />:<ArrowUpRight className="w-4 h-4" />}{isSubmitting?c.submitting:c.submit}</button>
           <p className="text-xs leading-6 text-slate-500">{c.disclaimer}</p>
         </form>
-      </aside>
+      </aside>}
     </div>
   </div>;
 };

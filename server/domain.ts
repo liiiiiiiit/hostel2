@@ -358,6 +358,7 @@ export class Store {
     }
     const hostel = this.state.hostels.find(h => h.id === data.hostelId);
     if (!hostel || (!hostel.isPublished&&!(data.source&&data.source!=='website'&&this.canManageHostel(hostel.id)))) return { success: false, error: 'هاستل یافت نشد.' };
+    if (hostel.publicPreview) return { success: false, error: 'این اقامتگاه آزمایشی است و رزرو نمی‌پذیرد.' };
     if(data.expectedHostelUpdatedAt!==undefined&&data.expectedHostelUpdatedAt!==hostel.updatedAt)return {success:false,error:'اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.'};
 
     const roomType = hostel.roomTypes.find(rt => rt.id === data.roomTypeId);
@@ -754,6 +755,7 @@ export class Store {
   }): { success: boolean; inquiry?: RentalInquiry; error?: string } {
     const rental = this.state.rentals.find(r => r.id === data.propertyId);
     if (!rental || rental.status !== 'published') return { success: false, error: 'ملک یافت نشد.' };
+    if (rental.publicPreview) return { success: false, error: 'این ملک آزمایشی است و درخواست اجاره یا بازدید نمی‌پذیرد.' };
     if (!data.guestName.trim() || !data.contact.trim() ||
         (data.residentsCount !== undefined && (!Number.isInteger(data.residentsCount) || data.residentsCount < 1 || data.residentsCount > rental.maxResidents))) {
       return { success: false, error: 'اطلاعات متقاضی یا تعداد ساکنین معتبر نیست.' };
