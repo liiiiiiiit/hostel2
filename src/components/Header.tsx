@@ -22,15 +22,21 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const mobileNavigationRef = useRef<HTMLElement>(null);
   const nav = [ ['hostels', text.hostels], ['rentals', text.rentals], ['guide', text.guide], ['translator', text.translator] ];
   const accountView = currentUser?.role === 'admin' ? 'admin' : currentUser?.role === 'hostel_manager' ? 'manager' : 'account';
   const accountLabel = currentUser?.role === 'admin' ? text.admin : currentUser?.role === 'hostel_manager' ? text.manager : text.account;
   const navigate = (view: string) => { onNavigate(view); setMenuOpen(false); setAccountOpen(false); };
   useEffect(() => {
-    const close = (event: MouseEvent) => { if (accountRef.current && !accountRef.current.contains(event.target as Node)) setAccountOpen(false); };
+    const close = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (accountRef.current && !accountRef.current.contains(target)) setAccountOpen(false);
+      if (menuOpen && !mobileNavigationRef.current?.contains(target) && !mobileToggleRef.current?.contains(target)) setMenuOpen(false);
+    };
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && (menuOpen || accountOpen)) { if (menuOpen) mobileToggleRef.current?.focus(); else accountRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); setMenuOpen(false); setAccountOpen(false); } };
-    document.addEventListener('mousedown', close); document.addEventListener('keydown', escape);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
+    document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, [menuOpen, accountOpen]);
   return <header className="sticky top-0 z-40 border-b border-[#142f2a]/10 bg-[#f8faf7]/95 backdrop-blur-xl">
     <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
@@ -57,7 +63,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
         <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white xl:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
       </div>
     </div>
-    {menuOpen && <nav id="mobile-navigation" aria-label={text.menu} className="border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 xl:hidden">
+    {menuOpen && <nav ref={mobileNavigationRef} id="mobile-navigation" aria-label={text.menu} className="border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 xl:hidden">
       <div className="mx-auto grid max-w-7xl gap-1">
         {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={activeView === view ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${activeView === view ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
         <button type="button" onClick={() => navigate('saved')} className="flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium text-[#142f2a] hover:bg-white">{text.saved}<span>{saved.length}</span></button>
