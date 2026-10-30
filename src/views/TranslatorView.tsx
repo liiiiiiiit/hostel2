@@ -100,16 +100,16 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
       </div>
 
       {/* Main Translator Box */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+      <div className="w-full min-w-0 max-w-full bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
         {/* Language Selection Header */}
-        <div className="bg-slate-50 border-b border-slate-200 p-3 sm:p-4 flex items-center justify-between gap-3">
+        <div className="bg-slate-50 border-b border-slate-200 p-3 sm:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
           {/* Source Lang */}
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorSourceLabel}</span>
             <select
               value={sourceLang}
               onChange={e => setSourceLang(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="auto">Auto Detect</option>
               <option value="fa">فارسی (Persian)</option>
@@ -132,12 +132,12 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
           </button>
 
           {/* Target Lang */}
-          <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex min-w-0 items-center gap-2 justify-end">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorTargetLabel}</span>
             <select
               value={targetLang}
               onChange={e => setTargetLang(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="hy">Հայերեն (Armenian)</option>
               <option value="fa">فارسی (Persian)</option>
@@ -192,12 +192,12 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             </div>
 
             {/* Actions for result */}
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
-              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs pt-2 border-t border-slate-200/80">
+              <span className="min-w-0 text-[11px] text-slate-400 truncate max-w-[200px]">
                 {translatorNote}
               </span>
 
-              {translationError&&<p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{translationError}</p>}
+              {translationError&&<p role="alert" className="basis-full min-w-0 break-words rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{translationError}</p>}
               {outputText && (
                 <div className="flex items-center gap-1.5">
                   <button
@@ -225,8 +225,8 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
         </div>
 
         {/* Translate Action Bar */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
+        <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="min-w-0 text-xs text-slate-400">
             {t.privacyTranslationNote}
           </span>
 
@@ -234,7 +234,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             type="button"
             disabled={isTranslating || !inputText.trim()}
             onClick={handleTranslate}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-indigo-600/20 transition-all"
+            className="w-full sm:w-auto justify-center px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-indigo-600/20 transition-all"
           >
             <Sparkles className="w-4 h-4" />
             <span>{t.translateButton}</span>
@@ -316,7 +316,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
       {/* Large Text Presentation Modal for Showing to Driver / Local */}
       {showLargeModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 text-white max-w-2xl w-full rounded-3xl p-6 sm:p-10 space-y-6 shadow-2xl border border-slate-700">
+          <div className="w-full min-w-0 max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto bg-slate-900 text-white rounded-3xl p-5 sm:p-10 space-y-6 shadow-2xl border border-slate-700">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">
                 {t.largeModalTitle}
@@ -331,10 +331,10 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             </div>
 
             <div className="space-y-4 py-4 text-center">
-              <p className={`text-2xl sm:text-4xl font-bold text-amber-300 tracking-wide leading-relaxed ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
+              <p className={`break-words text-2xl sm:text-4xl font-bold text-amber-300 tracking-wide leading-relaxed ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
                 {outputText}
               </p>
-              <p className="text-sm text-slate-400 border-t border-slate-800 pt-4">
+              <p className="break-words text-sm text-slate-400 border-t border-slate-800 pt-4">
                 {inputText}
               </p>
             </div>
