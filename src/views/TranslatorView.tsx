@@ -156,6 +156,12 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
               placeholder={t.typeOrPasteText}
               value={inputText}
               onChange={e => setInputText(e.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (!isTranslating && inputText.trim()) void handleTranslate();
+                }
+              }}
               maxLength={2000}
               className="w-full bg-transparent resize-none text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-hidden leading-relaxed font-sans"
             />
