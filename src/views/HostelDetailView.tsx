@@ -2,6 +2,7 @@ import {workflowText} from '../i18n/workflows';
 import { pricingText } from '../i18n/pricing';
 import { requiredUnits, occupancyIsValid } from '../utils/occupancy';
 import { propertyText } from '../i18n/properties';
+import { PropertyGallery } from '../components/PropertyGallery';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import { ListingDisclosure } from '../components/ListingDisclosure';
 import { featureText } from '../i18n/features';
@@ -502,7 +503,7 @@ export const HostelDetailView: React.FC<Props> = ({
     hostel.amenities.elevator && tr.hasElevator,
   ].filter(Boolean);
   return (
-    <div className="page-shell py-7 sm:py-10 space-y-7">
+    <div className={`page-shell py-7 sm:py-10 space-y-7 ${!hostel.publicPreview ? '!pb-28 lg:!pb-16' : ''}`}>
       <nav aria-label="Breadcrumb" className="flex gap-2 text-sm text-slate-500"><button type="button" className="hover:text-emerald-800" onClick={() => onNavigate('home')}>{tr.breadcrumbHome}</button><span>/</span><button type="button" className="hover:text-emerald-800" onClick={() => onNavigate('hostels')}>{t.navHostels}</button></nav>
       {hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <ListingDisclosure currentLang={currentLang} factsConfirmed={hostel.factsConfirmed} sampleContent={hostel.sampleContent}/>}
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -510,10 +511,7 @@ export const HostelDetailView: React.FC<Props> = ({
         <div className="space-y-2"><PlaceActions kind="hostel" id={hostel.id}/>{count > 0 && <p className="flex gap-2 items-center text-sm"><Star size={16} className="fill-amber-500 text-amber-600"/><strong>{avg} / 5</strong><span className="text-slate-500">({count} {t.reviewsCountText})</span></p>}</div>
       </header>
       {hostel.description&&<p className="leading-8 text-slate-600 whitespace-pre-line max-w-3xl">{getLocalized(hostel.description,currentLang)}</p>}
-      <div className={`grid gap-3 overflow-hidden rounded-3xl ${hostel.photos.length > 1 ? 'md:grid-cols-[1.65fr_1fr]' : ''}`}>
-        {hostel.photos[0] && <img src={hostel.photos[0]} alt={hostel.media?.[0]?.alt[currentLang]||getLocalized(hostel.name,currentLang)} className="w-full aspect-[16/10] sm:aspect-[21/10] md:aspect-[16/10] object-cover bg-slate-100"/>}
-        {hostel.photos.length > 1 && <div className="hidden md:grid gap-3 grid-rows-2 min-h-0">{hostel.photos.slice(1,3).map((photo,index)=><img src={photo} alt={`${getLocalized(hostel.name,currentLang)} ${index+2}`} key={photo} className="w-full h-full min-h-0 object-cover bg-slate-100"/>) }</div>}
-      </div>
+      <PropertyGallery photos={hostel.photos} name={getLocalized(hostel.name,currentLang)} lang={currentLang}/>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_390px] gap-7 xl:gap-10 items-start">
         <div className="space-y-7 min-w-0">
           <VerificationInfo verified={hostel.verification?.status==='verified'} checkedAt={hostel.verification?.checkedAt} note={hostel.verification?.note}/>
@@ -531,7 +529,7 @@ export const HostelDetailView: React.FC<Props> = ({
           <HostelLocationMap hostel={hostel} currentLang={currentLang}/>
           <section className="surface p-5 sm:p-6 space-y-5"><h2 className="text-xl font-semibold">{copy.review} <span className="font-normal text-slate-400">({reviews.length})</span></h2>{reviews.length===0 ? <p className="text-sm text-slate-500 py-4">{ft.noReviews}</p> : reviews.map(review=><article key={review.id} className="border-t border-slate-100 pt-5 space-y-3"><div className="flex items-center justify-between"><strong>{review.guestName}</strong><span className="inline-flex gap-1 items-center text-sm"><Star size={15} className="fill-amber-500 text-amber-600"/>{review.rating} / 5</span></div>{review.scores && <div className="flex flex-wrap gap-3 text-xs text-slate-500">{(['cleanliness','safety','staff','location'] as const).map(key=><span key={key}>{ft[key]} {review.scores![key]} / 5</span>)}</div>}<p className="text-sm text-slate-600 leading-relaxed">{review.comment}</p>{review.adminReply && <p className="text-sm p-3 rounded-xl bg-slate-50">{review.adminReply}</p>}</article>)}</section>
         </div>
-        {hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 space-y-5 lg:sticky lg:top-24" id="stay-booking-form" aria-label={copy.book}>
+        {hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 space-y-5 lg:sticky lg:top-24" id="stay-booking-form" tabIndex={-1} aria-label={copy.book}>
           <div className="flex gap-4 items-start justify-between border-b border-slate-100 pb-5"><div><h2 className="text-xl font-semibold">{copy.book}</h2><p className="text-sm text-slate-500 mt-1">{copy.payment}</p></div><div className="text-end"><strong className="block text-xl ltr-isolate">{(selectedRoom?.pricePerNightAMD ?? hostel.minPricePerNightAMD).toLocaleString()} <span className="text-xs font-normal">AMD</span></strong><span className="text-xs text-slate-500">{t.perNight}</span></div></div>
           {formError && <p role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm">{formError}</p>}
           <form onSubmit={handleSubmitBooking} className="space-y-4" aria-busy={isSubmitting}>
@@ -554,6 +552,9 @@ export const HostelDetailView: React.FC<Props> = ({
           </form>
         </aside>}
       </div>
+      {!hostel.publicPreview && <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        <button type="button" className="button-primary w-full" onClick={() => { const form = document.getElementById('stay-booking-form'); form?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'}); form?.focus({preventScroll:true}); }}>{copy.book}</button>
+      </div>}
     </div>
   );
 };

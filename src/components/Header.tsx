@@ -39,15 +39,15 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, [menuOpen, accountOpen]);
   return <header className="sticky top-0 z-40 border-b border-[#142f2a]/10 bg-[#f8faf7]/95 backdrop-blur-xl">
-    <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
-        <span className="flex size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
-        <span className="brand-name text-base font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
+    <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
+      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
+        <span className="flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
+        <span className="brand-name text-xs min-[380px]:text-sm font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
       </button>
       <nav aria-label={text.menu} className="hidden items-center gap-1 xl:flex">
         {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={activeView.startsWith(view.replace(/s$/, '')) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${activeView === view ? 'bg-[#142f2a]/7 text-[#142f2a]' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
       </nav>
-      <div className="flex items-center gap-1.5 sm:gap-2.5">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2.5">
         <button type="button" onClick={() => navigate('saved')} aria-label={`${text.saved} (${saved.length} / ${compared.length})`} title={text.saved} className="relative flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white">
           <Heart className="size-5" strokeWidth={1.6} />{saved.length > 0 && <span className="absolute -end-0.5 top-0 flex min-w-4 items-center justify-center rounded-full bg-[#d6a65c] px-1 text-[10px] font-bold text-[#142f2a]">{saved.length}</span>}
         </button>

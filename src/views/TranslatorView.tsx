@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { AppLanguage, TravelPhrase } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import {
@@ -30,6 +30,8 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   const [selectedPhraseCategory, setSelectedPhraseCategory] = useState('all');
   const [translationError,setTranslationError]=useState('');
   const [translatorNote, setTranslatorNote] = useState<string>('');
+  const requestVersion = useRef(0);
+  const resetResult = () => { requestVersion.current += 1; setIsTranslating(false); setOutputText(''); setTranslatorNote(''); setTranslationError(''); };
 
   const categories = useMemo(() => [
     { id: 'all', label: t.allCategories },
@@ -43,6 +45,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
 
   const handleSwap = () => {
     if (sourceLang === 'auto') return;
+    requestVersion.current += 1; setIsTranslating(false);
     const prevSource = sourceLang;
     setSourceLang(targetLang);
     setTargetLang(prevSource);
@@ -52,17 +55,20 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
+    const version = ++requestVersion.current;
     setIsTranslating(true);
     setTranslatorNote('');setTranslationError('');setOutputText('');
 
     try {
       const res = await translateText(inputText, sourceLang, targetLang,currentLang);
+      if (version !== requestVersion.current) return;
       setOutputText(res.text);
       if (res.notes) setTranslatorNote(res.notes);
     } catch(error) {
+      if (version !== requestVersion.current) return;
       setTranslationError(error instanceof Error?error.message:{fa:'ترجمه انجام نشد.',en:'Translation failed.',ru:'Не удалось перевести.',hy:'Թարգմանությունը չհաջողվեց։'}[currentLang]);
     } finally {
-      setIsTranslating(false);
+      if (version === requestVersion.current) setIsTranslating(false);
     }
   };
 
@@ -72,6 +78,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   };
 
   const handleSelectPhrase = (phrase: TravelPhrase) => {
+    requestVersion.current += 1; setIsTranslating(false);
     const inputPhrase = phrase[currentLang];
     setInputText(inputPhrase);
     const destination=currentLang==='hy'?'fa':'hy';setOutputText(phrase[destination]);setTranslationError('');setTranslatorNote('');
@@ -107,8 +114,9 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
           <div className="flex min-w-0 items-center gap-2">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorSourceLabel}</span>
             <select
+              aria-label={t.translatorSourceLabel}
               value={sourceLang}
-              onChange={e => setSourceLang(e.target.value as any)}
+              onChange={e => { setSourceLang(e.target.value as any); resetResult(); }}
               className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="auto">Auto Detect</option>
@@ -135,8 +143,9 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
           <div className="flex min-w-0 items-center gap-2 justify-end">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorTargetLabel}</span>
             <select
+              aria-label={t.translatorTargetLabel}
               value={targetLang}
-              onChange={e => setTargetLang(e.target.value as any)}
+              onChange={e => { setTargetLang(e.target.value as any); resetResult(); }}
               className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="hy">Հայերեն (Armenian)</option>
@@ -155,7 +164,9 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
               rows={6}
               placeholder={t.typeOrPasteText}
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
+              dir={sourceLang === 'auto' ? 'auto' : sourceLang === 'fa' ? 'rtl' : 'ltr'}
+              aria-label={t.typeOrPasteText}
+              onChange={e => { setInputText(e.target.value); resetResult(); }}
               onKeyDown={event => {
                 if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
@@ -171,7 +182,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
               {inputText && (
                 <button
                   type="button"
-                  onClick={() => setInputText('')}
+                  onClick={() => { setInputText(''); resetResult(); }}
                   className="text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   {t.clearText}
@@ -189,7 +200,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
                   <span>{t.translatingAction}</span>
                 </div>
               ) : outputText ? (
-                <p className={`text-base sm:text-lg font-bold text-slate-900 leading-relaxed select-all ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
+                <p className={`min-w-0 break-words [overflow-wrap:anywhere] text-base sm:text-lg font-bold text-slate-900 leading-relaxed select-all ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
                   {outputText}
                 </p>
               ) : (
