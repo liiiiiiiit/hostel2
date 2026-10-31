@@ -8,8 +8,12 @@ import { addCalendarDays, yerevanToday } from '../utils/dates';
 import { calculateNights } from '../utils/pricing';
 import { PlaceActions } from '../components/PlaceActions';
 import { publicSiteText } from '../i18n/publicSite';
+import { ContentLoading } from '../components/ContentLoading';
+import { loadingText } from '../i18n/loading';
 
 interface Props {
+  loading?: boolean;
+  unavailable?: boolean;
   currentLang: AppLanguage;
   hostels: Hostel[];
   rentals: RentalProperty[];
@@ -27,7 +31,7 @@ function StayImage({ src, alt, className = '' }: { src?: string; alt: string; cl
   </div>;
 }
 
-export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, onNavigate, getHostelRating }) => {
+export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, onNavigate, getHostelRating, loading = false, unavailable = false }) => {
   const text = publicSiteText(currentLang);
   const ux = homeExperience(currentLang);
   const Arrow = currentLang === 'fa' ? ArrowLeft : ArrowRight;
@@ -106,13 +110,14 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
       </section>
       <section>
         {sectionHeading(text.hostelEyebrow,text.hostelTitle,text.hostelDesc,text.allHostels,'hostels')}
+        {loading ? <ContentLoading lang={currentLang} listings /> : unavailable ? <p className="py-8 text-sm text-slate-500">{loadingText(currentLang).unavailable}</p> :
         <div className="grid grid-flow-col auto-cols-[88%] gap-4 overflow-x-auto snap-x snap-mandatory pb-3 md:grid-flow-row md:auto-cols-auto md:grid-cols-2 lg:grid-cols-3">
           {featuredHostels.map(hostel => { const rating = getHostelRating(hostel.id); return <article key={hostel.id} className="group min-w-0 snap-start overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white transition-shadow hover:shadow-[0_12px_40px_-20px_rgba(20,47,42,0.25)]">
             <button type="button" onClick={() => openHostel(hostel.id)} className="relative block w-full text-start" aria-label={getLocalized(hostel.name,currentLang)}><StayImage src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="aspect-[4/2.8]" /><span className="absolute bottom-4 start-4 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-[#142f2a]">{hostel.district}</span>{rating.count > 0 && <span className="absolute end-4 top-4 flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-[#142f2a]"><Star className="size-3.5 fill-[#d6a65c] text-[#d6a65c]" />{rating.avg} <span className="font-normal text-slate-500">({rating.count})</span></span>}</button>
             <div className="p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="min-h-14 text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => openHostel(hostel.id)} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3>{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div>}<PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => openHostel(hostel.id)} className="mt-2 min-h-11 w-full rounded-xl bg-[#f0f4ef] text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{hostel.publicPreview ? ux.information : text.details}</button></div>
           </article>; })}
           {!hostels.length && <p className="py-10 text-sm text-slate-500">{text.noStays}</p>}
-        </div>
+        </div>}
       </section>
 
       {rentals.length > 0 && <section>

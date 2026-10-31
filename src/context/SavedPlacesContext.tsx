@@ -9,7 +9,7 @@ const read = (key: string): PlaceKey[] => {
 const Context = createContext<{ saved: PlaceKey[]; compared: PlaceKey[]; toggleSaved: (key: PlaceKey) => void; toggleCompared: (key: PlaceKey) => void } | null>(null);
 export function SavedPlacesProvider({ children }: { children: React.ReactNode }) {
   const {currentLang}=useLanguage();const [syncError,setSyncError]=useState('');
-  const state=useSyncExternalStore(appStore.subscribe,appStore.getState);
+  const state=useSyncExternalStore(appStore.subscribe,appStore.getState,appStore.getState);
   const [guestSaved,setSaved] = useState(() => read('yh_saved'));
   const saved=state.currentUser?(state.savedPlaces??[]) as PlaceKey[]:guestSaved;
   useEffect(()=>{if(state.currentUser)void appStore.action('mergeSavedPlaces',[guestSaved]).then(result=>setSyncError(result.success?'':result.error??workflowText(currentLang)('error')));},[state.currentUser?.id]);
