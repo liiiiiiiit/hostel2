@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { AppLanguage, TravelPhrase } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import {
@@ -30,6 +30,8 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   const [selectedPhraseCategory, setSelectedPhraseCategory] = useState('all');
   const [translationError,setTranslationError]=useState('');
   const [translatorNote, setTranslatorNote] = useState<string>('');
+  const requestVersion = useRef(0);
+  const resetResult = () => { requestVersion.current += 1; setIsTranslating(false); setOutputText(''); setTranslatorNote(''); setTranslationError(''); };
 
   const categories = useMemo(() => [
     { id: 'all', label: t.allCategories },
@@ -43,6 +45,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
 
   const handleSwap = () => {
     if (sourceLang === 'auto') return;
+    requestVersion.current += 1; setIsTranslating(false);
     const prevSource = sourceLang;
     setSourceLang(targetLang);
     setTargetLang(prevSource);
@@ -52,17 +55,20 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
 
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
+    const version = ++requestVersion.current;
     setIsTranslating(true);
     setTranslatorNote('');setTranslationError('');setOutputText('');
 
     try {
       const res = await translateText(inputText, sourceLang, targetLang,currentLang);
+      if (version !== requestVersion.current) return;
       setOutputText(res.text);
       if (res.notes) setTranslatorNote(res.notes);
     } catch(error) {
+      if (version !== requestVersion.current) return;
       setTranslationError(error instanceof Error?error.message:{fa:'ترجمه انجام نشد.',en:'Translation failed.',ru:'Не удалось перевести.',hy:'Թարգմանությունը չհաջողվեց։'}[currentLang]);
     } finally {
-      setIsTranslating(false);
+      if (version === requestVersion.current) setIsTranslating(false);
     }
   };
 
@@ -72,6 +78,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
   };
 
   const handleSelectPhrase = (phrase: TravelPhrase) => {
+    requestVersion.current += 1; setIsTranslating(false);
     const inputPhrase = phrase[currentLang];
     setInputText(inputPhrase);
     const destination=currentLang==='hy'?'fa':'hy';setOutputText(phrase[destination]);setTranslationError('');setTranslatorNote('');
@@ -100,16 +107,17 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
       </div>
 
       {/* Main Translator Box */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
+      <div className="w-full min-w-0 max-w-full bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden">
         {/* Language Selection Header */}
-        <div className="bg-slate-50 border-b border-slate-200 p-3 sm:p-4 flex items-center justify-between gap-3">
+        <div className="bg-slate-50 border-b border-slate-200 p-3 sm:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
           {/* Source Lang */}
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorSourceLabel}</span>
             <select
+              aria-label={t.translatorSourceLabel}
               value={sourceLang}
-              onChange={e => setSourceLang(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              onChange={e => { setSourceLang(e.target.value as any); resetResult(); }}
+              className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="auto">Auto Detect</option>
               <option value="fa">فارسی (Persian)</option>
@@ -132,12 +140,13 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
           </button>
 
           {/* Target Lang */}
-          <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex min-w-0 items-center gap-2 justify-end">
             <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.translatorTargetLabel}</span>
             <select
+              aria-label={t.translatorTargetLabel}
               value={targetLang}
-              onChange={e => setTargetLang(e.target.value as any)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              onChange={e => { setTargetLang(e.target.value as any); resetResult(); }}
+              className="w-full min-w-0 max-w-full bg-white border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-[11px] sm:text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="hy">Հայերեն (Armenian)</option>
               <option value="fa">فارسی (Persian)</option>
@@ -155,7 +164,15 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
               rows={6}
               placeholder={t.typeOrPasteText}
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
+              dir={sourceLang === 'auto' ? 'auto' : sourceLang === 'fa' ? 'rtl' : 'ltr'}
+              aria-label={t.typeOrPasteText}
+              onChange={e => { setInputText(e.target.value); resetResult(); }}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  if (!isTranslating && inputText.trim()) void handleTranslate();
+                }
+              }}
               maxLength={2000}
               className="w-full bg-transparent resize-none text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-hidden leading-relaxed font-sans"
             />
@@ -165,7 +182,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
               {inputText && (
                 <button
                   type="button"
-                  onClick={() => setInputText('')}
+                  onClick={() => { setInputText(''); resetResult(); }}
                   className="text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   {t.clearText}
@@ -183,7 +200,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
                   <span>{t.translatingAction}</span>
                 </div>
               ) : outputText ? (
-                <p className={`text-base sm:text-lg font-bold text-slate-900 leading-relaxed select-all ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
+                <p className={`min-w-0 break-words [overflow-wrap:anywhere] text-base sm:text-lg font-bold text-slate-900 leading-relaxed select-all ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
                   {outputText}
                 </p>
               ) : (
@@ -192,12 +209,12 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             </div>
 
             {/* Actions for result */}
-            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/80">
-              <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs pt-2 border-t border-slate-200/80">
+              <span className="min-w-0 text-[11px] text-slate-400 truncate max-w-[200px]">
                 {translatorNote}
               </span>
 
-              {translationError&&<p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{translationError}</p>}
+              {translationError&&<p role="alert" className="basis-full min-w-0 break-words rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{translationError}</p>}
               {outputText && (
                 <div className="flex items-center gap-1.5">
                   <button
@@ -225,8 +242,8 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
         </div>
 
         {/* Translate Action Bar */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
+        <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="min-w-0 text-xs text-slate-400">
             {t.privacyTranslationNote}
           </span>
 
@@ -234,7 +251,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             type="button"
             disabled={isTranslating || !inputText.trim()}
             onClick={handleTranslate}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-indigo-600/20 transition-all"
+            className="w-full sm:w-auto justify-center px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-md shadow-indigo-600/20 transition-all"
           >
             <Sparkles className="w-4 h-4" />
             <span>{t.translateButton}</span>
@@ -316,7 +333,7 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
       {/* Large Text Presentation Modal for Showing to Driver / Local */}
       {showLargeModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-slate-900 text-white max-w-2xl w-full rounded-3xl p-6 sm:p-10 space-y-6 shadow-2xl border border-slate-700">
+          <div className="w-full min-w-0 max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto bg-slate-900 text-white rounded-3xl p-5 sm:p-10 space-y-6 shadow-2xl border border-slate-700">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">
                 {t.largeModalTitle}
@@ -331,10 +348,10 @@ export const TranslatorView: React.FC<Props> = ({ currentLang, phrases }) => {
             </div>
 
             <div className="space-y-4 py-4 text-center">
-              <p className={`text-2xl sm:text-4xl font-bold text-amber-300 tracking-wide leading-relaxed ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
+              <p className={`break-words text-2xl sm:text-4xl font-bold text-amber-300 tracking-wide leading-relaxed ${targetLang === 'hy' ? 'armenian-text' : 'font-sans'}`} dir={targetLang === 'fa' ? 'rtl' : 'ltr'}>
                 {outputText}
               </p>
-              <p className="text-sm text-slate-400 border-t border-slate-800 pt-4">
+              <p className="break-words text-sm text-slate-400 border-t border-slate-800 pt-4">
                 {inputText}
               </p>
             </div>

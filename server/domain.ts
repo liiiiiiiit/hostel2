@@ -251,7 +251,7 @@ export class Store {
   public logAudit(action: string, targetType: string, targetId: string, details: string) {
     const actor = this.state.currentUser || { id: 'guest', name: 'کاربر مهمان', role: 'traveler' };
     const log: AuditLog = {
-      id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `log-${crypto.randomUUID()}`,
       timestamp: new Date().toISOString(),
       actorId: actor.id,
       actorName: actor.name,
@@ -358,6 +358,7 @@ export class Store {
     }
     const hostel = this.state.hostels.find(h => h.id === data.hostelId);
     if (!hostel || (!hostel.isPublished&&!(data.source&&data.source!=='website'&&this.canManageHostel(hostel.id)))) return { success: false, error: 'هاستل یافت نشد.' };
+    if (hostel.publicPreview) return { success: false, error: 'این اقامتگاه آزمایشی است و رزرو نمی‌پذیرد.' };
     if(data.expectedHostelUpdatedAt!==undefined&&data.expectedHostelUpdatedAt!==hostel.updatedAt)return {success:false,error:'اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.'};
 
     const roomType = hostel.roomTypes.find(rt => rt.id === data.roomTypeId);
@@ -754,6 +755,7 @@ export class Store {
   }): { success: boolean; inquiry?: RentalInquiry; error?: string } {
     const rental = this.state.rentals.find(r => r.id === data.propertyId);
     if (!rental || rental.status !== 'published') return { success: false, error: 'ملک یافت نشد.' };
+    if (rental.publicPreview) return { success: false, error: 'این ملک آزمایشی است و درخواست اجاره یا بازدید نمی‌پذیرد.' };
     if (!data.guestName.trim() || !data.contact.trim() ||
         (data.residentsCount !== undefined && (!Number.isInteger(data.residentsCount) || data.residentsCount < 1 || data.residentsCount > rental.maxResidents))) {
       return { success: false, error: 'اطلاعات متقاضی یا تعداد ساکنین معتبر نیست.' };
@@ -917,7 +919,7 @@ export class Store {
     if (idx >= 0) {
       this.state.articles[idx] = { ...article, updatedAt: new Date().toISOString() };
     } else {
-      article.id = `art-${Date.now()}`;
+      article.id ||= `art-${crypto.randomUUID()}`;
       article.createdAt = new Date().toISOString();
       article.updatedAt = new Date().toISOString();
       this.state.articles.unshift(article);

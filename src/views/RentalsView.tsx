@@ -1,3 +1,4 @@
+import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useMemo, useState } from 'react';
 import { Building2, BedDouble, MapPin, SlidersHorizontal, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { AppLanguage, RentalProperty } from '../types';
@@ -56,7 +57,7 @@ export const RentalsView: React.FC<Props> = ({ currentLang, rentals, onNavigate,
         <div className="p-5 space-y-4 flex-1 flex flex-col">
           <div className="space-y-2"><p className="text-sm text-slate-500 inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{getCityName(rental.city,currentLang)} · {rental.neighborhood}</p><h2 className="text-xl font-semibold leading-snug"><button className="text-start hover:text-emerald-800" onClick={()=>onNavigate('rental-detail',{id:rental.id})}>{title}</button></h2></div>
           <div className="flex flex-wrap gap-4 text-sm text-slate-500"><span>{rental.areaSqm} m²</span><span className="inline-flex items-center gap-1.5"><BedDouble className="w-4 h-4" />{rental.bedroomsCount} {c.bedrooms}</span><span>{t.floorLabel} {rental.floor}</span></div>
-          <div className="pt-4 mt-auto border-t border-slate-100"><p className="text-2xl font-semibold tabular-nums">{price?.toLocaleString(currentLang) ?? '—'} <span className="text-sm font-normal text-slate-500">AMD / {monthly ? c.perMonth : c.perNight}</span></p><p className="text-sm text-slate-500 mt-1">{c.deposit}: {rental.refundableDepositAMD.toLocaleString(currentLang)} AMD</p></div>
+          {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="pt-4 mt-auto border-t border-slate-100"><p className="text-2xl font-semibold tabular-nums">{price?.toLocaleString(currentLang) ?? '—'} <span className="text-sm font-normal text-slate-500">AMD / {monthly ? c.perMonth : c.perNight}</span></p><p className="text-sm text-slate-500 mt-1">{c.deposit}: {rental.refundableDepositAMD.toLocaleString(currentLang)} AMD</p></div>}
           <PlaceActions kind="rental" id={rental.id} />
           <button className="button-primary w-full flex items-center justify-between" onClick={()=>onNavigate('rental-detail',{id:rental.id})}>{c.details}<ArrowUpRight className="w-4 h-4" /></button>
         </div>

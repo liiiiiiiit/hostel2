@@ -84,7 +84,7 @@ test('guest booking persists and exact private tracking works in an unrelated br
   assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkIn=yerevanToday();entry.checkOut=addCalendarDays(yerevanToday(),1);});
   assert.ok(JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
-  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkOut=yerevanToday();});
+  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkIn=addCalendarDays(yerevanToday(),-1);entry.checkOut=yerevanToday();if(entry.agreement)entry.agreement.checkOutTime='00:00';});
   assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   assert.ok(!JSON.stringify((await client().get()).state.hostels).includes('PRIVATE-CODE-87'));
   await database.transaction(async (_state,tx) => { assert.ok((await tx.execute('SELECT id FROM outbox')).rows.length>0); });
@@ -425,4 +425,40 @@ test('articles preserve their primary language and accept only the translations 
  const {client,visitor}=await fixture(t);const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);const now=new Date().toISOString(),article={id:crypto.randomUUID(),slug:'language-guide',title:'Original guide',summary:'Summary',content:'Original English content',category:'travel',tags:[],sources:[],language:'en',status:'published',featuredImage:'',author:'Editor',lastVerifiedDate:'',createdAt:now,updatedAt:now,translations:{}};
  assert.equal((await admin.action('saveArticle',[article])).data.success,true);const state=(await visitor.get()).state;const {publicPage}=await import('../src/utils/public-seo.js');assert.equal(publicPage(state,'/ru/guides/language-guide','https://example.test').status,404);
  const translated={...article,translations:{ru:{title:'Путеводитель',summary:'Описание',content:'Текст на русском'}}};assert.equal((await admin.action('saveArticle',[translated])).data.success,true);assert.ok(publicPage((await visitor.get()).state,'/ru/guides/language-guide','https://example.test').content.includes('Текст на русском'));
+});
+
+test('explicit public previews allow incomplete inventory but reject bookings and rental inquiries', async t => {
+  const { newHostel, newRental } = await import('../src/utils/properties.js');
+  const { visitor, client, booking } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const localized = { fa: 'نمونه آزمایشی', en: 'Public demo', ru: 'Демонстрация', hy: 'Փորձնական' };
+  const hostel = { ...newHostel(), slug: 'public-preview-hostel', name: localized, description: localized, city: 'Yerevan', publicPreview: true, sampleContent: true, isPublished: true, listingStatus: 'published' as const };
+  const rental = { ...newRental(), slug: 'public-preview-rental', title: localized, description: localized, city: 'Yerevan', publicPreview: true, sampleContent: true, status: 'published' as const, addressExactInternal: 'PRIVATE ADDRESS', landlordInternalNotes: 'PRIVATE NOTES' };
+  assert.equal((await visitor.action('saveHostel', [hostel])).response.status, 403);
+  assert.equal((await admin.action('saveHostel', [{...hostel, description: { ...localized, hy: '' }}])).data.success, false);
+  assert.equal((await admin.action('saveHostel', [hostel])).data.success, true);
+  assert.equal((await admin.action('saveRental', [rental])).data.success, true);
+  const { state } = await visitor.get();
+  assert.equal(state.hostels.find(h => h.id === hostel.id)?.publicPreview, true);
+  assert.equal(state.rentals.find(r => r.id === rental.id)?.publicPreview, true);
+  assert.ok(!state.availability.some(day => day.hostelId === hostel.id));
+  assert.ok(!JSON.stringify(state).includes('PRIVATE ADDRESS'));
+  assert.ok(!JSON.stringify(state).includes('PRIVATE NOTES'));
+  const rejected = await visitor.action('createBooking', [{...booking, hostelId: hostel.id}]);
+  assert.equal(rejected.data.success, false);
+  assert.match(rejected.data.error, /آزمایشی/);
+  const inquiry = await visitor.action('createRentalInquiry', [{propertyId: rental.id, guestName: 'Test', contact: 'test@example.test', requestType: 'rent', desiredStartDate: booking.checkIn, desiredDurationText: '3 nights', residentsCount: 1}]);
+  assert.equal(inquiry.data.success, false);
+  assert.match(inquiry.data.error, /آزمایشی/);
+  // Neither the preview badge nor the real-publication requirements can be removed by a forged payload.
+  assert.equal((await admin.action('saveHostel', [{...hostel, sampleContent: false}])).data.success, false);
+  assert.equal((await admin.action('saveHostel', [{...hostel, factsConfirmed: true}])).data.success, false);
+  assert.equal((await admin.action('saveHostel', [{...hostel, publicPreview: false}])).data.success, false);
+  assert.equal((await admin.action('saveRental', [{...rental, publicPreview: false}])).data.success, false);
+  await admin.action('setHostelStatus', [hostel.id, 'hidden']);
+  await admin.action('setRentalStatus', [rental.id, 'draft']);
+  const hidden = (await visitor.get()).state;
+  assert.ok(!hidden.hostels.some(h => h.id === hostel.id));
+  assert.ok(!hidden.rentals.some(r => r.id === rental.id));
 });

@@ -1,4 +1,9 @@
-import { migrateDatabase, readProperties, writeProperties, readOperationalRecords, writeOperationalRecords, operationalCollections } from './migrations.js';
+import { migrateDatabase } from './migrations.js';
+import { migrateRelational } from './relational-migration.js';
+import { loadState, flushState, where, none, type LoadedState, type Scope } from './relational-store.js';
+import { tables } from './relational-schema.js';
+import { mutationScope, visibleState, type RequestScope } from './repository.js';
+import type { User } from '../src/types/index.js';
 import { createClient, type Client, type Transaction } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
 import { Store, type AppStoreState } from './domain.js';
@@ -10,6 +15,7 @@ export class Database {
   readonly demo: boolean;
   private ready: Promise<void>;
   private queue: Promise<unknown> = Promise.resolve();
+  private contexts = new WeakMap<Transaction,LoadedState>();
   constructor(options: DatabaseOptions = {}) {
     const url = options.url ?? process.env.DATABASE_URL;
     if (!url && (process.env.VERCEL || process.env.NODE_ENV === 'production')) throw new Error('DATABASE_URL is required in production. Use a persistent hosted libSQL database.');
@@ -19,7 +25,14 @@ export class Database {
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
     this.ready = this.initialize(options);
   }
+  async waitUntilReady(): Promise<void> { await this.ready; }
   private async initialize(options: DatabaseOptions) {
+    await this.client.execute('PRAGMA foreign_keys=ON');
+    if(Number((await this.client.execute('PRAGMA foreign_keys')).rows[0]?.foreign_keys)!==1)throw new Error('Database must enforce foreign keys before migration or writes.');
+    if((options.url??process.env.DATABASE_URL??'file:').startsWith('file:')) {await this.client.execute('PRAGMA journal_mode=WAL');await this.client.execute('PRAGMA busy_timeout=5000');}
+    await this.client.execute('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)');
+    if(Number((await this.client.execute('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations')).rows[0].version)>3)throw new Error('This database requires a newer application version.');
+    if ((await this.client.execute('SELECT version FROM schema_migrations WHERE version=3')).rows.length) { await this.bootstrapAdmin(options); return; }
     await this.client.batch([
       'CREATE TABLE IF NOT EXISTS app_state (id INTEGER PRIMARY KEY CHECK(id=1), data TEXT NOT NULL)',
       'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at INTEGER NOT NULL)',
@@ -27,7 +40,7 @@ export class Database {
       `CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, channel TEXT NOT NULL, recipient TEXT NOT NULL, subject TEXT NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, last_error TEXT)`,
     ], 'write');
     const existing = await this.client.execute('SELECT id FROM app_state WHERE id=1');
-    if (existing.rows.length) { await migrateDatabase(this.client); await this.bootstrapAdmin(options); return; }
+    if (existing.rows.length) { await migrateDatabase(this.client); await migrateRelational(this.client); await this.bootstrapAdmin(options); return; }
     const state = new Store(undefined, true).getState();
     state.currentUser = null;
     // Sample content is retained; identities, private guest records and claims are not production seeds.
@@ -41,6 +54,7 @@ export class Database {
     }
     await this.client.execute({ sql: 'INSERT OR IGNORE INTO app_state(id,data) VALUES(1,?)', args: [JSON.stringify(state)] });
     await migrateDatabase(this.client);
+    await migrateRelational(this.client);
     await this.bootstrapAdmin(options);
   }
   private async bootstrapAdmin(options: DatabaseOptions) {
@@ -50,42 +64,44 @@ export class Database {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12) throw new Error('Bootstrap admin requires a valid email and a password of at least 12 characters.');
     const tx = await this.client.transaction('write');
     try {
-      const row = await tx.execute('SELECT data FROM app_state WHERE id=1');
-      const state = JSON.parse(String(row.rows[0].data)) as AppStoreState;
+      const loaded=await loadState(tx,{...Object.fromEntries(tables.map(table=>[table.table,none])),users:where("(role='admin' AND is_active=1) OR email=? COLLATE NOCASE",email.trim().toLowerCase())});
+      const state=loaded.state;
       if (!state.users.some(user => user.role === 'admin' && user.isActive)) {
-        if (state.users.some(user => user.email === email.trim().toLowerCase())) throw new Error('Bootstrap admin email is already registered. Use a distinct admin email.');
+        if (state.users.some(user => user.email.toLowerCase() === email.trim().toLowerCase())) throw new Error('Bootstrap admin email is already registered. Use a distinct admin email.');
         const id = crypto.randomUUID();
         state.users.push({ id, email: email.trim().toLowerCase(), name: 'Administrator', role: 'admin', isActive: true, createdAt: new Date().toISOString() });
         state.credentials[id] = await createPasswordCredential(password);
-        await tx.execute({ sql: 'UPDATE app_state SET data=? WHERE id=1', args: [JSON.stringify(state)] });
+        await flushState(tx,loaded);
       }
       await tx.commit();
     } catch (error) { await tx.rollback(); throw error; } finally { tx.close(); }
   }
-  async transaction<T>(operation: (state: AppStoreState, tx: Transaction) => Promise<T>): Promise<T> {
-    const run = async () => {
+  async sqlTransaction<T>(operation: (tx: Transaction) => Promise<T>, mode: 'read'|'write' = 'write'): Promise<T> {
+    const run=async () => {
       await this.ready;
-      const tx = await this.client.transaction('write');
-      try {
-        const result = await tx.execute('SELECT data FROM app_state WHERE id=1');
-        const state = JSON.parse(String(result.rows[0].data)) as AppStoreState;
-        await readProperties(tx, state);
-        await readOperationalRecords(tx,state);
-        const value = await operation(state, tx);
-        state.currentUser = null;
-        await writeProperties(tx, state);
-        await writeOperationalRecords(tx,state);
-        const { hostels: _hostels, rentals: _rentals, ...remaining } = state;
-        for(const key of operationalCollections)delete (remaining as Partial<AppStoreState>)[key];
-        await tx.execute({ sql: 'UPDATE app_state SET data=? WHERE id=1', args: [JSON.stringify(remaining)] });
-        await tx.commit();
-        return value;
-      } catch (error) { await tx.rollback(); throw error; }
+      const tx=await this.client.transaction(mode);
+      try { const result=await operation(tx); await tx.commit(); return result; }
+      catch(error) { await tx.rollback(); throw error; }
       finally { tx.close(); }
     };
-    const task = this.queue.then(run, run);
-    this.queue = task.catch(() => {});
-    return task;
+    if(mode==='read')return run();
+    const task=this.queue.then(run,run);this.queue=task.catch(()=>{});return task;
   }
-  async close() { await this.ready; await this.queue; this.client.close(); }
+  /** Compatibility adapter for business operations; only changed selected rows persist. */
+  async transaction<T>(operation:(state:AppStoreState,tx:Transaction)=>Promise<T>, request?:RequestScope|{scope:Scope}):Promise<T> {
+    return this.sqlTransaction(async tx=>{
+      const scope=request ? 'scope' in request ? request.scope : await mutationScope(tx,request) : undefined;
+      const loaded=await loadState(tx,scope);this.contexts.set(tx,loaded);
+      try { const result=await operation(loaded.state,tx);loaded.state.currentUser=null;await flushState(tx,loaded);return result; }
+      finally { this.contexts.delete(tx); }
+    });
+  }
+  async flush(state:AppStoreState,tx:Transaction) {
+    const loaded=this.contexts.get(tx);if(!loaded||loaded.state!==state)throw new Error('State does not belong to this transaction');
+    await flushState(tx,loaded);
+  }
+  async publicState(actor:User|null=null,bookingToken='',inquiryToken='') {
+    return this.sqlTransaction(tx=>visibleState(tx,actor,this.demo,bookingToken,inquiryToken),'read');
+  }
+  async close() { try { await this.ready; await this.queue; } finally { this.client.close(); } }
 }

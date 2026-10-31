@@ -11,7 +11,7 @@ const status = z.enum(['draft','published','hidden','archived']);
 const base = {
   id, slug: z.string().trim().max(200).refine(value => !value || /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u.test(value)),
   description: localizedPropertyText.optional(), city: short, photos: z.array(imageUrl).max(60), media: z.array(image).max(60).optional(),
-  factsConfirmed: z.boolean().optional(), sampleContent: z.boolean().optional(), createdAt: short, updatedAt: short,
+  publicPreview: z.boolean().optional(), factsConfirmed: z.boolean().optional(), sampleContent: z.boolean().optional(), createdAt: short, updatedAt: short,
 };
 const calendarDate=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value=>Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value);
 const pricingRules=z.object({minimumNights:z.number().int().min(1).max(90),weekendDays:z.array(z.number().int().min(0).max(6)).max(7),weekendPriceAMD:money.optional(),overrides:z.array(z.object({id,from:calendarDate,to:calendarDate,priceAMD:money}).refine(rate=>rate.to>rate.from)).max(100),weeklyDiscountPercent:z.number().min(0).max(100),monthlyDiscountPercent:z.number().min(0).max(100)});

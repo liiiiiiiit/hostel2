@@ -125,16 +125,16 @@ export const ArticleDetailView: React.FC<Props> = ({
       </header>
 
       {/* Featured Image */}
-      <div className="aspect-16/9 rounded-3xl overflow-hidden bg-slate-100">
+      {article.featuredImage && <div className="aspect-16/9 rounded-3xl overflow-hidden bg-slate-100">
         <img
           src={article.featuredImage}
           alt={article.title}
           className="w-full h-full object-cover"
         />
-      </div>
+      </div>}
 
       {/* Article Content */}
-      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-xs space-y-6 text-slate-800 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+      <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/90 shadow-xs space-y-6 break-words [overflow-wrap:anywhere] text-slate-800 text-sm sm:text-base leading-relaxed whitespace-pre-line">
         {article.content}
       </div>
 
@@ -144,7 +144,7 @@ export const ArticleDetailView: React.FC<Props> = ({
           <span className="font-bold text-slate-900 block">{tr.sourcesLabel}</span>
           <ul className="list-disc list-inside space-y-1 text-slate-600">
             {article.sources.map((src, i) => (
-              <li key={i}>{src}</li>
+              <li key={i} className="break-words [overflow-wrap:anywhere]">{/^https?:\/\//i.test(src) ? <a href={src} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{src}</a> : src}</li>
             ))}
           </ul>
         </div>

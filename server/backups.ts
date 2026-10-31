@@ -12,6 +12,7 @@ interface Snapshot {
   version: 1;
   createdAt: string;
   tables: { name: string; sql: string; columns: string[]; rows: unknown[][] }[];
+  indexes?: { name:string; sql:string }[];
   assets: { id: string; url: string; bytes: string; sha256: string }[];
 }
 const hash = (bytes: Buffer) =>
@@ -50,6 +51,7 @@ export async function exportSnapshot(
         ),
       });
     }
+    const indexes=(await tx.execute("SELECT name,sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL ORDER BY name")).rows.map(row=>({name:String(row.name),sql:String(row.sql)}));
     await tx.commit();
     committed = true;
     const assetTable = tables.find((t) => t.name === "media_assets");
@@ -88,7 +90,7 @@ export async function exportSnapshot(
           sha256: hash(bytes),
         });
       }
-    return { version: 1, createdAt: new Date().toISOString(), tables, assets };
+    return { version: 1, createdAt: new Date().toISOString(), tables, indexes, assets };
   } catch (error) {
     if (!committed) await tx.rollback();
     throw error;
@@ -206,6 +208,11 @@ export async function restoreSnapshot(
       if (!/^CREATE TABLE\s/i.test(table.sql) || /;\s*\S/.test(table.sql))
         throw new Error("Invalid backup schema");
       await tx.execute(table.sql);
+    }
+    // Create every parent table before inserting children. FK constraints remain
+    // deferred only until this restore transaction commits, never disabled globally.
+    await tx.execute('PRAGMA defer_foreign_keys=ON');
+    for (const table of snapshot.tables) {
       for (const original of table.rows) {
         const row = original.map(replace);
         if (table.name === "media_assets") {
@@ -220,6 +227,12 @@ export async function restoreSnapshot(
         });
       }
     }
+    for(const index of snapshot.indexes??[]) {
+      identifier(index.name);
+      if(!/^CREATE (UNIQUE )?INDEX\s/i.test(index.sql)||/;\s*\S/.test(index.sql))throw new Error('Invalid backup index');
+      await tx.execute(index.sql);
+    }
+    if((await tx.execute('PRAGMA foreign_key_check')).rows.length)throw new Error('Backup contains inconsistent references');
     if (!storage)
       for (const asset of snapshot.assets)
         await writeFile(

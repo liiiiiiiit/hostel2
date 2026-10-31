@@ -104,6 +104,7 @@ export async function writeProperties(tx: Transaction, state: AppStoreState) {
 }
 // Run offline, after taking a full backup. Uses CURRENT properties, never restores stale initial data.
 export async function rollbackPropertyMigration(client: Client) {
+  if((await client.execute('SELECT version FROM schema_migrations WHERE version=3')).rows.length)throw new Error('Run npm run db:rollback -- --offline before rolling back v2/v1.');
   const tx = await client.transaction("write");
   try {
     if (
@@ -180,6 +181,7 @@ export async function writeOperationalRecords(
   }
 }
 export async function rollbackOperationsMigration(client: Client) {
+  if((await client.execute('SELECT version FROM schema_migrations WHERE version=3')).rows.length)throw new Error('Run npm run db:rollback -- --offline before rolling back v2/v1.');
   const tx = await client.transaction("write");
   try {
     const state = JSON.parse(

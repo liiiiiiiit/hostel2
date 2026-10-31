@@ -13,6 +13,8 @@ import { HomeView } from './views/HomeView';
 import { AuthModal } from './views/AuthModal';
 import { parseRoute, routeHash } from './utils/navigation';
 import { useLanguage } from './context/LanguageContext';
+import { ContentLoading } from './components/ContentLoading';
+import { loadingText, type StartupStatus } from './i18n/loading';
 
 const HostelsView = lazy(() => import('./views/HostelsView').then(module => ({ default: module.HostelsView })));
 const HostelDetailView = lazy(() => import('./views/HostelDetailView').then(module => ({ default: module.HostelDetailView })));
@@ -29,15 +31,16 @@ const StaticPages = lazy(() => import('./views/StaticPages').then(module => ({ d
 
 const SavedPlacesView = lazy(() => import('./views/SavedPlacesView').then(module => ({ default: module.SavedPlacesView })));
 
-export default function App() {
+export default function App({ startupStatus = 'ready', onStartupRetry }: { startupStatus?: StartupStatus; onStartupRetry?: () => void } = {}) {
   const [storeState, setStoreState] = useState(() => appStore.getState());
   const { currentLang, setLanguage } = useLanguage();
   const navigationVersion = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
+  const requestedTracking = useRef({ booking: '', inquiry: '' });
 
   const [activeView, setActiveView] = useState<string>(() => parseBrowserRoute(window.location.pathname+window.location.search,window.location.hash).view);
   const [viewParams, setViewParams] = useState<any>(() => parseBrowserRoute(window.location.pathname+window.location.search,window.location.hash).params);
-  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(() => ['booking-track', 'rental-track'].includes(parseBrowserRoute(window.location.pathname + window.location.search, window.location.hash).view));
   const [trackingError, setTrackingError] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -46,9 +49,14 @@ export default function App() {
     const unsubscribe = appStore.subscribe(() => {
       setStoreState({ ...appStore.getState() });
     });
-    const timer = window.setInterval(() => { void appStore.refresh().catch(() => {}); }, 15_000);
-    return () => { unsubscribe(); window.clearInterval(timer); };
+    return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (startupStatus !== 'ready') return;
+    const timer = window.setInterval(() => { void appStore.refresh().catch(() => {}); }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [startupStatus]);
 
   // Every page has a stable URL; refresh and browser Back retain the selected view.
   useEffect(() => {
@@ -60,8 +68,16 @@ export default function App() {
       setTrackingError(''); setActiveView(route.view); setViewParams(route.params);
       const tracking = route.view === 'booking-track' || route.view === 'rental-track';
       setTrackingLoading(tracking);
+      // Bootstrap fetches the initial public state. Tracking pages still fetch
+      // their private data, and leaving one clears its token. Other public
+      // navigation reuses the state instead of repeating the initial GET.
+      if (startupStatus !== 'ready') return;
+      const tokens = { booking: route.view === 'booking-track' ? String(route.params.token) : '', inquiry: route.view === 'rental-track' ? String(route.params.token) : '' };
       try {
-        await appStore.track(route.view === 'booking-track' ? String(route.params.token) : '', route.view === 'rental-track' ? String(route.params.token) : '');
+        if (tracking || tokens.booking !== requestedTracking.current.booking || tokens.inquiry !== requestedTracking.current.inquiry) {
+          requestedTracking.current = tokens;
+          await appStore.track(tokens.booking, tokens.inquiry);
+        }
       } catch {
         if (active && version === navigationVersion.current && tracking) setTrackingError(({ fa: 'ارتباط برقرار نشد. دوباره تلاش کنید.', en: 'Unable to connect. Please try again.', ru: 'Нет соединения. Попробуйте ещё раз.', hy: 'Կապը չհաստատվեց։ Փորձեք կրկին։' })[currentLang]);
       }
@@ -70,7 +86,7 @@ export default function App() {
     void handleHash();
     window.addEventListener('hashchange', handleHash);window.addEventListener('popstate',handleHash);
     return () => { active = false; window.removeEventListener('hashchange', handleHash);window.removeEventListener('popstate',handleHash); };
-  }, []);
+  }, [startupStatus, currentLang]);
 
   const handleNavigate = (view: string, params: any = {}) => {
     const path=browserPath(view,params,currentLang,appStore.getState());
@@ -108,7 +124,9 @@ export default function App() {
 
   // Render current view
   const renderView = () => {
-    if (trackingLoading) return <div className="p-8 text-center" role="status">YEREVANHUB…</div>;
+    if (startupStatus !== 'ready' && !['home', 'translator'].includes(activeView))
+      return startupStatus === 'error' ? <TranslatorView currentLang={currentLang} phrases={appStore.getPhrases()} /> : <ContentLoading lang={currentLang} />;
+    if (trackingLoading) return <ContentLoading lang={currentLang} />;
     if (trackingError) return <div role="alert" className="p-8 text-center">{trackingError}</div>;
     switch (activeView) {
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
@@ -117,6 +135,8 @@ export default function App() {
       case 'home':
         return (
           <HomeView
+            loading={startupStatus === 'loading'}
+            unavailable={startupStatus === 'error'}
             currentLang={currentLang}
             hostels={appStore.getHostels()}
             rentals={appStore.getRentals()}
@@ -298,9 +318,11 @@ export default function App() {
       {storeState.previewMode && <div role="status" className="px-4 py-3 bg-amber-50 text-amber-950 text-center text-sm">{({ fa: 'پیش‌نمایش: مرور و مقایسه فعال است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.', en: 'Preview: browse and compare stays. Booking and sign-in are not enabled yet.', ru: 'Предпросмотр: просмотр и сравнение доступны. Бронирование и вход пока не включены.', hy: 'Նախադիտում․ դիտումն ու համեմատությունը հասանելի են։ Ամրագրումն ու մուտքը դեռ միացված չեն։' })[currentLang]}</div>}
       {/* Main Content Area */}
       <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
-        <Suspense fallback={<div className="p-8 text-center" role="status">YEREVANHUB…</div>}>
+        {startupStatus === 'error' && <div role="alert" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm text-rose-900 bg-rose-50"><p>{loadingText(currentLang).failed}</p><button type="button" onClick={onStartupRetry} className="button-secondary">{loadingText(currentLang).retry}</button></div>}
+        <Suspense fallback={<ContentLoading lang={currentLang} />}>
           {renderView()}
         </Suspense>
+        {startupStatus === 'error' && activeView === 'home' && <TranslatorView currentLang={currentLang} phrases={appStore.getPhrases()} />}
       </main>
 
       {/* Global Footer */}

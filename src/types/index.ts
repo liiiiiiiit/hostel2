@@ -63,6 +63,7 @@ export interface Hostel {
   media?: PropertyImage[];
   factsConfirmed?: boolean;
   sampleContent?: boolean;
+  publicPreview?: boolean;
   coordinatesProvided?: boolean;
   id: string;
   slug: string;
@@ -206,6 +207,7 @@ export interface RentalProperty {
   media?: PropertyImage[];
   factsConfirmed?: boolean;
   sampleContent?: boolean;
+  publicPreview?: boolean;
   id: string;
   slug: string;
   title: Record<AppLanguage, string>;

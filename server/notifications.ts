@@ -22,7 +22,7 @@ export async function enqueueBookingNotification(tx: Transaction, state: AppStor
 // Durable outbox: no external network calls while the booking transaction holds a lock.
 // The worker is explicitly invoked by an authorized admin or an authenticated scheduler.
 export async function deliverNotifications(database: import('./database.js').Database, send: typeof fetch = fetch) {
-  const claimed = await database.transaction(async (_state, tx) => {
+  const claimed = await database.sqlTransaction(async tx => {
     const channels = [process.env.RESEND_API_KEY && process.env.NOTIFICATION_FROM ? 'email' : '', process.env.TELEGRAM_BOT_TOKEN ? 'telegram' : ''].filter(Boolean);
     if (!channels.length) return [];
     const rows = await tx.execute({ sql: `SELECT * FROM outbox WHERE channel IN (${channels.map(() => '?').join(',')}) AND status IN ('pending','retry','sending') AND next_attempt <= ? AND attempts < 5 ORDER BY created_at LIMIT ${Math.max(1,Math.min(20,Number(process.env.NOTIFICATION_BATCH_SIZE)||10))}`, args: [...channels, Date.now()] });
@@ -39,7 +39,7 @@ export async function deliverNotifications(database: import('./database.js').Dat
         : await send(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', signal: AbortSignal.timeout(15_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: row.recipient, text: row.text }) });
       delivered = response.ok && (row.channel === 'email' || (await response.json() as { ok?: boolean }).ok === true);
     } catch { /* Record a generic failure; never store provider responses or credentials. */ }
-    await database.transaction(async (_state, tx) => {
+    await database.sqlTransaction(async tx => {
       await tx.execute({ sql: 'UPDATE outbox SET status=?, next_attempt=?, last_error=? WHERE id=?', args: [delivered ? 'sent' : Number(row.attempts) + 1 >= 5 ? 'failed' : 'retry', Date.now() + 60_000 * 2 ** Number(row.attempts), delivered ? null : 'Delivery failed; check provider configuration', String(row.id)] });
     });
     if (delivered) sent++;

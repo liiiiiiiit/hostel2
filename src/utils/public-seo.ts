@@ -1,3 +1,4 @@
+import { previewText } from '../i18n/publicPreview.js';
 import { articleInLanguage } from "./article-language.js";
 import type { ClientState, AppLanguage } from "../types/index.js";
 const languages: AppLanguage[] = ["fa", "en", "ru", "hy"];
@@ -99,6 +100,7 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
       image = h.photos[0] ?? "";
       noindex = !!h.sampleContent;
       content = `<h1>${escape(h.name[lang])}</h1><p>${escape(description)}</p><p>${escape(h.address[lang])}</p>${h.sampleContent ? "<p>Sample / unverified content</p>" : ""}<ul>${h.roomTypes.map((room) => `<li>${escape(room.name[lang])} · ${room.pricePerNightAMD} AMD / ${room.type === "private" ? "room" : "bed"} / night</li>`).join("")}</ul>`;
+      if (h.publicPreview) content = `<h1>${escape(h.name[lang])}</h1><p>${escape(previewText[lang])}</p><p>${escape(description)}</p>`;
     }
   } else if (parts.length === 3 && section === "rentals") {
     const r = state.rentals.find(
@@ -111,6 +113,7 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
       image = r.photos[0] ?? "";
       noindex = !!r.sampleContent;
       content = `<h1>${escape(r.title[lang])}</h1><p>${escape(description)}</p><p>${escape(r.addressPublic)}</p><p>${r.areaSqm} m² · ${r.maxResidents} guests</p><p>${r.pricePerNightAMD ?? "—"} AMD / night · ${r.pricePerMonthAMD ?? "—"} AMD / month</p>`;
+      if (r.publicPreview) content = `<h1>${escape(r.title[lang])}</h1><p>${escape(previewText[lang])}</p><p>${escape(description)}</p>`;
     }
   } else if (parts.length === 3 && section === "guides") {
     const original = state.articles.find(

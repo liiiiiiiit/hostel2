@@ -4,6 +4,9 @@ import {
   enqueueBookingNotification,
   deliverNotifications,
 } from "./notifications.js";
+import { imageIsReferenced } from './repository.js';
+import { tables } from './relational-schema.js';
+import { none, where } from './relational-store.js';
 import { deleteStoredImage } from "./media.js";
 export async function scheduledWork(
   database: Database,
@@ -12,6 +15,8 @@ export async function scheduledWork(
     now = Date.now(),
   }: { deliver?: boolean; now?: number } = {},
 ) {
+  const due=where("id IN (SELECT id FROM bookings WHERE (status='expired' AND escalated_at IS NULL) OR (status='pending' AND (expires_at<=? OR (reminder_at IS NULL AND julianday(?) >= (julianday(created_at)+julianday(expires_at))/2))) ORDER BY expires_at LIMIT 200)",new Date(now).toISOString(),new Date(now).toISOString());
+  const hosts=where(`kind='hostel' AND id IN (SELECT hostel_id FROM bookings WHERE ${due.sql})`,...(due.args??[]));
   const counts = await database.transaction(async (state, tx) => {
     const store = new Store(state, true);
     let reminders = 0,
@@ -36,7 +41,6 @@ export async function scheduledWork(
         reminders++;
       }
     }
-    const serialized = JSON.stringify(state);
     let removed = 0;
     for (const asset of (
       await tx.execute({
@@ -44,7 +48,7 @@ export async function scheduledWork(
         args: [new Date(now - 86400000).toISOString()],
       })
     ).rows) {
-      if (serialized.includes(String(asset.url))) continue;
+      if (await imageIsReferenced(tx,String(asset.url))) continue;
       await deleteStoredImage({
         backend: String(asset.backend),
         storage_key: String(asset.storage_key),
@@ -59,8 +63,14 @@ export async function scheduledWork(
       sql: "DELETE FROM auth_tokens WHERE expires_at<?",
       args: [now - 7 * 86400000],
     });
+    await tx.execute({sql:'DELETE FROM sessions WHERE expires_at<?',args:[now]});
+    await tx.execute({sql:'DELETE FROM rate_limits WHERE expires_at<?',args:[now]});
     return { reminders, expired, removed };
-  });
+  },{scope:{...Object.fromEntries(tables.map(table=>[table.table,none])),
+    app_settings:{sql:'1'},coupons:{sql:'1'},
+    bookings:due,properties:hosts,
+    users:where(`role='admin' OR id IN (SELECT user_id FROM manager_properties WHERE hostel_id IN (SELECT id FROM properties WHERE ${hosts.sql})) OR id IN (SELECT traveler_user_id FROM bookings WHERE ${due.sql})`,...(hosts.args??[]),...(due.args??[])),
+  }});
   return {
     ...counts,
     ...(deliver

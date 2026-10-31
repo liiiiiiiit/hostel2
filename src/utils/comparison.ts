@@ -6,6 +6,7 @@ export function compareHostel(
   input: { checkIn: string; checkOut: string; guests: number; type: string },
   available: (room: RoomType) => number,
 ) {
+  if (hostel.publicPreview) return undefined;
   const offers = hostel.roomTypes.flatMap((room) => {
     const units = requiredUnits(room, input.guests);
     if (
@@ -38,6 +39,7 @@ export function compareRental(
   rental: RentalProperty,
   input: { checkIn: string; checkOut: string; guests: number; type?: string },
 ) {
+  if (rental.publicPreview) return undefined;
   const nights = calculateNights(input.checkIn, input.checkOut);
   if (input.type && input.type !== "all" && input.type !== "private")
     return undefined;

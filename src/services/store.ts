@@ -45,6 +45,7 @@ class ApiStore {
     } catch { return { success: false, error: 'ارتباط با سرور برقرار نشد. دوباره تلاش کنید.' }; }
   }
   remainingCapacity(hostel: Hostel, roomId: string, checkIn: string, checkOut: string) {
+    if (hostel.publicPreview) return 0;
     const days = this.state.availability.filter(day => day.hostelId === hostel.id && day.roomTypeId === roomId && day.date >= checkIn && day.date < checkOut);
     return days.length && days.length === calculateNights(checkIn, checkOut) ? Math.min(...days.map(day => day.available)) : 0;
   }

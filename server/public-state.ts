@@ -9,6 +9,7 @@ export function publicState(
   demoMode: boolean,
   bookingToken = "",
   inquiryToken = "",
+  suppliedAvailability?: ClientState["availability"],
 ): ClientState {
   const admin = actor?.role === "admin";
   const manages = (id: string) =>
@@ -64,7 +65,7 @@ export function publicState(
     });
   const availability: ClientState["availability"] = [];
   const start = addCalendarDays(yerevanToday(), -1);
-  for (const hostel of hostels)
+  for (const hostel of (suppliedAvailability ? [] : hostels.filter(hostel => !hostel.publicPreview)))
     for (const room of hostel.roomTypes) {
       for (let offset = 0; offset < 91; offset++) {
         const date = addCalendarDays(start, offset);
@@ -169,7 +170,7 @@ export function publicState(
     phrases: state.phrases,
     auditLogs: admin ? state.auditLogs : [],
     capacities: state.capacities.filter((c) => manages(c.hostelId)),
-    availability,
+    availability: suppliedAvailability ?? availability,
     settings: state.settings,
   };
 }
