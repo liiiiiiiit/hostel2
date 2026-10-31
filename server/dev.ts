@@ -1,6 +1,5 @@
 import {previewSocketsDisabled} from './vite-preview.js';
 import {renderPublicHtml,sitemap,robots} from './public-pages.js';
-import {publicState} from './public-state.js';
 import {readFile} from 'node:fs/promises';
 import 'dotenv/config';
 import express from 'express';
@@ -13,7 +12,7 @@ const database = new Database({ demo: !production && process.env.DEMO_MODE !== '
 const app = express();
 const server = createHttpServer(app);
 app.use(createApi(database));
-const publicData=()=>database.transaction(async state=>publicState(state,null,database.demo));
+const publicData=()=>database.publicState();
 const publicHandler=(template:(url:string)=>Promise<string>)=>async(req:express.Request,res:express.Response,next:express.NextFunction)=>{if(!/^\/(fa|en|ru|hy)(\/|$)/.test(req.path)&&!['/sitemap.xml','/robots.txt'].includes(req.path)){next();return;}try{const base=(process.env.APP_URL||req.protocol+'://'+req.get('host')).replace(/\/$/,'');if(req.path==='/robots.txt'){res.type('text').send(robots(base));return;}const state=await publicData();if(req.path==='/sitemap.xml'){res.type('xml').send(sitemap(state,base));return;}const page=renderPublicHtml(await template(req.originalUrl),state,req.originalUrl,base);res.set({'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}).status(page.status).type('html').send(page.html);}catch{res.status(503).send('YEREVANHUB unavailable');}};
 if (production) {
   app.use(express.static('dist'));

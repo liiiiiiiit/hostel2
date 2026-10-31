@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createClient } from '@libsql/client';
 import { Store } from './domain.js';
+import { rollbackRelational } from './relational-migration.js';
 import { Database } from './database.js';
 import { rollbackPropertyMigration,rollbackOperationsMigration } from './migrations.js';
 
@@ -17,11 +18,11 @@ test('version 1 preserves old properties and private records; rollback retains l
   let database=new Database({url,demo:false});
   await database.transaction(async(state,tx)=>{
     assert.deepEqual(state.hostels,original.hostels);assert.deepEqual(state.rentals,original.rentals);assert.deepEqual(state.bookings,original.bookings);assert.deepEqual(state.credentials,original.credentials);
-    assert.equal((await tx.execute('SELECT COUNT(*) AS count FROM schema_migrations')).rows[0].count,2);
-    const persisted=JSON.parse(String((await tx.execute('SELECT data FROM app_state')).rows[0].data));assert.equal(persisted.hostels,undefined);
+    assert.equal((await tx.execute('SELECT COUNT(*) AS count FROM schema_migrations')).rows[0].count,3);
+    const persisted=JSON.parse(String((await tx.execute('SELECT data FROM legacy_app_state_v2')).rows[0].data));assert.equal(persisted.hostels,undefined);
     state.hostels[0].phone='LATEST-EDIT';
   });await database.close();
-  const client=createClient({url});await rollbackOperationsMigration(client);await rollbackPropertyMigration(client);
+  const client=createClient({url});await rollbackRelational(client);await rollbackOperationsMigration(client);await rollbackPropertyMigration(client);
   const rolledBack=JSON.parse(String((await client.execute('SELECT data FROM app_state')).rows[0].data));assert.equal(rolledBack.hostels[0].phone,'LATEST-EDIT');assert.equal(rolledBack.rentals[0].landlordInternalNotes,'PRESERVE-PRIVATE');client.close();
   database=new Database({url,demo:false});await database.transaction(async(state)=>{assert.equal(state.hostels[0].phone,'LATEST-EDIT');assert.deepEqual(state.bookings,original.bookings);});await database.close();
 });

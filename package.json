@@ -15,7 +15,11 @@
     "worker": "tsx scripts/worker.ts",
     "worker:once": "tsx scripts/worker.ts --once",
     "backup": "tsx scripts/backup.ts",
-    "restore": "tsx scripts/backup.ts restore"
+    "restore": "tsx scripts/backup.ts restore",
+    "db:migrate": "node --import tsx scripts/database.ts migrate",
+    "db:status": "node --import tsx scripts/database.ts status",
+    "db:check": "node --import tsx scripts/database.ts check",
+    "db:rollback": "node --import tsx scripts/database.ts rollback"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

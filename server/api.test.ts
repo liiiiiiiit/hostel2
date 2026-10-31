@@ -84,7 +84,7 @@ test('guest booking persists and exact private tracking works in an unrelated br
   assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkIn=yerevanToday();entry.checkOut=addCalendarDays(yerevanToday(),1);});
   assert.ok(JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
-  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkOut=yerevanToday();if(entry.agreement)entry.agreement.checkOutTime='00:00';});
+  await database.transaction(async state=>{const entry=state.bookings.find(item=>item.privateToken===token)!;entry.checkIn=addCalendarDays(yerevanToday(),-1);entry.checkOut=yerevanToday();if(entry.agreement)entry.agreement.checkOutTime='00:00';});
   assert.ok(!JSON.stringify((await client().get(token)).state.hostels).includes('PRIVATE-CODE-87'));
   assert.ok(!JSON.stringify((await client().get()).state.hostels).includes('PRIVATE-CODE-87'));
   await database.transaction(async (_state,tx) => { assert.ok((await tx.execute('SELECT id FROM outbox')).rows.length>0); });

@@ -34,6 +34,17 @@ Browser tests start an isolated server/database and use system Chromium (`BROWSE
 - Category reviews (cleanliness, safety, staff and location) only for completed past stays, one review per booking, with moderation before publication.
 - Persistent email/Telegram notification outbox, provider adapters, retry lease/backoff and admin queue visibility. Missing providers leave messages queued; they do not falsely mark them sent.
 
+## Database schema v3
+
+The active store is relational libSQL/SQLite: dedicated users/credentials, properties and translations, room inventory and physical units, bookings/assignments/events, rental inquiries, reviews, articles, support, finance, and saved-place tables. JSON remains for flexible attributes and frozen pricing agreements. Public reads use read transactions and indexed SQL availability; mutations select their required records and persist only changed rows. Media and notification operations do not hydrate application state.
+
+Migration v3 runs transactionally on startup or `npm run db:migrate`. It verifies a lossless round trip and foreign keys before committing, preserving the legacy tables as recovery snapshots. Stop web processes and workers and take an encrypted full backup before the production upgrade. Restart the worker after migration: public GET requests no longer mutate expired reservations. See [the migration, schema and rollback guide](docs/DATABASE_V3_FA.md).
+
+```sh
+npm run db:status
+npm run db:check
+```
+
 ## Deployment
 
 See [DEPLOYMENT_FA.md](DEPLOYMENT_FA.md) for Persian Vercel/Turso setup steps.
@@ -54,7 +65,7 @@ After a production booking/status change, up to two eligible queued notification
 
 The existing browser-local demo data is not imported automatically: it was user-editable and is not trusted production data. The legacy `server/db.ts` implementation is unused; the active persistence layer is `server/database.ts`.
 
-This is a small-site foundation using SQL property and operational-record tables alongside a transactional JSON state row and session/outbox/rate-limit/token tables. Versioned migrations preserve existing data; rollback instructions are in the Persian guides. It serializes writes; use normalized tables/pagination and retention policies before large-scale use. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
+The active store uses dedicated relational tables with enforced foreign keys, unique request/account keys and indexed availability. Legacy JSON tables are recovery snapshots only. Mutations use scoped reads and row-level delta writes; public reads are read-only. Writes remain serialized by libSQL/SQLite. Full admin snapshots and public catalogue payloads still need pagination before very large-scale use. Versioned migration and rollback instructions are in docs/DATABASE_V3_FA.md. Pending requests do not guarantee a bed; only confirmation reserves inventory. Availability refreshes every 15 seconds and confirmation rechecks it transactionally. No online payment has been introduced.
 
 Single-use password recovery, email ownership verification, encrypted full backups and separate-target restoration are implemented. Configure the email provider and install the worker/backup schedule before relying on them operationally. Multi-factor authentication is not implemented. Live hosted-database/provider delivery requires your own configuration and has not been validated using real credentials. The phrasebook works offline; live Gemini remains optional and untested. Never embed production API secrets in `VITE_` variables.
 

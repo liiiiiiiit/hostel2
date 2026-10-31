@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { Database } from './database.js';
 import { Store } from './domain.js';
 import { verifyPassword } from './passwords.js';
-import { publicState } from './public-state.js';
+import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
 import { enqueueBookingNotification, deliverNotifications } from './notifications.js';
 import type { ActionResult, User } from '../src/types/index.js';
 import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
@@ -67,17 +67,16 @@ export function createApi(database: Database) {
   const {secure: secureCookie, name: cookieName} = sessionCookiePolicy();
   app.use(['/api','/api/app'], (_req, res, next) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' }); next(); });
   const paths = ['/api', '/api/app'];
-  const session = async (req: express.Request, state: import('./domain.js').AppStoreState, tx: import('@libsql/client').Transaction): Promise<User | null> => {
+  const session = async (req: express.Request, tx: import('@libsql/client').Transaction): Promise<User | null> => {
     const token = parseCookies(req.headers.cookie)[cookieName];
     if (!token) return null;
-    const result = await tx.execute({ sql: 'SELECT user_id FROM sessions WHERE token_hash=? AND expires_at>?', args: [digest(token), Date.now()] });
-    return state.users.find(user => user.id === result.rows[0]?.user_id && user.isActive) ?? null;
+    return sessionUser(tx,digest(token));
   };
   app.get(paths, async (req, res, next) => {
     if (!req.query.media) { next(); return; }
     if (typeof req.query.media !== 'string' || !/^[a-f0-9-]{36}$/.test(req.query.media)) { res.sendStatus(404); return; }
     try {
-      const asset = await database.transaction(async (_state, tx) => (await tx.execute({ sql:'SELECT * FROM media_assets WHERE id=?', args:[String(req.query.media)] })).rows[0]);
+      const asset = await database.sqlTransaction(async tx => (await tx.execute({ sql:'SELECT * FROM media_assets WHERE id=?', args:[String(req.query.media)] })).rows[0],'read');
       if (!asset || asset.backend !== 'local') { res.sendStatus(404); return; }
       res.type('webp').set('Cache-Control','public, max-age=86400').send(await readStoredImage(String(asset.storage_key)));
     } catch { res.sendStatus(404); }
@@ -86,8 +85,8 @@ export function createApi(database: Database) {
     if (!req.query.upload && !req.query.deleteMedia) { next(); return; }
     try {
       if (req.headers['x-requested-with'] !== 'YerevanHub' || req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) { res.sendStatus(403); return; }
-      const actor = await database.transaction(async(state,tx) => {
-        const user = await session(req,state,tx);
+      const actor = await database.sqlTransaction(async tx => {
+        const user = await session(req,tx);
         if (user?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
         const bucket = `media:${user.id}:${Math.floor(Date.now()/60000)}`;
         await tx.execute({sql:'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1',args:[bucket,Date.now()+60000]});
@@ -97,11 +96,11 @@ export function createApi(database: Database) {
       });
       if (req.query.deleteMedia) {
         const id = z.uuid().parse(req.query.deleteMedia);
-        await database.transaction(async(state,tx) => {
-          if ((await session(req,state,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
-          if ([...state.hostels,...state.rentals].some(item=>item.media?.some(image=>image.id===id))) throw new Error('ابتدا تصویر را از ملک جدا و تغییرات را ذخیره کنید.');
+        await database.sqlTransaction(async tx => {
+          if ((await session(req,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
           const asset = (await tx.execute({sql:'SELECT * FROM media_assets WHERE id=?',args:[id]})).rows[0];
           if (asset) {
+            if(await imageIsReferenced(tx,String(asset.url)))throw new Error('ابتدا تصویر را از ملک جدا و تغییرات را ذخیره کنید.');
             await deleteStoredImage({backend:String(asset.backend),storage_key:String(asset.storage_key)});
             await tx.execute({sql:'DELETE FROM media_assets WHERE id=?',args:[id]});
           }
@@ -113,8 +112,8 @@ export function createApi(database: Database) {
       const id = crypto.randomUUID();
       const stored = await storeImage(id,bytes);
       try {
-        await database.transaction(async(state,tx)=> {
-          if ((await session(req,state,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+        await database.sqlTransaction(async tx=> {
+          if ((await session(req,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
           await tx.execute({sql:'INSERT INTO media_assets VALUES(?,?,?,?,?,?,?)',args:[id,stored.url,stored.key,stored.backend,bytes.length,actor.id,new Date().toISOString()]});
         });
       } catch(error) { await deleteStoredImage({backend:stored.backend,storage_key:stored.key}); throw error; }
@@ -127,14 +126,10 @@ export function createApi(database: Database) {
         if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) { res.status(401).json({ error: 'Unauthorized' }); return; }
         res.json(await scheduledWork(database)); return;
       }
-      const data = await database.transaction(async (state, tx) => {
-        const actor = await session(req, state, tx);
-        const store = new Store(state, true); store.getState().currentUser = actor;
-        const before = new Map(state.bookings.map(b => [b.id, b.status]));
-        store.expirePendingBookings(); Object.assign(state, store.getState());
-        for (const booking of state.bookings) if (before.get(booking.id) !== booking.status) await enqueueBookingNotification(tx, state, booking);
-        return publicState(state, actor, database.demo, String(req.headers['x-booking-token'] ?? ''), String(req.headers['x-inquiry-token'] ?? ''));
-      });
+      const data = await database.sqlTransaction(async tx => {
+        const actor = await session(req,tx);
+        return visibleState(tx,actor,database.demo,String(req.headers['x-booking-token']??''),String(req.headers['x-inquiry-token']??''));
+      },'read');
       res.json({ state: data });
     } catch (error) { next(error); }
   });
@@ -152,14 +147,14 @@ export function createApi(database: Database) {
         const rate = await tx.execute({ sql: 'SELECT count FROM rate_limits WHERE key=?', args: [bucket] });
         const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
         if (Number(rate.rows[0].count) > max) return { success: false, error: 'تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', rateLimited: true };
-        let actor = await session(req, state, tx);
+        let actor = await session(req,tx);
         const store = new Store(state, true); store.getState().currentUser = actor;
         const before = new Map(state.bookings.map(b => [b.id, b.status]));
         store.expirePendingBookings();
         let actionResult: ActionResult = { success: true };
         if (envelope.action === 'login') {
           const [address, passwordValue] = args as [string, string];
-          const user = state.users.find(user => user.email === address && user.isActive);
+          const user = state.users.find(user => user.email.toLowerCase() === address && user.isActive);
           // A dummy hash derivation makes nonexistent accounts take the same path.
           const credential = user && state.credentials[user.id];
           const valid = await verifyPassword(passwordValue, credential || { salt: 'unregistered-account', hash: '0'.repeat(64) });
@@ -224,8 +219,9 @@ export function createApi(database: Database) {
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
         if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; if(actor?.role!=='admin'&&!(actor?.role==='hostel_manager'&&actor.assignedHostelIds?.includes(safe.hostelId)))delete safe.commissionRule;actionResult={...actionResult,booking:safe}; }
-        return { ...actionResult, dispatch: (changed.length > 0||!!additional) && !database.demo, state: publicState(state, actor, database.demo, bookingToken, inquiryToken) };
-      });
+        await database.flush(state,tx);
+        return { ...actionResult, dispatch: (changed.length > 0||!!additional) && !database.demo, state: await visibleState(tx, actor, database.demo, bookingToken, inquiryToken) };
+      },{action:envelope.action,args,sessionHash:parseCookies(req.headers.cookie)[cookieName] ? digest(parseCookies(req.headers.cookie)[cookieName]) : undefined});
       if('translationInput' in result&&result.translationInput){res.json({success:true,translation:await translateOnServer(result.translationInput)});return;}
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }
       if ('dispatch' in result && result.dispatch) {

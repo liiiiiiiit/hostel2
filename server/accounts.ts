@@ -83,7 +83,7 @@ export async function accountAction(
   args: unknown[],
 ) {
   if (action === "requestPasswordRecovery") {
-    const user = state.users.find((u) => u.email === args[0] && u.isActive);
+    const user = state.users.find((u) => u.email.toLowerCase() === args[0] && u.isActive);
     if (user) await queueToken(state, tx, user.id, "password", String(args[1]));
     return { success: true };
   }
