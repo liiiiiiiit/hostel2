@@ -25,6 +25,7 @@ export class Database {
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
     this.ready = this.initialize(options);
   }
+  async waitUntilReady(): Promise<void> { await this.ready; }
   private async initialize(options: DatabaseOptions) {
     await this.client.execute('PRAGMA foreign_keys=ON');
     if(Number((await this.client.execute('PRAGMA foreign_keys')).rows[0]?.foreign_keys)!==1)throw new Error('Database must enforce foreign keys before migration or writes.');

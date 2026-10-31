@@ -13,6 +13,9 @@ import { publicState } from './public-state.js';
 import { mutationScope } from './repository.js';
 import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
 import { INITIAL_BOOKINGS } from './seed.js';
+import { operate } from './operations.js';
+import { comparableMigrationState, migrationDifferences, MigrationVerificationError } from './migration-verification.js';
+import { spawn } from 'node:child_process';
 async function fixture(t: TestContext) {
     const directory = await mkdtemp(path.join(tmpdir(), 'yh-relational-'));
     const url = `file:${directory}/db.sqlite`;
@@ -69,6 +72,80 @@ test('v3 migration preserves every legacy entity, optional fields, translations 
     const migratedAgain = new Database({ url, demo: false });
     await migratedAgain.transaction(async (state) => { assert.equal(state.hostels[0].phone, 'LATEST-PHONE'); assert.equal(state.articles[0].content, 'Latest article'); });
     await migratedAgain.close();
+});
+test('v3 migration accepts empty favorites created automatically on login without losing actual saved places', async (t) => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'yh-empty-favorites-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const store = new Store(undefined, true);
+    const source = store.getState();
+    source.currentUser = source.users[0];
+    await operate(store, 'mergeSavedPlaces', [[]]);
+    const emptyUserId = source.users[0].id, savedUserId = source.users[1].id;
+    source.savedPlaces![savedUserId] = ['hostel:hostel-2', 'rental:rental-1'];
+    source.currentUser = null;
+    source.credentials[emptyUserId] = { hash: 'a'.repeat(64), salt: 'preserved-private-salt' };
+    const url = `file:${directory}/old.sqlite`, client = createClient({ url });
+    await client.execute('CREATE TABLE app_state(id INTEGER PRIMARY KEY,data TEXT NOT NULL)');
+    await client.execute({ sql: 'INSERT INTO app_state VALUES(1,?)', args: [JSON.stringify(source)] });
+    client.close();
+    const db = new Database({ url, demo: false });
+    t.after(() => db.close().catch(() => {}));
+    await db.transaction(async (state, tx) => {
+        assert.deepEqual(state.savedPlaces?.[emptyUserId] ?? [], []);
+        assert.deepEqual(state.savedPlaces?.[savedUserId], source.savedPlaces![savedUserId]);
+        assert.deepEqual(state.credentials, source.credentials);
+        assert.deepEqual(state.hostels, source.hostels);
+        assert.deepEqual(state.articles, source.articles);
+        assert.equal((await tx.execute('PRAGMA foreign_key_check')).rows.length, 0);
+        const snapshot = JSON.parse(String((await tx.execute('SELECT data FROM migration_backups WHERE version=3')).rows[0].data));
+        assert.deepEqual(snapshot.savedPlaces[emptyUserId], []);
+    });
+});
+test('migration equivalence ignores only empty favorites and diagnostics never expose private values or dictionary keys', () => {
+    const source = new Store(undefined, true).getState();
+    source.savedPlaces = { 'private-user-id': [], 'other-private-id': ['hostel:hostel-1'] };
+    const equivalent = structuredClone(source);
+    delete equivalent.savedPlaces!['private-user-id'];
+    assert.equal(stableJSON(comparableMigrationState(source)), stableJSON(comparableMigrationState(equivalent)));
+    equivalent.savedPlaces!['other-private-id'] = ['hostel:hostel-2'];
+    assert.notEqual(stableJSON(comparableMigrationState(source)), stableJSON(comparableMigrationState(equivalent)));
+    const before = { credentials: { 'private-user-id': { hash: 'secret-hash', salt: 'secret-salt' } }, hostels: [{ phone: 'private-phone', description: { fa: 'private-content' } }] };
+    const after = { credentials: { 'private-user-id': { hash: 'changed-secret', salt: 'secret-salt' } }, hostels: [{ phone: 'other-phone', description: { fa: 'changed-content' } }] };
+    const paths = migrationDifferences(before, after);
+    const error = new MigrationVerificationError(paths);
+    assert.match(error.message, /credentials\[field0\]\.hash/);
+    assert.match(error.message, /hostels\[0\]\.phone/);
+    for (const secret of ['private-user-id', 'secret-hash', 'secret-salt', 'changed-secret', 'private-phone', 'private-content', 'other-phone', 'changed-content'])
+        assert.ok(!error.message.includes(secret));
+});
+test('real migration mismatches still roll back and startup never announces readiness for a failed migration', async (t) => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'yh-real-mismatch-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const source = new Store(undefined, true).getState();
+    Object.assign(source, { unexpectedPrivateField: 'private-value-must-not-be-logged' });
+    const url = `file:${directory}/old.sqlite`, client = createClient({ url });
+    await client.execute('CREATE TABLE app_state(id INTEGER PRIMARY KEY,data TEXT NOT NULL)');
+    await client.execute({ sql: 'INSERT INTO app_state VALUES(1,?)', args: [JSON.stringify(source)] });
+    client.close();
+    const db = new Database({ url, demo: false });
+    await assert.rejects(() => db.waitUntilReady(), error => error instanceof MigrationVerificationError && !error.message.includes('private-value-must-not-be-logged'));
+    await db.close().catch(() => {});
+    const check = createClient({ url });
+    assert.equal((await check.execute('SELECT version FROM schema_migrations WHERE version=3')).rows.length, 0);
+    assert.equal(JSON.parse(String((await check.execute('SELECT data FROM app_state WHERE id=1')).rows[0].data)).unexpectedPrivateField, 'private-value-must-not-be-logged');
+    assert.equal((await check.execute("SELECT name FROM sqlite_master WHERE name='legacy_app_state_v2'")).rows.length, 0);
+    check.close();
+    for (const entry of ['server/dev.ts', 'scripts/worker.ts']) {
+        const child = spawn(process.execPath, ['--import', 'tsx', entry], { cwd: process.cwd(), env: { ...process.env, DATABASE_URL: url, NODE_ENV: 'production', PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
+        let output = '';
+        child.stdout.on('data', chunk => { output += chunk; });
+        child.stderr.on('data', chunk => { output += chunk; });
+        const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
+        const code = await new Promise<number | null>((resolve, reject) => { child.on('error', reject); child.on('close', resolve); }).finally(() => clearTimeout(timer));
+        assert.equal(code, 1);
+        assert.doesNotMatch(output, /server ready|private-value-must-not-be-logged/);
+        assert.match(output, /MigrationVerificationError/);
+    }
 });
 test('invalid legacy data aborts atomically without renaming or dropping the live v2 tables', async (t) => {
     const directory = await mkdtemp(path.join(tmpdir(), 'yh-invalid-v3-'));

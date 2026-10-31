@@ -3,6 +3,7 @@ import type { AppStoreState } from './domain.js';
 import { readProperties, readOperationalRecords, writeProperties, writeOperationalRecords, operationalCollections } from './migrations.js';
 import { schemaSQL, indexSQL, tables, quote } from './relational-schema.js';
 import { loadState, flushState, stableJSON } from './relational-store.js';
+import { comparableMigrationState, migrationDifferences, MigrationVerificationError } from './migration-verification.js';
 export async function migrateRelational(client: Client) {
     const tx = await client.transaction('write');
     try {
@@ -34,8 +35,9 @@ export async function migrateRelational(client: Client) {
         empty.baseline = new Map(tables.map(spec => [spec.table, new Map()]));
         await flushState(tx, empty);
         const migrated = await loadState(tx);
-        if (stableJSON(migrated.state) !== stableJSON({ ...state, unitBlocks: state.unitBlocks ?? [], bookingChanges: state.bookingChanges ?? [], supportThreads: state.supportThreads ?? [], financeEntries: state.financeEntries ?? [], savedPlaces: state.savedPlaces ?? {} }))
-            throw new Error('Relational migration verification failed. Original data and schema were rolled back.');
+        const expected = comparableMigrationState(state), actual = comparableMigrationState(migrated.state);
+        if (stableJSON(actual) !== stableJSON(expected))
+            throw new MigrationVerificationError(migrationDifferences(expected, actual));
         const violations = await tx.execute('PRAGMA foreign_key_check');
         if (violations.rows.length)
             throw new Error('Relational migration found inconsistent references. Original data and schema were rolled back.');
