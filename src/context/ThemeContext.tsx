@@ -30,6 +30,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = theme === 'dark' ? '#0d1515' : '#f6f7f5';
   }, [theme]);
 
   useEffect(() => {
@@ -55,6 +57,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = () => {
     const next: SiteTheme = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = next === 'dark' ? '#0d1515' : '#f6f7f5';
     try { window.localStorage.setItem(THEME_STORAGE_KEY, next); }
     catch { /* Browsers with disabled storage can still use the toggle. */ }
     setTheme(next);
