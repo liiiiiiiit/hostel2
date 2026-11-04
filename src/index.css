@@ -106,3 +106,6 @@ html.dark [class*="bg-[#d6a65c]"] { color: #142f2a; }
 html.dark .skip-link { background: #19261f; color: #e5eee8; border-color: #88b69a; }
 html.dark ::selection { background: #5c7253; color: #fff; }
 html.dark ::-webkit-scrollbar-thumb { background: #536c5b; border-color: #101915; }
+html.dark :is([class*="bg-[#eaf0e7]"], [class*="bg-[#edf3ee]"], [class*="bg-[#f0f4ef]"]) { background-color: #21382a; }
+html.dark :is([class*="text-[#315c43]"], [class*="text-[#467452]"], [class*="text-[#567963]"], [class*="text-[#5f7566]"]) { color: #b6d2bd; }
+html.dark :is([class*="text-[#8e7044]"], [class*="text-[#99733e]"]) { color: #e4be7d; }
