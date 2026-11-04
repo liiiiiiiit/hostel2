@@ -72,3 +72,9 @@ Single-use password recovery, email ownership verification, encrypted full backu
 Property management, media storage and migration/rollback guide (Persian): [PROPERTY_MANAGEMENT_FA.md](PROPERTY_MANAGEMENT_FA.md). Implementation status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md).
 
 Reception, secure accounts, financial records, public SEO routes, workers and encrypted backup/restore (Persian): [OPERATIONS_GUIDE_FA.md](OPERATIONS_GUIDE_FA.md).
+
+### Appearance and responsive checks
+
+The header appearance button switches between light and dark mode in all four languages. The choice is saved in `yerevanhub_theme`; without a saved choice, device appearance is used. `public/theme.js` applies it before rendering to avoid a light flash.
+
+Run `BROWSER_PATH=/path/to/chrome npm run test:responsive` for the mobile/tablet matrix (320, 360, 390, 430, 768, 820, 1024 and 1366 px, four languages). Results and screenshots are saved under `test-artifacts/responsive`. The GitHub browser workflow runs both browser suites using isolated demo data and no notification credentials. Viewport emulation does not replace testing Safari or physical iOS/Android devices.
