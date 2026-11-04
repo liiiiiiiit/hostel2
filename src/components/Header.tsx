@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Building2, Heart, Menu, X, UserRound, LogOut, LayoutDashboard } from 'lucide-react';
 import type { AppLanguage, User } from '../types';
 import { LanguageSelector } from './LanguageSelector';
+import { ThemeToggle } from './ThemeToggle';
 import { useSavedPlaces } from '../context/SavedPlacesContext';
 import { publicSiteText } from '../i18n/publicSite';
 
@@ -52,6 +53,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
           <Heart className="size-5" strokeWidth={1.6} />{saved.length > 0 && <span className="absolute -end-0.5 top-0 flex min-w-4 items-center justify-center rounded-full bg-[#d6a65c] px-1 text-[10px] font-bold text-[#142f2a]">{saved.length}</span>}
         </button>
         <LanguageSelector currentLang={currentLang} onLanguageChange={onLanguageChange} />
+        <ThemeToggle currentLang={currentLang} />
         {currentUser ? <div className="relative hidden sm:block" ref={accountRef}>
           <button type="button" onClick={() => setAccountOpen(!accountOpen)} aria-haspopup="true" aria-expanded={accountOpen} aria-controls="account-popover" className="flex min-h-10 items-center gap-2 rounded-xl border border-[#142f2a]/12 bg-white px-3 text-sm font-semibold text-[#142f2a]"><UserRound className="size-4" />{currentUser.name.split(' ')[0]}</button>
           {accountOpen && <div id="account-popover" className="absolute end-0 top-full mt-3 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-[#142f2a]/10">
@@ -67,6 +69,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
       <div className="mx-auto grid max-w-7xl gap-1">
         {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={activeView === view ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${activeView === view ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
         <button type="button" onClick={() => navigate('saved')} className="flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium text-[#142f2a] hover:bg-white">{text.saved}<span>{saved.length}</span></button>
+        <ThemeToggle currentLang={currentLang} inMenu />
         <div className="mt-2 flex gap-2 border-t border-[#142f2a]/10 pt-3">
           {currentUser ? <><button type="button" onClick={() => navigate(accountView)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-medium text-white"><LayoutDashboard className="size-4" />{accountLabel}</button><button type="button" onClick={() => { setMenuOpen(false); onLogout(); }} className="rounded-xl border border-[#142f2a]/15 px-4 text-sm text-rose-700">{text.logout}</button></> : <button type="button" onClick={() => { setMenuOpen(false); onOpenAuth(); }} className="min-h-11 w-full rounded-xl bg-[#142f2a] text-sm font-semibold text-white">{text.signIn}</button>}
         </div>

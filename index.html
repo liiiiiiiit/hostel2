@@ -2,6 +2,21 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
+    <meta name="theme-color" content="#f6f7f5" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("yerevanhub_theme");
+          const dark = saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.querySelector('meta[name="theme-color"]').content = dark ? "#0d1515" : "#f6f7f5";
+        } catch {
+          const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.querySelector('meta[name="theme-color"]').content = dark ? "#0d1515" : "#f6f7f5";
+        }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YEREVANHUB | رزرو هاستل، اجاره آپارتمان و راهنمای سفر به ارمنستان</title>
     <meta name="description" content="YEREVANHUB: پلتفرم جامع رزرو هاستل در ارمنستان، اجاره آپارتمان، راهنمای سفر و زندگی در ایروان و مترجم همراه چهارزبانه." />

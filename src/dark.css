@@ -1,0 +1,157 @@
+/*
+ * YEREVANHUB dark theme. Loaded after Tailwind styles.
+ * Scope all overrides to the root preference so the original light palette
+ * remains unchanged, including server-rendered public pages.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e9f0ea;
+  --canvas: #0d1515;
+  --gold: #e4be7d;
+  --dark-surface: #192625;
+  --dark-elevated: #223330;
+  --dark-border: #374c46;
+  --dark-muted: #b1c3b7;
+}
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-shell {
+  background-color: var(--canvas);
+  color: var(--ink);
+}
+:root[data-theme="dark"] .surface {
+  background: var(--dark-surface);
+  color: var(--ink);
+  border-color: var(--dark-border);
+  box-shadow: 0 12px 36px -24px #000b;
+}
+:root[data-theme="dark"] .field,
+:root[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: var(--dark-elevated);
+  color: #edf4ee;
+  border-color: var(--dark-border);
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder { color: #a6b9ae; opacity: 1; }
+:root[data-theme="dark"] input:focus,
+:root[data-theme="dark"] textarea:focus,
+:root[data-theme="dark"] select:focus { border-color: #ddb66d; }
+:root[data-theme="dark"] option { background: #192625; color: #edf4ee; }
+:root[data-theme="dark"] .field-label,
+:root[data-theme="dark"] .eyebrow { color: #bdcebF; }
+:root[data-theme="dark"] .button-secondary {
+  background: #263b34;
+  color: #f0f6f1;
+  border-color: #486055;
+}
+:root[data-theme="dark"] .button-secondary:hover:not(:disabled) { background: #334a40; }
+:root[data-theme="dark"] .button-primary {
+  background: #426a55;
+  border-color: #567b63;
+  color: #fff;
+}
+:root[data-theme="dark"] .button-primary:hover:not(:disabled) { background: #527d64; }
+:root[data-theme="dark"] .status-pill { background: #2a4637; color: #d1ead4; }
+:root[data-theme="dark"] .skip-link { background: #192625; color: white; border-color: #e4be7d; }
+
+/* Light surfaces, including cards, menu popovers, translator and panels. */
+:root[data-theme="dark"] [class~="bg-white"],
+:root[data-theme="dark"] [class*="bg-white/"],
+:root[data-theme="dark"] [class~="bg-slate-50"],
+:root[data-theme="dark"] [class*="bg-slate-50/"],
+:root[data-theme="dark"] [class~="bg-[#f8faf7]"],
+:root[data-theme="dark"] [class~="bg-[#fafbf9]"],
+:root[data-theme="dark"] [class~="bg-[#f1f4f0]"] {
+  background-color: var(--dark-surface);
+}
+:root[data-theme="dark"] [class~="bg-slate-100"],
+:root[data-theme="dark"] [class~="bg-slate-200"],
+:root[data-theme="dark"] [class~="bg-[#e5ece5]"],
+:root[data-theme="dark"] [class~="bg-[#edf3ee]"] {
+  background-color: var(--dark-elevated);
+}
+:root[data-theme="dark"] [class~="hover:bg-white"]:hover,
+:root[data-theme="dark"] [class~="hover:bg-slate-50"]:hover,
+:root[data-theme="dark"] [class~="hover:bg-slate-100"]:hover { background-color: #32443e; }
+
+/* Keep utility text readable in the darker color scheme. */
+:root[data-theme="dark"] [class~="text-slate-950"],
+:root[data-theme="dark"] [class~="text-slate-900"],
+:root[data-theme="dark"] [class~="text-slate-800"],
+:root[data-theme="dark"] [class~="text-slate-700"],
+:root[data-theme="dark"] [class~="text-[#142f2a]"],
+:root[data-theme="dark"] [class~="text-[#18352a]"],
+:root[data-theme="dark"] [class~="text-[#243e31]"] { color: #edf4ee; }
+:root[data-theme="dark"] [class~="text-slate-600"],
+:root[data-theme="dark"] [class~="text-slate-500"],
+:root[data-theme="dark"] [class~="text-slate-400"] { color: var(--dark-muted); }
+:root[data-theme="dark"] [class~="hover:text-[#142f2a]"]:hover,
+:root[data-theme="dark"] [class~="hover:text-slate-900"]:hover { color: #fff; }
+:root[data-theme="dark"] [class~="text-rose-700"],
+:root[data-theme="dark"] [class~="text-rose-800"],
+:root[data-theme="dark"] [class~="text-rose-900"] { color: #ffb8c3; }
+:root[data-theme="dark"] [class~="text-emerald-800"],
+:root[data-theme="dark"] [class~="text-emerald-900"] { color: #a9eac6; }
+:root[data-theme="dark"] [class~="text-indigo-900"] { color: #d9dcff; }
+:root[data-theme="dark"] [class~="text-amber-950"] { color: #f7ddb0; }
+
+/* Brighter border contrasts for grouped controls, tables and cards. */
+:root[data-theme="dark"] [class~="border-slate-100"],
+:root[data-theme="dark"] [class~="border-slate-200"],
+:root[data-theme="dark"] [class~="border-slate-200/80"],
+:root[data-theme="dark"] [class~="border-slate-200/90"],
+:root[data-theme="dark"] [class~="divide-slate-200"],
+:root[data-theme="dark"] [class~="divide-slate-100"] { border-color: var(--dark-border); }
+:root[data-theme="dark"] [class~="border-[#142f2a]/10"],
+:root[data-theme="dark"] [class~="border-[#142f2a]/12"],
+:root[data-theme="dark"] [class~="border-[#142f2a]/8"],
+:root[data-theme="dark"] [class~="border-[#142f2a]/15"] { border-color: var(--dark-border); }
+:root[data-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="dark"] [class~="divide-slate-100"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--dark-border); }
+
+/* Warm badges and success/error panels should not turn into glaring pastels. */
+:root[data-theme="dark"] [class~="bg-amber-50"],
+:root[data-theme="dark"] [class~="bg-amber-100"],
+:root[data-theme="dark"] [class~="bg-indigo-100"] { background-color: #3a3427; }
+:root[data-theme="dark"] [class~="bg-rose-50"] { background-color: #46262d; }
+:root[data-theme="dark"] [class~="bg-emerald-50"],
+:root[data-theme="dark"] [class*="bg-emerald-50/"] { background-color: #203e35; }
+:root[data-theme="dark"] [class~="text-amber-700"],
+:root[data-theme="dark"] [class~="text-amber-800"],
+:root[data-theme="dark"] [class~="text-indigo-600"] { color: #e8c688; }
+:root[data-theme="dark"] [class~="text-rose-800"] { color: #ffd0d5; }
+
+/* Site header, mobile navigation and flyout controls. */
+:root[data-theme="dark"] header.sticky {
+  background: #15221ff5;
+  border-color: var(--dark-border);
+}
+:root[data-theme="dark"] #mobile-navigation { background-color: #15221f; border-color: var(--dark-border); }
+:root[data-theme="dark"] header.sticky [class~="bg-[#142f2a]"] { background-color: #325944; }
+:root[data-theme="dark"] header.sticky [class~="bg-[#142f2a]"] [class~="text-[#e4be7d]"] { color: #f1d69e; }
+:root[data-theme="dark"] header.sticky [class~="text-[#142f2a]"] { color: #edf4ee; }
+:root[data-theme="dark"] header.sticky [class~="text-[#99733e]"] { color: #e4be7d; }
+:root[data-theme="dark"] header.sticky [class~="text-slate-600"] { color: #cad8cc; }
+:root[data-theme="dark"] header.sticky [class~="bg-[#142f2a]"] [class~="text-white"] { color: white; }
+
+/* Explicit green and gold call-to-action surfaces should retain contrast. */
+:root[data-theme="dark"] [class~="bg-[#d6a65c]"] [class~="text-[#142f2a]"],
+:root[data-theme="dark"] [class~="bg-[#d6a65c]"].text-\[\#142f2a\] {
+  color: #142f2a;
+}
+:root[data-theme="dark"] [class~="bg-[#142f2a]"] [class~="text-white"],
+:root[data-theme="dark"] [class~="bg-slate-900"] [class~="text-white"] { color: white; }
+:root[data-theme="dark"] .bg-\[\#142f2a\].text-\[\#142f2a\] { color: #edf4ee; }
+
+/* Native controls and the browser chrome, including dark date pickers. */
+:root[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+:root[data-theme="dark"] input[type="checkbox"],
+:root[data-theme="dark"] input[type="radio"] { accent-color: #d6a65c; }
+:root[data-theme="dark"] ::selection { background: #b88b4e; color: #101c18; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #52685c; border-color: #0d1515; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="dark"] body,
+  :root[data-theme="light"] body { transition: background-color 180ms ease, color 180ms ease; }
+}
