@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import './dark.css';
+import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { SavedPlacesProvider } from './context/SavedPlacesContext';
 import { appStore } from './services/store';
@@ -14,4 +16,4 @@ function Bootstrap() {
   // homepage introduction and any search input remain visible and usable.
   return <SavedPlacesProvider><App startupStatus={status} onStartupRetry={load} /></SavedPlacesProvider>;
 }
-createRoot(document.getElementById('root')!).render(<LanguageProvider><Bootstrap /></LanguageProvider>);
+createRoot(document.getElementById('root')!).render(<ThemeProvider><LanguageProvider><Bootstrap /></LanguageProvider></ThemeProvider>);
