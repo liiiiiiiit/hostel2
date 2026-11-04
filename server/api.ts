@@ -6,7 +6,8 @@ import express from 'express';
 import { translateOnServer } from './translator.js';
 import { localizeError } from './locale.js';
 import { optimizeImage, storeImage, deleteStoredImage, readStoredImage, MAX_IMAGE_BYTES } from './media.js';
-import { hostelSchema, rentalSchema } from './property-schemas.js';
+import { hostelSchema, rentalSchema, imageUrl } from './property-schemas.js';
+import { accountEmailSchema as email, accountPasswordSchema as password } from './auth-schema.js';
 import { articleSchema } from './article-schema.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
@@ -23,8 +24,6 @@ const text = z.string().trim().min(1).max(500);
 const optionalText = z.string().max(5000).optional();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
 const positive = z.number().int().min(1).max(100);
-const email = z.string().trim().toLowerCase().email().max(254);
-const password = z.string().min(8).max(128);
 const status = z.enum(['pending','confirmed','rejected','cancelled','expired','completed','no_show']);
 const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z.number().int().min(1).max(5), staff: z.number().int().min(1).max(5), location: z.number().int().min(1).max(5) });
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
@@ -52,7 +51,7 @@ const schemas = {
   saveArticle: z.tuple([articleSchema]),
   deleteArticle: z.tuple([text]), notificationStatus: z.tuple([]), sendNotifications: z.tuple([]),
   updateHostelLocation: z.tuple([text, coordinates.extend({ verified: z.boolean(), note: z.string().trim().max(1000).optional() })]),
-  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), directionsEn:z.string().max(5000).optional(),directionsRu:z.string().max(5000).optional(), entrancePhoto: z.union([z.literal(''),z.string().url()]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
+  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), directionsEn:z.string().max(5000).optional(),directionsRu:z.string().max(5000).optional(), entrancePhoto: z.union([z.literal(''),imageUrl]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
 };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(part => part.includes('=')).map(part => { const split = part.indexOf('='); return [part.slice(0, split).trim(), part.slice(split + 1)]; }));

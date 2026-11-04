@@ -145,6 +145,42 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
         UNION SELECT id FROM bookings WHERE hostel_id=? AND status='confirmed' AND check_out>?
         UNION SELECT id FROM bookings INDEXED BY bookings_checked_in WHERE hostel_id=? AND status='confirmed' AND checked_in_at IS NOT NULL AND checked_out_at IS NULL
     )`, bookingId, hostelId, retry, hostelId, hostelId, hostelId, addCalendarDays(yerevanToday(), -1), hostelId);
+    if (action === 'saveHostel' && actor?.role === 'admin') {
+        const input = args[0] as { roomTypes: { id: string; physicalUnits?: { id: string }[] }[] };
+        const removedRooms = (await tx.execute({
+            sql: 'SELECT id FROM room_types WHERE hostel_id=? AND id NOT IN (SELECT value FROM json_each(?))',
+            args: [hostelId, JSON.stringify(input.roomTypes.map(room => room.id))],
+        })).rows;
+        const referencedBookings: string[] = [];
+        // Archived bookings are normally outside the mutation scope. For an
+        // actual room deletion, one indexed reference per removed room is enough
+        // to reject it without loading the property's entire booking history.
+        for (const room of removedRooms) {
+            const reference = (await tx.execute({
+                sql: 'SELECT id FROM bookings WHERE hostel_id=? AND room_type_id=? LIMIT 1',
+                args: [hostelId, String(room.id)],
+            })).rows[0];
+            if (reference) referencedBookings.push(String(reference.id));
+        }
+        const removedUnits = (await tx.execute({
+            sql: `SELECT room_id,id FROM physical_units WHERE hostel_id=?
+                  EXCEPT SELECT json_extract(room.value,'$.id'),json_extract(unit.value,'$.id')
+                  FROM json_each(?) room, json_each(room.value,'$.physicalUnits') unit`,
+            args: [hostelId, JSON.stringify(input.roomTypes)],
+        })).rows;
+        for (const unit of removedUnits) {
+            const reference = (await tx.execute({
+                sql: `SELECT b.id FROM bookings b JOIN booking_units u ON u.booking_id=b.id
+                      WHERE b.hostel_id=? AND b.room_type_id=? AND u.unit_id=? LIMIT 1`,
+                args: [hostelId, String(unit.room_id), String(unit.id)],
+            })).rows[0];
+            if (reference) referencedBookings.push(String(reference.id));
+        }
+        if (referencedBookings.length) base.bookings = where(
+            `(${base.bookings.sql}) OR id IN (SELECT value FROM json_each(?))`,
+            ...(base.bookings.args ?? []), JSON.stringify(referencedBookings),
+        );
+    }
     base.capacity_overrides = where('hostel_id=?', hostelId);
     base.unit_blocks = where('hostel_id=?', hostelId);
     base.coupons = { sql: '1' };

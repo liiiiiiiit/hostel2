@@ -12,7 +12,22 @@ export function SavedPlacesProvider({ children }: { children: React.ReactNode })
   const state=useSyncExternalStore(appStore.subscribe,appStore.getState,appStore.getState);
   const [guestSaved,setSaved] = useState(() => read('yh_saved'));
   const saved=state.currentUser?(state.savedPlaces??[]) as PlaceKey[]:guestSaved;
-  useEffect(()=>{if(state.currentUser)void appStore.action('mergeSavedPlaces',[guestSaved]).then(result=>setSyncError(result.success?'':result.error??workflowText(currentLang)('error')));},[state.currentUser?.id]);
+  useEffect(() => {
+    setSyncError('');
+    if (!state.currentUser || !guestSaved.length) return;
+    const userId = state.currentUser.id;
+    const submitted = new Set(guestSaved);
+    void appStore.action('mergeSavedPlaces', [guestSaved]).then(result => {
+      setSyncError(result.success ? '' : result.error ?? workflowText(currentLang)('error'));
+      // Transfer guest favorites once. Keeping them would restore items the
+      // account owner subsequently removed on every login.
+      if (result.success && result.state?.currentUser?.id === userId) {
+        const transferred = new Set(result.state.savedPlaces ?? []);
+        // Preserve new guest edits and entries omitted by the account's limit.
+        setSaved(items => items.filter(key => !submitted.has(key) || !transferred.has(key)));
+      }
+    });
+  }, [state.currentUser?.id]);
   const [compared, setCompared] = useState<PlaceKey[]>([]);
   const [storageError, setStorageError] = useState(false);
   useEffect(() => { try { localStorage.setItem('yh_saved', JSON.stringify(guestSaved)); setStorageError(false); } catch { setStorageError(true); } }, [guestSaved]);

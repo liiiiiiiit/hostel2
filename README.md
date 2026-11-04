@@ -51,7 +51,7 @@ See [DEPLOYMENT_FA.md](DEPLOYMENT_FA.md) for Persian Vercel/Turso setup steps.
 
 Vercel deploys `api/app.ts` alongside `dist`. With no `DATABASE_URL`, it intentionally serves a **read-only preview**: browse, filter, save and compare, with an explicit banner. Account access and reservations remain disabled. Once a hosted libSQL database is configured, records are shared across devices. A configured database failure returns an error; it never silently switches to a fake writable store.
 
-Required production settings: `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (for authenticated hosted databases), and `ADMIN_EMAIL`/`ADMIN_PASSWORD` for initial administration. The bootstrap password must have at least 12 characters; bootstrap never resets an existing active administrator. Add the settings securely, never to source or chat. The public `APP_URL` must be the project's HTTPS address to include tracking links in emails.
+Required production settings: `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (for authenticated hosted databases), and `ADMIN_EMAIL`/`ADMIN_PASSWORD` for initial administration. The bootstrap password must have 12 to 128 characters; bootstrap never resets an existing active administrator. Add the settings securely, never to source or chat. The public `APP_URL` must be the project's HTTPS address to include tracking links in emails.
 
 Production never enables the development quick-login accounts. Production uses Secure cookies. Do not connect the local development database to a public deployment.
 

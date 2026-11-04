@@ -377,7 +377,9 @@ export async function operate(
       checkIn: input.checkIn,
       checkOut: input.checkOut,
       rules: room.pricingRules,
-      discountPercent: b.discountPercent,
+      // Stay-length discounts are recalculated for the proposed dates. Only an
+      // actual, previously applied coupon keeps its agreed percentage.
+      discountPercent: b.couponCode ? b.discountPercent : 0,
       earlyCheckInFee: b.earlyCheckInFeeAMD,
       lateCheckInFee: b.lateCheckInFeeAMD,
       extraServicesFee: serviceFee,

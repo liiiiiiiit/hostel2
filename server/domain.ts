@@ -833,11 +833,22 @@ export class Store {
     const commitments = this.state.bookings.filter(booking => booking.hostelId === hostel.id && booking.checkOut > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Yerevan' }) && booking.status === 'confirmed');
     for (const oldRoom of previous?.roomTypes ?? []) {
       const room = hostel.roomTypes.find(item => item.id === oldRoom.id);
+      if (!room && (this.state.bookings.some(booking => booking.hostelId === hostel.id && booking.roomTypeId === oldRoom.id)
+        || this.state.unitBlocks?.some(block => block.hostelId === hostel.id && block.roomTypeId === oldRoom.id))) {
+        throw new Error('این نوع اتاق دارای سابقهٔ رزرو یا مسدودی است و قابل حذف نیست.');
+      }
       const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
       if (active.length && (!room || room.type !== oldRoom.type || (room.bookingUnit??(room.type==='private'?'room':'bed')) !== (oldRoom.bookingUnit??(oldRoom.type==='private'?'room':'bed')) || active.some(booking=>!occupancyIsValid(room,booking.guestsCount,booking.quantity)) || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
     }
     if(hostel.roomTypes.some(room=>this.state.capacities.some(day=>day.hostelId===hostel.id&&day.roomTypeId===room.id&&day.date>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})&&day.capacity>room.totalBedsOrRooms)))throw new Error('ابتدا ظرفیت‌های روزانه را با تعداد واحدهای جدید هماهنگ کنید.');
-    for(const oldRoom of previous?.roomTypes??[]){const room=hostel.roomTypes.find(r=>r.id===oldRoom.id);const required=new Set([...(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostel.id&&block.roomTypeId===oldRoom.id&&block.to>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})).flatMap(block=>block.unitIds),...commitments.filter(b=>b.roomTypeId===oldRoom.id).flatMap(b=>b.assignedUnitIds??[])]);if([...required].some(id=>!room?.physicalUnits?.some(unit=>unit.id===id)))throw new Error('واحدهای تخصیص‌یافته یا مسدود را نمی‌توان حذف کرد.');}
+    for (const oldRoom of previous?.roomTypes ?? []) {
+      const room = hostel.roomTypes.find(r => r.id === oldRoom.id);
+      const required = new Set([
+        ...(this.state.unitBlocks ?? []).filter(block => block.hostelId === hostel.id && block.roomTypeId === oldRoom.id).flatMap(block => block.unitIds),
+        ...this.state.bookings.filter(b => b.hostelId === hostel.id && b.roomTypeId === oldRoom.id).flatMap(b => b.assignedUnitIds ?? []),
+      ]);
+      if ([...required].some(id => !room?.physicalUnits?.some(unit => unit.id === id))) throw new Error('واحدهای تخصیص‌یافته یا مسدود را نمی‌توان حذف کرد.');
+    }
     const physicalIds=hostel.roomTypes.flatMap(room=>room.physicalUnits?.map(unit=>unit.id)??[]);if(new Set(physicalIds).size!==physicalIds.length)throw new Error('شناسه واحد فیزیکی تکراری است.');
     if (hostel.media) hostel.photos = hostel.media.map(image => image.url);
     hostel.listingStatus ??= hostel.isPublished ? 'published' : 'draft';
@@ -907,6 +918,10 @@ export class Store {
 
   public deleteCoupon(code: string) {
     this.requireAdmin();
+    const coupon = this.state.coupons.find(c => c.code.toUpperCase() === code.toUpperCase());
+    // Bookings refer to coupons by code. Reusing a consumed code would let an
+    // old cancellation decrement the new coupon's counter.
+    if (coupon && coupon.usedCount > 0) throw new Error('این کد تخفیف استفاده شده است؛ به‌جای حذف، آن را غیرفعال کنید.');
     this.state.coupons = this.state.coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase());
     this.logAudit('DELETE_COUPON', 'COUPON', code, `حذف کد تخفیف ${code}`);
     this.persist();
