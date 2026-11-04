@@ -6,7 +6,9 @@ import express from 'express';
 import { translateOnServer } from './translator.js';
 import { localizeError } from './locale.js';
 import { optimizeImage, storeImage, deleteStoredImage, readStoredImage, MAX_IMAGE_BYTES } from './media.js';
-import { hostelSchema, rentalSchema } from './property-schemas.js';
+import { hostelSchema, rentalSchema, imageUrl } from './property-schemas.js';
+import { accountEmailSchema as email, accountPasswordSchema as password } from './auth-schema.js';
+import { articleSchema } from './article-schema.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { Database } from './database.js';
@@ -22,12 +24,8 @@ const text = z.string().trim().min(1).max(500);
 const optionalText = z.string().max(5000).optional();
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
 const positive = z.number().int().min(1).max(100);
-const email = z.string().trim().toLowerCase().email().max(254);
-const password = z.string().min(8).max(128);
 const status = z.enum(['pending','confirmed','rejected','cancelled','expired','completed','no_show']);
 const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z.number().int().min(1).max(5), staff: z.number().int().min(1).max(5), location: z.number().int().min(1).max(5) });
-const localized = z.object({ fa: z.string(), en: z.string(), ru: z.string(), hy: z.string() });
-const entity = z.object({ id: text }).passthrough();
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
@@ -50,10 +48,10 @@ const schemas = {
   toggleCoupon: z.tuple([text]), deleteCoupon: z.tuple([text]),
   moderateReview: z.tuple([text, z.enum(['approved','rejected']), optionalText]),
   updateRentalInquiryStatus: z.tuple([text, z.enum(['pending_review','coordinating','proposed_terms','agreed','rejected','cancelled','completed']), optionalText]),
-  saveArticle: z.tuple([entity.extend({ translations:z.partialRecord(z.enum(['fa','en','ru','hy']),z.object({title:z.string().max(500),summary:z.string().max(10000),content:z.string().max(100000)})).optional(), title: text, slug: text, content: z.string().max(100000), tags: z.array(z.string()), sources: z.array(z.string()), status: z.enum(['draft','published']) }).passthrough()]),
+  saveArticle: z.tuple([articleSchema]),
   deleteArticle: z.tuple([text]), notificationStatus: z.tuple([]), sendNotifications: z.tuple([]),
   updateHostelLocation: z.tuple([text, coordinates.extend({ verified: z.boolean(), note: z.string().trim().max(1000).optional() })]),
-  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), directionsEn:z.string().max(5000).optional(),directionsRu:z.string().max(5000).optional(), entrancePhoto: z.union([z.literal(''),z.string().url()]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
+  updateArrivalGuide: z.tuple([text, z.object({ addressArmenianForTaxi: z.string().max(1000), directionsFa: z.string().max(5000), directionsHy: z.string().max(5000), directionsEn:z.string().max(5000).optional(),directionsRu:z.string().max(5000).optional(), entrancePhoto: z.union([z.literal(''),imageUrl]), floorAndDoorCode: z.string().max(500), phone: z.string().max(100) })]),
 };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(part => part.includes('=')).map(part => { const split = part.indexOf('='); return [part.slice(0, split).trim(), part.slice(split + 1)]; }));
@@ -224,11 +222,13 @@ export function createApi(database: Database) {
       },{action:envelope.action,args,sessionHash:parseCookies(req.headers.cookie)[cookieName] ? digest(parseCookies(req.headers.cookie)[cookieName]) : undefined});
       if('translationInput' in result&&result.translationInput){res.json({success:true,translation:await translateOnServer(result.translationInput)});return;}
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }
+      // The accepted operation and its outbox are committed. Respond before any
+      // optional provider call so a 15-second outage cannot time out the client.
+      res.status('rateLimited' in result ? 429 : res.statusCode).json(result);
       if ('dispatch' in result && result.dispatch) {
         // Failure to deliver never rolls back an accepted booking; retries remain in the durable outbox.
         try { await deliverNotifications(database); } catch { /* Scheduler/admin can retry. */ }
       }
-      res.status('rateLimited' in result ? 429 : res.statusCode).json(result);
     } catch (error) { next(error); }
   });
   app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {

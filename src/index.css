@@ -75,3 +75,37 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Shared appearance covers public pages, dialogs and all account workspaces. */
+html.dark { color-scheme: dark; --ink: #e5eee8; --canvas: #101915; --gold: #e4be7d; }
+html.dark body { background: #101915; color: #e5eee8; }
+html.dark :is(.bg-white, .bg-slate-50, .bg-slate-100, .surface, [class*="bg-white/"], [class*="bg-slate-50/"], [class*="bg-slate-100/"], [class*="bg-[#f8faf7]"], [class*="bg-[#f1f4f0]"], [class*="bg-[#fafbf9]"], [class*="bg-[#e5ece5]"]) { background-color: #19261f; }
+html.dark :is(.bg-slate-200, [class*="bg-[#142f2a]/7"]) { background-color: #293b30; }
+html.dark :is(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700, [class*="text-[#142f2a]"], [class*="text-[#203e2e]"], [class*="text-[#243e31]"]) { color: #e5eee8; }
+html.dark :is(.text-slate-600, .text-slate-500, .text-slate-400, .eyebrow, .field-label) { color: #b2c3b7; }
+html.dark :is(.border-slate-100, .border-slate-200, .border-slate-300, [class*="border-[#142f2a]/"], .surface, .border, .border-t, .border-b) { border-color: #35493c; }
+html.dark :is(.divide-slate-100, .divide-slate-200) > :not(:last-child) { border-color: #35493c; }
+html.dark .button-primary { background: #326148; border-color: #4f8565; color: #fff; }
+html.dark .button-primary:hover:not(:disabled) { background: #3d7557; }
+html.dark .button-secondary { background: #23372b; color: #e5eee8; border-color: #496050; }
+html.dark .button-secondary:hover:not(:disabled) { background: #304c3b; }
+html.dark :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea, .field) { background-color: #132119; color: #e5eee8; border-color: #496050; }
+html.dark :is(input, textarea)::placeholder { color: #94aa9b; opacity: 1; }
+html.dark .field:focus { background: #192b20; border-color: #88b69a; outline-color: #88b69a; }
+html.dark :is(.hover\:bg-white, .hover\:bg-slate-50, .hover\:bg-slate-100):hover { background-color: #2b4133; }
+html.dark :is(.hover\:text-slate-950, .hover\:text-slate-900):hover { color: #fff; }
+html.dark :is(.bg-emerald-50, .bg-green-50, .bg-emerald-100, .bg-green-100, .status-pill, [class*="bg-emerald-50/"], [class*="bg-emerald-100/"]) { background-color: #1d3b2b; }
+html.dark :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900, .text-green-700, .text-green-800, .status-pill) { color: #a0ddb5; }
+html.dark :is(.bg-amber-50, .bg-amber-100, [class*="bg-amber-50/"], [class*="bg-amber-100/"]) { background-color: #3d321e; }
+html.dark :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-amber-950) { color: #efcd8e; }
+html.dark :is(.bg-rose-50, .bg-red-50, .bg-rose-100, .bg-red-100) { background-color: #41252c; }
+html.dark :is(.text-rose-600, .text-rose-700, .text-rose-800, .text-rose-900, .text-red-600, .text-red-700, .text-red-800) { color: #ffb2bd; }
+html.dark :is(.bg-indigo-50, .bg-indigo-100, .bg-blue-50, .bg-blue-100) { background-color: #252d48; }
+html.dark :is(.text-indigo-600, .text-indigo-700, .text-indigo-900, .text-blue-600, .text-blue-700, .text-blue-800) { color: #b3c5ff; }
+html.dark [class*="bg-[#d6a65c]"] { color: #142f2a; }
+html.dark .skip-link { background: #19261f; color: #e5eee8; border-color: #88b69a; }
+html.dark ::selection { background: #5c7253; color: #fff; }
+html.dark ::-webkit-scrollbar-thumb { background: #536c5b; border-color: #101915; }
+html.dark :is([class*="bg-[#eaf0e7]"], [class*="bg-[#edf3ee]"], [class*="bg-[#f0f4ef]"]) { background-color: #21382a; }
+html.dark :is([class*="text-[#315c43]"], [class*="text-[#467452]"], [class*="text-[#567963]"], [class*="text-[#5f7566]"]) { color: #b6d2bd; }
+html.dark :is([class*="text-[#8e7044]"], [class*="text-[#99733e]"]) { color: #e4be7d; }

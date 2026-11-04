@@ -8,7 +8,7 @@ import { Database } from './database.js';
 import { createApi } from './api.js';
 import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
 import { deliverNotifications } from './notifications.js';
-import type { ClientState } from '../src/types/index.js';
+import type { Article, ClientState } from '../src/types/index.js';
 
 async function fixture(t: TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), 'yh-api-'));
@@ -35,6 +35,176 @@ async function fixture(t: TestContext) {
   const checkIn = addCalendarDays(yerevanToday(), 2); const checkOut = addCalendarDays(checkIn, 2);
   const booking = { hostelId: hostel.id, roomTypeId: hostel.roomTypes[0].id, guestName: 'API Guest', contactType: 'email', guestContact: 'guest@example.test', checkIn, checkOut, quantity: 1, guestsCount: 1 };
   return { database, databaseUrl:`file:${directory}/test.db`, base, client, visitor, hostel, booking };
+}
+
+for (const scenario of [
+  { name: 'weekly discount expires after shortening', nights: 7, nextNights: 2, coupon: false, percent: 0, source: 'none' },
+  { name: 'monthly discount becomes weekly after shortening', nights: 28, nextNights: 7, coupon: false, percent: 20, source: 'weekly' },
+  { name: 'an actual coupon remains on a short stay', nights: 2, nextNights: 3, coupon: true, percent: 10, source: 'coupon' },
+  { name: 'a better weekly discount releases the coupon', nights: 2, nextNights: 7, coupon: true, percent: 20, source: 'weekly' },
+]) {
+  test(`booking changes: ${scenario.name}`, async t => {
+    const { completeHostel } = await import('./property-fixtures.js');
+    const { client, visitor, booking, database } = await fixture(t);
+    const admin = client();
+    assert.equal((await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026'])).data.success, true);
+    const hostel = completeHostel();
+    hostel.isPublished = true; hostel.listingStatus = 'published';
+    const room = hostel.roomTypes[1];
+    room.pricingRules = { minimumNights: 1, weekendDays: [], weeklyDiscountPercent: 20, monthlyDiscountPercent: 30, overrides: [] };
+    assert.equal((await admin.action('saveHostel', [hostel])).data.success, true);
+    await database.transaction(async state => {
+      state.coupons.push({ code: 'STAY10', percent: 10, minAmountAMD: 0, maxUses: 1, usedCount: 0, active: true,
+        startsAt: new Date(Date.now() - 60000).toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), description: 'Change test' });
+    });
+    const created = await visitor.action('createBooking', [{ ...booking, hostelId: hostel.id, roomTypeId: room.id,
+      checkOut: addCalendarDays(booking.checkIn, scenario.nights), ...(scenario.coupon ? { couponCode: 'STAY10' } : {}) }]);
+    assert.equal(created.data.success, true);
+    const b = created.data.booking;
+    const changed = await visitor.action('requestBookingChange', [b.privateToken, {
+      checkIn: b.checkIn, checkOut: addCalendarDays(b.checkIn, scenario.nextNights), guestsCount: 1, reason: 'Revised travel dates',
+    }]);
+    assert.equal(changed.data.success, true);
+    const proposal = changed.data.proposal;
+    assert.equal(proposal.pricing.discountPercent, scenario.percent);
+    assert.equal(proposal.pricing.discountSource, scenario.source);
+    assert.equal(proposal.amountAMD, room.pricePerNightAMD * scenario.nextNights * (1 - scenario.percent / 100));
+    assert.equal((await visitor.action('acceptBookingChange', [proposal.id, b.privateToken])).data.success, true);
+    assert.equal((await admin.action('applyBookingChange', [proposal.id, 'Accepted revised dates'])).data.success, true);
+    const saved = (await visitor.get(b.privateToken)).state.bookings[0];
+    assert.equal(saved.discountPercent, scenario.percent);
+    assert.equal(saved.agreement?.discountSource, scenario.source);
+    assert.equal(saved.finalAmountAMD, proposal.amountAMD);
+    assert.equal(saved.couponCode, scenario.source === 'coupon' ? 'STAY10' : undefined);
+    await database.transaction(async state => {
+      assert.equal(state.coupons.find(c => c.code === 'STAY10')!.usedCount, scenario.source === 'coupon' ? 1 : 0);
+    });
+  });
+}
+
+test('arrival guides accept stored media URLs and reject unsupported image URLs without changing the guide', async t => {
+  const { client, hostel } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const guide = { addressArmenianForTaxi: 'Երևան', directionsFa: 'ورودی', directionsHy: 'Մուտք',
+    entrancePhoto: `/api/app?media=${crypto.randomUUID()}`, floorAndDoorCode: 'PRIVATE-CODE', phone: '+37491123456' };
+  const result = await admin.action('updateArrivalGuide', [hostel.id, guide]);
+  assert.equal(result.response.status, 200);
+  assert.equal(result.data.success, true);
+  assert.equal((await admin.get()).state.hostels.find(h => h.id === hostel.id)!.entrancePhoto, guide.entrancePhoto);
+  for (const entrancePhoto of ['javascript:alert(1)', '/other-path', 'http://example.test/image.jpg']) {
+    assert.equal((await admin.action('updateArrivalGuide', [hostel.id, { ...guide, entrancePhoto }])).response.status, 400);
+  }
+  assert.equal((await admin.get()).state.hostels.find(h => h.id === hostel.id)!.entrancePhoto, guide.entrancePhoto);
+});
+
+test('a consumed coupon cannot be deleted and reused while existing bookings still reserve its uses', async t => {
+  const { client, visitor, booking, database } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const coupon = { code: 'LIMITED', percent: 10, minAmountAMD: 0, maxUses: 1, usedCount: 0, active: true,
+    startsAt: new Date(Date.now() - 60000).toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), description: 'One use' };
+  assert.equal((await admin.action('addCoupon', [coupon])).data.success, true);
+  const created = await visitor.action('createBooking', [{ ...booking, couponCode: coupon.code }]);
+  assert.equal(created.data.success, true);
+  const deletion = await admin.action('deleteCoupon', [coupon.code], { 'X-App-Language': 'en' });
+  assert.equal(deletion.response.status, 400);
+  assert.match(deletion.data.error, /deactivate/i);
+  assert.equal((await admin.action('toggleCoupon', [coupon.code])).data.success, true);
+  await database.transaction(async state => {
+    const saved = state.coupons.find(c => c.code === coupon.code)!;
+    assert.equal(saved.usedCount, 1); assert.equal(saved.active, false);
+  });
+  assert.equal((await visitor.action('cancelBookingByGuest', [created.data.booking.privateToken, 'Plans changed'])).data.success, true);
+  assert.equal((await admin.action('deleteCoupon', [coupon.code])).data.success, true);
+  assert.equal((await admin.action('addCoupon', [coupon])).data.success, true);
+  assert.equal((await visitor.action('createBooking', [{ ...booking, couponCode: coupon.code }])).data.success, true);
+  await visitor.action('cancelBookingByGuest', [created.data.booking.privateToken, 'Repeat cancellation']);
+  await database.transaction(async state => assert.equal(state.coupons.find(c => c.code === coupon.code)!.usedCount, 1));
+});
+
+test('bootstrap rejects credentials that the login API cannot accept without creating an administrator', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yh-bootstrap-validation-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const [index, credentials] of [
+    { adminEmail: 'admin@example.test', adminPassword: 'x'.repeat(129) },
+    { adminEmail: 'admin..invalid@example.test', adminPassword: 'Valid-password-42' },
+  ].entries()) {
+    const database = new Database({ url: `file:${directory}/${index}.db`, demo: false, ...credentials });
+    try {
+      await assert.rejects(database.publicState(), /Bootstrap admin/);
+      const result = await database.client.execute("SELECT COUNT(*) AS count FROM users WHERE role='admin'");
+      assert.equal(result.rows[0].count, 0);
+    } finally { await database.close().catch(() => {}); }
+  }
+});
+
+test('the maximum bootstrap password length can log in through the API', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yh-bootstrap-login-'));
+  const password = 'x'.repeat(128);
+  const database = new Database({ url: `file:${directory}/test.db`, demo: false, adminEmail: 'admin@example.test', adminPassword: password });
+  const server = createApi(database).listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => {
+    server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
+    await database.close(); await rm(directory, { recursive: true, force: true });
+  });
+  const response = await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}/api/app`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub' },
+    body: JSON.stringify({ action: 'login', args: ['admin@example.test', password] }),
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).state.currentUser.role, 'admin');
+});
+
+for (const history of ['pending', 'completed', 'released_block'] as const) {
+  test(`room deletion protects ${history} references with a usable error and preserves records`, async t => {
+    const { completeHostel } = await import('./property-fixtures.js');
+    const { visitor, client, booking, database } = await fixture(t);
+    const admin = client();
+    await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+    const hostel = completeHostel();
+    hostel.isPublished = true; hostel.listingStatus = 'published';
+    assert.equal((await admin.action('saveHostel', [hostel])).data.success, true);
+    const room = hostel.roomTypes[0];
+    if (history === 'released_block') {
+      assert.equal((await admin.action('blockUnits', [{ hostelId: hostel.id, roomTypeId: room.id,
+        unitIds: [room.physicalUnits![0].id], from: booking.checkIn, to: booking.checkOut, reason: 'Maintenance' }])).data.success, true);
+      await database.transaction(async state => {
+        state.unitBlocks!.find(block => block.hostelId === hostel.id)!.releasedAt = new Date().toISOString();
+      });
+    } else {
+      const created = await visitor.action('createBooking', [{ ...booking, hostelId: hostel.id, roomTypeId: room.id }]);
+      assert.equal(created.data.success, true);
+      if (history === 'completed') {
+        assert.equal((await admin.action('updateBookingStatus', [created.data.booking.id, 'confirmed'])).data.success, true);
+        assert.equal((await admin.action('assignUnits', [created.data.booking.id, [room.physicalUnits![0].id]])).data.success, true);
+        await database.transaction(async state => {
+          const saved = state.bookings.find(b => b.id === created.data.booking.id)!;
+          saved.status = 'completed'; saved.checkIn = addCalendarDays(yerevanToday(), -5); saved.checkOut = addCalendarDays(yerevanToday(), -3);
+        });
+      }
+    }
+    const edited = { ...hostel, roomTypes: hostel.roomTypes.filter(r => r.id !== room.id) };
+    const result = await admin.action('saveHostel', [edited], { 'X-App-Language': 'en' });
+    assert.equal(result.response.status, 400);
+    assert.match(result.data.error, /booking|block/i);
+    const saved = (await admin.get()).state;
+    assert.ok(saved.hostels.find(h => h.id === hostel.id)!.roomTypes.some(r => r.id === room.id));
+    if (history === 'released_block') assert.ok(saved.unitBlocks?.some(b => b.hostelId === hostel.id && b.releasedAt));
+    else assert.ok(saved.bookings.some(b => b.hostelId === hostel.id && b.status === history));
+    if (history !== 'pending') {
+      const removedUnit = structuredClone(hostel);
+      removedUnit.roomTypes[0].physicalUnits = [room.physicalUnits![1]];
+      removedUnit.roomTypes[0].totalBedsOrRooms = 1;
+      const unitResult = await admin.action('saveHostel', [removedUnit], { 'X-App-Language': 'en' });
+      assert.equal(unitResult.response.status, 400);
+      assert.match(unitResult.data.error, /unit|assigned|block/i);
+      assert.equal((await admin.get()).state.hostels.find(h => h.id === hostel.id)!.roomTypes[0].physicalUnits?.length, 2);
+    }
+    // A different room with no references can still be removed.
+    assert.equal((await admin.action('saveHostel', [{ ...hostel, roomTypes: [room] }])).data.success, true);
+  });
 }
 
 test('public API never returns identities, guest records, internal addresses, credentials or door codes', async t => {
@@ -461,4 +631,71 @@ test('explicit public previews allow incomplete inventory but reject bookings an
   const hidden = (await visitor.get()).state;
   assert.ok(!hidden.hostels.some(h => h.id === hostel.id));
   assert.ok(!hidden.rentals.some(r => r.id === rental.id));
+});
+
+test('article validation rejects duplicate slugs and malformed render fields without damaging existing content', async t => {
+  const { client, visitor } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const article: Article = { id: 'audit-article', slug: 'audit-article', title: 'Audit article', summary: 'Summary', category: 'Travel', content: 'Article body', tags: [], sources: [], featuredImage: '', author: 'Editor', language: 'en', status: 'published', lastVerifiedDate: '', createdAt: '', updatedAt: '' };
+  assert.equal((await admin.action('saveArticle', [article])).data.success, true);
+  const duplicate = await admin.action('saveArticle', [{ ...article, id: 'duplicate-article' }]);
+  assert.equal(duplicate.response.status, 400);
+  assert.match(duplicate.data.error, /تکراری/);
+  for (const invalid of [{ summary: null }, { language: 'invalid' }, { featuredImage: 'https://[' }, { featuredImage: 'javascript:alert(1)' }]) {
+    const result = await admin.action('saveArticle', [{ ...article, ...invalid }]);
+    assert.equal(result.response.status, 400);
+  }
+  const saved = (await visitor.get()).state.articles.find(item => item.id === article.id)!;
+  assert.equal(saved.title, article.title);
+  assert.equal(saved.summary, article.summary);
+  assert.equal((await admin.action('saveArticle', [{ ...article, title: 'Updated article' }])).data.success, true);
+});
+
+test('booking response completes while the optional notification provider is still waiting', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yh-notification-response-'));
+  const database = new Database({ url: `file:${directory}/test.db`, demo: false, adminEmail: 'admin@example.test', adminPassword: 'Admin-password-42' });
+  const server = createApi(database).listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await database.close(); await rm(directory, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/app`;
+  const request = async (action: string, args: unknown[], cookie = '') => {
+    const response = await fetch(base, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub' }, body: JSON.stringify({ action, args }) });
+    return { response, data: await response.json() };
+  };
+  const admin = await request('login', ['admin@example.test', 'Admin-password-42']);
+  const { completeHostel } = await import('./property-fixtures.js');
+  const hostel = { ...completeHostel(), isPublished: true, listingStatus: 'published' };
+  assert.equal((await request('saveHostel', [hostel], admin.response.headers.get('set-cookie')!.split(';')[0])).data.success, true);
+  const saved = (await (await fetch(base)).json()).state.hostels.find((item: { id: string }) => item.id === hostel.id);
+  const previous = { key: process.env.RESEND_API_KEY, from: process.env.NOTIFICATION_FROM };
+  const originalFetch = globalThis.fetch;
+  let release!: (response: Response) => void;
+  let started!: () => void;
+  const provider = new Promise<Response>(resolve => { release = resolve; });
+  const providerStarted = new Promise<void>(resolve => { started = resolve; });
+  process.env.RESEND_API_KEY = 'test-only'; process.env.NOTIFICATION_FROM = 'test@example.test';
+  t.mock.method(globalThis, 'fetch', (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (String(url) === 'https://api.resend.com/emails') { started(); return provider; }
+    return originalFetch(url, init);
+  });
+  const created = request('createBooking', [{ acceptedTerms: true, idempotencyKey: crypto.randomUUID(), expectedHostelUpdatedAt: saved.updatedAt, hostelId: hostel.id, roomTypeId: hostel.roomTypes[0].id, guestName: 'Notification guest', contactType: 'email', guestContact: 'guest@example.test', checkIn: addCalendarDays(yerevanToday(), 2), checkOut: addCalendarDays(yerevanToday(), 3), quantity: 1, guestsCount: 1 }]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([created, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Booking response waited for the notification provider')), 2000); })]);
+    assert.equal(result.data.success, true);
+    await providerStarted;
+    assert.ok((await database.client.execute("SELECT id FROM outbox WHERE status='sending'")).rows.length);
+  } finally {
+    clearTimeout(timer);
+    release(Response.json({ id: 'mock-delivery' }));
+    await created;
+    // Complete the in-process delivery before closing the isolated database.
+    for (let i = 0; i < 100; i++) {
+      if (!(await database.sqlTransaction(async tx => (await tx.execute("SELECT id FROM outbox WHERE status='sending'")).rows.length))) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    if (previous.key === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = previous.key;
+    if (previous.from === undefined) delete process.env.NOTIFICATION_FROM; else process.env.NOTIFICATION_FROM = previous.from;
+  }
 });

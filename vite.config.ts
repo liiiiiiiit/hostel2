@@ -1,4 +1,4 @@
-import {previewSocketPlugin, previewSocketsDisabled} from './server/vite-preview';
+import {previewSocketPlugin, previewSocketsDisabled} from './server/vite-preview.ts';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';

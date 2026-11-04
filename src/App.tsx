@@ -107,8 +107,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     const pagePath=window.location.pathname==='/'?'/'+currentLang+'/':window.location.pathname;const page=publicPage(storeState,pagePath+window.location.search,window.location.origin);
     document.title=isPrivate?'YEREVANHUB':page.title;
     const meta=(name:string,value:string,property=false)=>{const selector=property?`meta[property="${name}"]`:`meta[name="${name}"]`;let element=document.head.querySelector(selector);if(!element){element=document.createElement('meta');element.setAttribute(property?'property':'name',name);document.head.appendChild(element);}element.setAttribute('content',value);};
-    meta('robots',isPrivate?'noindex,nofollow':page.status===404||page.noindex?'noindex,nofollow':'index,follow');meta('description',isPrivate?'':page.description??'');meta('og:title',isPrivate?'YEREVANHUB':page.title);meta('og:description',isPrivate?'':page.description??'');if(!isPrivate&&page.image)meta('og:image',new URL(page.image,window.location.origin).href,true);else document.head.querySelector('meta[property="og:image"]')?.remove();
-    meta('og:url',window.location.origin+(isPrivate?'/':pagePath));
+    meta('robots',isPrivate?'noindex,nofollow':page.status===404||page.noindex?'noindex,nofollow':'index,follow');meta('description',isPrivate?'':page.description??'');meta('og:title',isPrivate?'YEREVANHUB':page.title,true);meta('og:description',isPrivate?'':page.description??'',true);if(!isPrivate&&page.image)meta('og:image',new URL(page.image,window.location.origin).href,true);else document.head.querySelector('meta[property="og:image"]')?.remove();
+    meta('og:url',window.location.origin+(isPrivate?'/':pagePath),true);
     const canonical=document.head.querySelector('link[rel="canonical"]')??document.head.appendChild(document.createElement('link'));canonical.setAttribute('rel','canonical');canonical.setAttribute('href',window.location.origin+(isPrivate?'/':pagePath));
     for(const node of document.head.querySelectorAll('link[hreflang]'))node.remove();
     if(!isPrivate&&page.status===200)for(const lang of ['fa','en','ru','hy']){if(activeView==='article-detail'){const original=storeState.articles.find(a=>a.slug===viewParams.slug||a.id===viewParams.slug);if(!original||!articleInLanguage(original,lang as AppLanguage))continue;}const link=document.createElement('link');link.rel='alternate';link.hreflang=lang;link.href=window.location.origin+pagePath.replace(/^\/(fa|en|ru|hy)/,'/'+lang);document.head.appendChild(link);}
@@ -127,7 +127,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     if (startupStatus !== 'ready' && !['home', 'translator'].includes(activeView))
       return startupStatus === 'error' ? <TranslatorView currentLang={currentLang} phrases={appStore.getPhrases()} /> : <ContentLoading lang={currentLang} />;
     if (trackingLoading) return <ContentLoading lang={currentLang} />;
-    if (trackingError) return <div role="alert" className="p-8 text-center">{trackingError}</div>;
+    if (trackingError) return <div role="alert" className="p-8 text-center space-y-4"><p>{trackingError}</p><button type="button" className="button-secondary mx-auto" onClick={() => window.dispatchEvent(new PopStateEvent('popstate'))}>{loadingText(currentLang).retry}</button></div>;
     switch (activeView) {
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
       case 'recommendations':return <RecommendationsView onNavigate={handleNavigate} initial={{...viewParams,amenities:typeof viewParams.amenities==='string'?viewParams.amenities.split(',').filter(Boolean):viewParams.amenities}}/>;
@@ -224,6 +224,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
             currentLang={currentLang}
             inquiry={inquiry}
             property={property}
+            supportPhone={storeState.settings.emergencyHotline}
             onNavigate={handleNavigate}
           />
         );

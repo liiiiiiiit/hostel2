@@ -8,6 +8,7 @@ import { createClient, type Client, type Transaction } from '@libsql/client';
 import { mkdirSync } from 'node:fs';
 import { Store, type AppStoreState } from './domain.js';
 import { createPasswordCredential } from './passwords.js';
+import { accountEmailSchema, bootstrapPasswordSchema } from './auth-schema.js';
 
 export interface DatabaseOptions { url?: string; authToken?: string; demo?: boolean; adminEmail?: string; adminPassword?: string }
 export class Database {
@@ -58,10 +59,12 @@ export class Database {
     await this.bootstrapAdmin(options);
   }
   private async bootstrapAdmin(options: DatabaseOptions) {
-    const email = options.adminEmail ?? process.env.ADMIN_EMAIL;
+    const rawEmail = options.adminEmail ?? process.env.ADMIN_EMAIL;
     const password = options.adminPassword ?? process.env.ADMIN_PASSWORD;
-    if (!email || !password) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12) throw new Error('Bootstrap admin requires a valid email and a password of at least 12 characters.');
+    if (!rawEmail || !password) return;
+    const parsedEmail = accountEmailSchema.safeParse(rawEmail);
+    if (!parsedEmail.success || !bootstrapPasswordSchema.safeParse(password).success) throw new Error('Bootstrap admin requires a valid email and a password of 12 to 128 characters.');
+    const email = parsedEmail.data;
     const tx = await this.client.transaction('write');
     try {
       const loaded=await loadState(tx,{...Object.fromEntries(tables.map(table=>[table.table,none])),users:where("(role='admin' AND is_active=1) OR email=? COLLATE NOCASE",email.trim().toLowerCase())});

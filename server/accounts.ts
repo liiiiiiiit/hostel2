@@ -3,9 +3,8 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Transaction } from "@libsql/client";
 import type { AppStoreState } from "./domain.js";
 import { createPasswordCredential, verifyPassword } from "./passwords.js";
-const email = z.string().trim().toLowerCase().email().max(254),
-  password = z.string().min(8).max(128),
-  token = z.string().regex(/^[a-f0-9]{64}$/),
+import { accountEmailSchema as email, accountPasswordSchema as password } from './auth-schema.js';
+const token = z.string().regex(/^[a-f0-9]{64}$/),
   lang = z.enum(["fa", "en", "ru", "hy"]);
 export const accountSchemas = {
   requestPasswordRecovery: z.tuple([email, lang]),

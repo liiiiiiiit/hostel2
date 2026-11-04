@@ -51,7 +51,7 @@ See [DEPLOYMENT_FA.md](DEPLOYMENT_FA.md) for Persian Vercel/Turso setup steps.
 
 Vercel deploys `api/app.ts` alongside `dist`. With no `DATABASE_URL`, it intentionally serves a **read-only preview**: browse, filter, save and compare, with an explicit banner. Account access and reservations remain disabled. Once a hosted libSQL database is configured, records are shared across devices. A configured database failure returns an error; it never silently switches to a fake writable store.
 
-Required production settings: `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (for authenticated hosted databases), and `ADMIN_EMAIL`/`ADMIN_PASSWORD` for initial administration. The bootstrap password must have at least 12 characters; bootstrap never resets an existing active administrator. Add the settings securely, never to source or chat. The public `APP_URL` must be the project's HTTPS address to include tracking links in emails.
+Required production settings: `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (for authenticated hosted databases), and `ADMIN_EMAIL`/`ADMIN_PASSWORD` for initial administration. The bootstrap password must have 12 to 128 characters; bootstrap never resets an existing active administrator. Add the settings securely, never to source or chat. The public `APP_URL` must be the project's HTTPS address to include tracking links in emails.
 
 Production never enables the development quick-login accounts. Production uses Secure cookies. Do not connect the local development database to a public deployment.
 
@@ -59,7 +59,7 @@ Production never enables the development quick-login accounts. Production uses S
 
 Optional email: `RESEND_API_KEY` and `NOTIFICATION_FROM` from a verified sender domain. Optional manager Telegram alerts: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Telegram alerts omit guest contact details and private tracking links. All configured recipients must be real/authorized; hostel email is used only after its listing is marked verified.
 
-After a production booking/status change, up to two eligible queued notifications are delivered outside the transaction, in parallel with a 15-second timeout. An outage cannot undo the booking. Run a scheduler against `GET /api/app?worker=notifications` with `Authorization: Bearer <CRON_SECRET>` for backlogs/retries, or use the admin queue button. Schedule frequency must respect your hosting plan. Configure production `APP_URL` for email tracking links. Do not log provider responses or credentials. Email uses provider idempotency keys; Telegram delivery can be duplicated if a worker dies after sending but before recording success.
+After a production booking/status change, the API returns the committed result before attempting optional notification delivery. A slow provider cannot delay the booking response. On a persistent server, eligible queued messages are delivered after the response, in parallel with a 15-second timeout; `NOTIFICATION_BATCH_SIZE` controls the batch (1–20, default 10). On serverless hosting, execution after a response is not guaranteed, so run the scheduled worker for reliable delivery. An outage cannot undo the booking. Run a scheduler against `GET /api/app?worker=notifications` with `Authorization: Bearer <CRON_SECRET>` for backlogs/retries, or use the admin queue button. Schedule frequency must respect your hosting plan. Configure production `APP_URL` for email tracking links. Do not log provider responses or credentials. Email uses provider idempotency keys; Telegram delivery can be duplicated if a worker dies after sending but before recording success. An interrupted final attempt is marked failed after its lease expires rather than remaining stuck as sending.
 
 ## Data and limits
 
@@ -72,3 +72,9 @@ Single-use password recovery, email ownership verification, encrypted full backu
 Property management, media storage and migration/rollback guide (Persian): [PROPERTY_MANAGEMENT_FA.md](PROPERTY_MANAGEMENT_FA.md). Implementation status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md).
 
 Reception, secure accounts, financial records, public SEO routes, workers and encrypted backup/restore (Persian): [OPERATIONS_GUIDE_FA.md](OPERATIONS_GUIDE_FA.md).
+
+### Appearance and responsive checks
+
+The header appearance button switches between light and dark mode in all four languages. The choice is saved in `yerevanhub_theme`; without a saved choice, device appearance is used. `public/theme.js` applies it before rendering to avoid a light flash.
+
+Run `BROWSER_PATH=/path/to/chrome npm run test:responsive` for the mobile/tablet matrix (320, 360, 390, 430, 768, 820, 1024 and 1366 px, four languages). Results and screenshots are saved under `test-artifacts/responsive`. The GitHub browser workflow runs both browser suites using isolated demo data and no notification credentials. Viewport emulation does not replace testing Safari or physical iOS/Android devices.
