@@ -915,6 +915,7 @@ export class Store {
   // Articles (Manual one-by-one by Admin)
   public saveArticle(article: Article) {
     this.requireAdmin();
+    if (this.state.articles.some(item => item.id !== article.id && item.slug === article.slug)) throw new Error('نشانی صفحه تکراری است.');
     const idx = this.state.articles.findIndex(a => a.id === article.id);
     if (idx >= 0) {
       this.state.articles[idx] = { ...article, updatedAt: new Date().toISOString() };

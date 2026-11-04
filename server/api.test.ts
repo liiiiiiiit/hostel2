@@ -8,7 +8,7 @@ import { Database } from './database.js';
 import { createApi } from './api.js';
 import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
 import { deliverNotifications } from './notifications.js';
-import type { ClientState } from '../src/types/index.js';
+import type { Article, ClientState } from '../src/types/index.js';
 
 async function fixture(t: TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), 'yh-api-'));
@@ -461,4 +461,71 @@ test('explicit public previews allow incomplete inventory but reject bookings an
   const hidden = (await visitor.get()).state;
   assert.ok(!hidden.hostels.some(h => h.id === hostel.id));
   assert.ok(!hidden.rentals.some(r => r.id === rental.id));
+});
+
+test('article validation rejects duplicate slugs and malformed render fields without damaging existing content', async t => {
+  const { client, visitor } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const article: Article = { id: 'audit-article', slug: 'audit-article', title: 'Audit article', summary: 'Summary', category: 'Travel', content: 'Article body', tags: [], sources: [], featuredImage: '', author: 'Editor', language: 'en', status: 'published', lastVerifiedDate: '', createdAt: '', updatedAt: '' };
+  assert.equal((await admin.action('saveArticle', [article])).data.success, true);
+  const duplicate = await admin.action('saveArticle', [{ ...article, id: 'duplicate-article' }]);
+  assert.equal(duplicate.response.status, 400);
+  assert.match(duplicate.data.error, /تکراری/);
+  for (const invalid of [{ summary: null }, { language: 'invalid' }, { featuredImage: 'https://[' }, { featuredImage: 'javascript:alert(1)' }]) {
+    const result = await admin.action('saveArticle', [{ ...article, ...invalid }]);
+    assert.equal(result.response.status, 400);
+  }
+  const saved = (await visitor.get()).state.articles.find(item => item.id === article.id)!;
+  assert.equal(saved.title, article.title);
+  assert.equal(saved.summary, article.summary);
+  assert.equal((await admin.action('saveArticle', [{ ...article, title: 'Updated article' }])).data.success, true);
+});
+
+test('booking response completes while the optional notification provider is still waiting', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yh-notification-response-'));
+  const database = new Database({ url: `file:${directory}/test.db`, demo: false, adminEmail: 'admin@example.test', adminPassword: 'Admin-password-42' });
+  const server = createApi(database).listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await database.close(); await rm(directory, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/app`;
+  const request = async (action: string, args: unknown[], cookie = '') => {
+    const response = await fetch(base, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub' }, body: JSON.stringify({ action, args }) });
+    return { response, data: await response.json() };
+  };
+  const admin = await request('login', ['admin@example.test', 'Admin-password-42']);
+  const { completeHostel } = await import('./property-fixtures.js');
+  const hostel = { ...completeHostel(), isPublished: true, listingStatus: 'published' };
+  assert.equal((await request('saveHostel', [hostel], admin.response.headers.get('set-cookie')!.split(';')[0])).data.success, true);
+  const saved = (await (await fetch(base)).json()).state.hostels.find((item: { id: string }) => item.id === hostel.id);
+  const previous = { key: process.env.RESEND_API_KEY, from: process.env.NOTIFICATION_FROM };
+  const originalFetch = globalThis.fetch;
+  let release!: (response: Response) => void;
+  let started!: () => void;
+  const provider = new Promise<Response>(resolve => { release = resolve; });
+  const providerStarted = new Promise<void>(resolve => { started = resolve; });
+  process.env.RESEND_API_KEY = 'test-only'; process.env.NOTIFICATION_FROM = 'test@example.test';
+  t.mock.method(globalThis, 'fetch', (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (String(url) === 'https://api.resend.com/emails') { started(); return provider; }
+    return originalFetch(url, init);
+  });
+  const created = request('createBooking', [{ acceptedTerms: true, idempotencyKey: crypto.randomUUID(), expectedHostelUpdatedAt: saved.updatedAt, hostelId: hostel.id, roomTypeId: hostel.roomTypes[0].id, guestName: 'Notification guest', contactType: 'email', guestContact: 'guest@example.test', checkIn: addCalendarDays(yerevanToday(), 2), checkOut: addCalendarDays(yerevanToday(), 3), quantity: 1, guestsCount: 1 }]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([created, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Booking response waited for the notification provider')), 2000); })]);
+    assert.equal(result.data.success, true);
+    await providerStarted;
+    assert.ok((await database.client.execute("SELECT id FROM outbox WHERE status='sending'")).rows.length);
+  } finally {
+    clearTimeout(timer);
+    release(Response.json({ id: 'mock-delivery' }));
+    await created;
+    // Complete the in-process delivery before closing the isolated database.
+    for (let i = 0; i < 100; i++) {
+      if (!(await database.sqlTransaction(async tx => (await tx.execute("SELECT id FROM outbox WHERE status='sending'")).rows.length))) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    if (previous.key === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = previous.key;
+    if (previous.from === undefined) delete process.env.NOTIFICATION_FROM; else process.env.NOTIFICATION_FROM = previous.from;
+  }
 });

@@ -23,9 +23,12 @@ export async function enqueueBookingNotification(tx: Transaction, state: AppStor
 // The worker is explicitly invoked by an authorized admin or an authenticated scheduler.
 export async function deliverNotifications(database: import('./database.js').Database, send: typeof fetch = fetch) {
   const claimed = await database.sqlTransaction(async tx => {
+    // A worker can stop during its final attempt. Once that lease expires the
+    // message must leave "sending", even though it has no retry attempts left.
+    await tx.execute({ sql: "UPDATE outbox SET status='failed', last_error=? WHERE status='sending' AND attempts>=5 AND next_attempt<=?", args: ['Delivery interrupted during final attempt', Date.now()] });
     const channels = [process.env.RESEND_API_KEY && process.env.NOTIFICATION_FROM ? 'email' : '', process.env.TELEGRAM_BOT_TOKEN ? 'telegram' : ''].filter(Boolean);
     if (!channels.length) return [];
-    const rows = await tx.execute({ sql: `SELECT * FROM outbox WHERE channel IN (${channels.map(() => '?').join(',')}) AND status IN ('pending','retry','sending') AND next_attempt <= ? AND attempts < 5 ORDER BY created_at LIMIT ${Math.max(1,Math.min(20,Number(process.env.NOTIFICATION_BATCH_SIZE)||10))}`, args: [...channels, Date.now()] });
+    const rows = await tx.execute({ sql: `SELECT * FROM outbox WHERE channel IN (${channels.map(() => '?').join(',')}) AND status IN ('pending','retry','sending') AND next_attempt <= ? AND attempts < 5 ORDER BY created_at LIMIT ${Math.max(1,Math.min(20,Math.floor(Number(process.env.NOTIFICATION_BATCH_SIZE))||10))}`, args: [...channels, Date.now()] });
     const configured = rows.rows;
     for (const row of configured) await tx.execute({ sql: "UPDATE outbox SET status='sending', attempts=attempts+1, next_attempt=? WHERE id=?", args: [Date.now() + 5 * 60_000, String(row.id)] });
     return configured;

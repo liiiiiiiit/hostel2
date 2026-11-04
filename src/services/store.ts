@@ -4,12 +4,15 @@ import type { Store as DomainStore } from '../../server/domain';
 import type { ActionResult, ClientState, Hostel } from '../types';
 
 const emptyState: ClientState = { users: [], currentUser: null, hostels: [], rentals: [], coupons: [], bookings: [], rentalInquiries: [], reviews: [], articles: [], phrases: OFFLINE_PHRASES, auditLogs: [], capacities: [], availability: [], demoMode: false, settings: { emergencyHotline: '', telegramSupport: '', supportWorkingHoursFa: '', immediateTimeoutMinutes: 30 } };
-class ApiStore {
+export class ApiStore {
   private state = structuredClone(emptyState);
   private listeners = new Set<() => void>();
   private bookingToken = '';
   private inquiryToken = '';
   private revision = 0;
+  private trackingRevision = 0;
+  private pendingActions = 0;
+  private actionQueue: Promise<unknown> = Promise.resolve();
   private headers() { return { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', 'X-App-Language': document.documentElement.lang || 'fa', 'X-Booking-Token': this.bookingToken, 'X-Inquiry-Token': this.inquiryToken }; }
   private apply(state: ClientState) { this.state = state; for (const listener of this.listeners) listener(); }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -27,22 +30,37 @@ class ApiStore {
   getRentalInquiryByToken = (token: string) => this.state.rentalInquiries.find(i => i.privateToken === token);
   getHostelAverageRating = (id: string) => { const reviews = this.state.reviews.filter(r => r.hostelId === id && r.status === 'approved'); return { avg: reviews.length ? Math.round(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length * 10) / 10 : 0, count: reviews.length }; };
   async refresh() {
+    // A refresh sent before a session or write finishes can contain older state.
+    // Wait for queued writes; enqueueing another write invalidates in-flight reads.
+    while (this.pendingActions) await this.actionQueue;
     const revision = ++this.revision;
     const response = await fetch('/api/app', { headers: this.headers(), credentials: 'same-origin', signal:AbortSignal.timeout(15000) });
     const data = await response.json();
     if (!response.ok || !data.state) throw new Error(data.error || 'ارتباط با سرور برقرار نشد.');
     if (revision === this.revision) this.apply(data.state);
   }
-  async track(bookingToken = '', inquiryToken = '') { this.bookingToken = bookingToken; this.inquiryToken = inquiryToken; await this.refresh(); }
-  async action(action: string, args: unknown[]): Promise<ActionResult> {
-    const revision = ++this.revision;
-    try {
-      const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', signal:AbortSignal.timeout(15000), headers: this.headers(), body: JSON.stringify({ action, args }) });
-      const data = await response.json();
-      if (data.state && revision === this.revision) this.apply(data.state);
-      if (!response.ok) return { success: false, error: data.error || 'درخواست انجام نشد.' };
-      return data;
-    } catch { return { success: false, error: 'ارتباط با سرور برقرار نشد. دوباره تلاش کنید.' }; }
+  async track(bookingToken = '', inquiryToken = '') {
+    if (bookingToken !== this.bookingToken || inquiryToken !== this.inquiryToken) this.trackingRevision++;
+    this.bookingToken = bookingToken; this.inquiryToken = inquiryToken;
+    await this.refresh();
+  }
+  action(action: string, args: unknown[]): Promise<ActionResult> {
+    ++this.revision;
+    this.pendingActions++;
+    const trackingRevision = this.trackingRevision;
+    const run = async (): Promise<ActionResult> => {
+      try {
+        const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', signal:AbortSignal.timeout(15000), headers: this.headers(), body: JSON.stringify({ action, args }) });
+        const data = await response.json();
+        if (data.state && trackingRevision === this.trackingRevision) this.apply(data.state);
+        if (!response.ok) return { success: false, error: data.error || 'درخواست انجام نشد.' };
+        return data;
+      } catch { return { success: false, error: 'ارتباط با سرور برقرار نشد. دوباره تلاش کنید.' }; }
+      finally { this.pendingActions--; }
+    };
+    const task = this.actionQueue.then(run, run);
+    this.actionQueue = task.catch(() => {});
+    return task;
   }
   remainingCapacity(hostel: Hostel, roomId: string, checkIn: string, checkOut: string) {
     if (hostel.publicPreview) return 0;

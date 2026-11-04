@@ -8,6 +8,7 @@ interface Props {
   currentLang: AppLanguage;
   inquiry: RentalInquiry;
   property?: RentalProperty;
+  supportPhone?: string;
   onNavigate: (view: string, params?: any) => void;
 }
 
@@ -33,6 +34,8 @@ const RENTAL_TRACKING_TEXTS = {
     statusProposed: 'شرایط و قرارداد پیشنهاد شد',
     statusAgreed: 'توافق نهایی انجام شد',
     statusRejected: 'ملک در دسترس نیست یا شرایط توافق نشد',
+    statusCancelled: 'درخواست لغو شد',
+    statusCompleted: 'درخواست تکمیل شد',
   },
   en: {
     trackingCodeLabel: 'Inquiry Tracking Code:',
@@ -55,6 +58,8 @@ const RENTAL_TRACKING_TEXTS = {
     statusProposed: 'Terms & lease agreement proposed',
     statusAgreed: 'Agreement finalized & confirmed',
     statusRejected: 'Property unavailable or terms declined',
+    statusCancelled: 'Inquiry cancelled',
+    statusCompleted: 'Inquiry completed',
   },
   ru: {
     trackingCodeLabel: 'Код отслеживания заявки:',
@@ -77,6 +82,8 @@ const RENTAL_TRACKING_TEXTS = {
     statusProposed: 'Предложены условия и проект договора',
     statusAgreed: 'Сделка успешно согласована',
     statusRejected: 'Объект недоступен или условия отклонены',
+    statusCancelled: 'Заявка отменена',
+    statusCompleted: 'Заявка завершена',
   },
   hy: {
     trackingCodeLabel: 'Հայտի հետևման կոդ՝',
@@ -99,6 +106,8 @@ const RENTAL_TRACKING_TEXTS = {
     statusProposed: 'Առաջարկվել են պայմանները և պայմանագիրը',
     statusAgreed: 'Վերջնական համաձայնությունը կայացել է',
     statusRejected: 'Գույքն անհասանելի է կամ պայմանները չեն ընդունվել',
+    statusCancelled: 'Հայտը չեղարկված է',
+    statusCompleted: 'Հայտն ավարտված է',
   },
 };
 
@@ -106,6 +115,7 @@ export const RentalTrackingView: React.FC<Props> = ({
   currentLang,
   inquiry,
   property,
+  supportPhone,
   onNavigate,
 }) => {
   const isRtl = currentLang === 'fa';
@@ -124,6 +134,10 @@ export const RentalTrackingView: React.FC<Props> = ({
         return { text: tr.statusAgreed, color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
       case 'rejected':
         return { text: tr.statusRejected, color: 'bg-rose-100 text-rose-900 border-rose-300' };
+      case 'cancelled':
+        return { text: tr.statusCancelled, color: 'bg-slate-100 text-slate-800' };
+      case 'completed':
+        return { text: tr.statusCompleted, color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
       default:
         return { text: status, color: 'bg-slate-100 text-slate-800' };
     }
@@ -201,9 +215,9 @@ export const RentalTrackingView: React.FC<Props> = ({
             <ArrowIcon className="w-4 h-4" />
           </button>
 
-          <span className="text-xs text-slate-400">
-            {tr.supportHotline} <span className="ltr-isolate text-slate-700 font-semibold">+374 91 999 000</span>
-          </span>
+          {supportPhone?.trim() && <span className="text-xs text-slate-400">
+            {tr.supportHotline} <span className="ltr-isolate text-slate-700 font-semibold">{supportPhone}</span>
+          </span>}
         </div>
       </div>
     </div>
