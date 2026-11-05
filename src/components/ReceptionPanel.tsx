@@ -115,7 +115,7 @@ export function ReceptionPanel({ hostelId }: { hostelId?: string }) {
           {notice}
         </p>
       )}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {(
           [
             [
@@ -139,7 +139,7 @@ export function ReceptionPanel({ hostelId }: { hostelId?: string }) {
             ],
           ] as const
         ).map(([key, list]) => (
-          <div className="surface p-4" key={key}>
+          <div className="surface min-w-0 break-words p-4" key={key}>
             <p className="text-sm">{w(key)}</p>
             <strong className="text-2xl">{list.length}</strong>
           </div>

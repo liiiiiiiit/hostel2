@@ -13,8 +13,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Noto+Sans+Armenian:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+      #site-preloader { position:fixed; inset:0; z-index:9999; display:grid; place-items:center; background:#f8f7f3; color:#183d30; font-family:Arial,sans-serif; }
+      html.dark #site-preloader { background:#16251d; color:#e5eee8; }
+      .preloader-content { display:grid; justify-items:center; gap:24px; padding:24px; }
+      .preloader-mark { position:relative; display:grid; place-items:center; width:112px; height:112px; }
+      .preloader-ring { position:absolute; inset:0; border:2px solid #b9975b30; border-top-color:#b9975b; border-radius:50%; animation:preloader-spin 1.4s linear infinite; }
+      .preloader-brand { font-size:20px; font-weight:800; letter-spacing:.08em; }
+      .preloader-brand span { color:#b9975b; font-weight:600; }
+      .preloader-track { width:120px; height:3px; border-radius:3px; overflow:hidden; background:#b9975b30; }
+      .preloader-track::after { content:""; display:block; width:45%; height:100%; background:#b9975b; animation:preloader-progress 1.3s ease-in-out infinite alternate; }
+      #preloader-retry { color:inherit; font-size:14px; padding:12px; text-underline-offset:4px; }
+      #site-preloader .sr-loading { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+      @keyframes preloader-spin { to { transform:rotate(360deg); } }
+      @keyframes preloader-progress { to { transform:translateX(125%); } }
+      @media(prefers-reduced-motion:reduce) { .preloader-ring,.preloader-track::after { animation:none; } }
+    </style>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased font-sans selection:bg-amber-500 selection:text-white min-h-screen">
+
+    <div id="site-preloader" role="status" aria-live="polite" aria-busy="true">
+      <div class="preloader-content">
+        <div class="preloader-mark" aria-hidden="true">
+          <span class="preloader-ring"></span>
+          <svg width="72" height="64" viewBox="0 0 72 64" fill="none"><path d="M5 50 27 16l11 18 8-13 21 29H5Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="m20 27 7 4 6-5M40 31l6 4 5-7M14 57h44" stroke="#b9975b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="preloader-brand" dir="ltr" aria-hidden="true">YEREVAN <span>HUB</span></div>
+        <div class="preloader-track" dir="ltr" aria-hidden="true"></div>
+        <span id="preloader-label" class="sr-loading">در حال آماده‌سازی سایت</span>
+        <a id="preloader-retry" href="" hidden>تلاش دوباره</a>
+      </div>
+    </div>
+    <script src="/preloader.js"></script>
+    <noscript><style>#site-preloader{display:none}</style>برای نمایش سایت، جاوااسکریپت را فعال کنید.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

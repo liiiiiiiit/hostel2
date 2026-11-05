@@ -20,7 +20,7 @@
     "db:status": "node --import tsx scripts/database.ts status",
     "db:check": "node --import tsx scripts/database.ts check",
     "db:rollback": "node --import tsx scripts/database.ts rollback",
-    "test:responsive": "node scripts/responsive-smoke.mjs"
+    "test:responsive": "npm run build && node scripts/responsive-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

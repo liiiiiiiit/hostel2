@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Building2, Heart, Menu, X, UserRound, LogOut, LayoutDashboard } from 'lucide-react';
+import { ArrowUpRight, Heart, Menu, X, UserRound, LogOut, LayoutDashboard } from 'lucide-react';
 import type { AppLanguage, User } from '../types';
 import { LanguageSelector } from './LanguageSelector';
 import { ThemeToggle } from './ThemeToggle';
@@ -25,6 +25,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const mobileNavigationRef = useRef<HTMLElement>(null);
   const nav = [ ['hostels', text.hostels], ['rentals', text.rentals], ['guide', text.guide], ['translator', text.translator] ];
+  const isActive = (view: string) => activeView === view || (view === 'hostels' && activeView === 'hostel-detail') || (view === 'rentals' && activeView === 'rental-detail') || (view === 'guide' && activeView === 'article-detail');
   const accountView = currentUser?.role === 'admin' ? 'admin' : currentUser?.role === 'hostel_manager' ? 'manager' : 'account';
   const accountLabel = currentUser?.role === 'admin' ? text.admin : currentUser?.role === 'hostel_manager' ? text.manager : text.account;
   const navigate = (view: string) => { onNavigate(view); setMenuOpen(false); setAccountOpen(false); };
@@ -39,16 +40,10 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
     document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, [menuOpen, accountOpen]);
-  return <header className="sticky top-0 z-40 border-b border-[#142f2a]/10 bg-[#f8faf7]/95 backdrop-blur-xl">
-    <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
-      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
-        <span className="hidden min-[380px]:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
-        <span className="brand-name text-xs min-[380px]:text-sm font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
-      </button>
-      <nav aria-label={text.menu} className="hidden items-center gap-1 xl:flex">
-        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={activeView.startsWith(view.replace(/s$/, '')) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${activeView === view ? 'bg-[#142f2a]/7 text-[#142f2a]' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
-      </nav>
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2.5">
+  return <header dir={currentLang === 'fa' ? 'rtl' : 'ltr'} className="site-header sticky top-0 z-40 border-b border-[#142f2a]/10 bg-white/95 backdrop-blur-xl">
+    <div className="header-inner mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
+      <div className="header-controls flex shrink-0 items-center gap-0.5 sm:order-3 sm:gap-2.5">
+        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white sm:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
         <button type="button" onClick={() => navigate('saved')} aria-label={`${text.saved} (${saved.length} / ${compared.length})`} title={text.saved} className="relative hidden sm:flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white">
           <Heart className="size-5" strokeWidth={1.6} />{saved.length > 0 && <span className="absolute -end-0.5 top-0 flex min-w-4 items-center justify-center rounded-full bg-[#d6a65c] px-1 text-[10px] font-bold text-[#142f2a]">{saved.length}</span>}
         </button>
@@ -62,12 +57,24 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
             <button type="button" onClick={() => { setAccountOpen(false); onLogout(); }} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm text-rose-700 hover:bg-rose-50"><LogOut className="size-4" />{text.logout}</button>
           </div>}
         </div> : <button type="button" onClick={onOpenAuth} className="hidden min-h-10 items-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#234a40] sm:flex"><UserRound className="size-4" />{text.signIn}</button>}
-        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white xl:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
       </div>
+      <button onClick={() => navigate('home')} type="button" dir="ltr" className="header-brand flex shrink-0 items-center gap-1.5 sm:order-1 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
+        <span className="header-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 72 64" fill="none" focusable="false"><path d="M5 50 27 16l11 18 8-13 21 29H5Z" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"/><path d="m20 27 7 4 6-5M40 31l6 4 5-7M14 57h44" stroke="#d8b777" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </span>
+        <span className="brand-name header-wordmark"><span>YEREVAN</span><span>HUB</span></span>
+      </button>
+      <nav aria-label={text.menu} className="hidden items-center gap-1 sm:order-2 xl:flex">
+        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${isActive(view) ? 'bg-[#142f2a]/7 text-[#142f2a] underline underline-offset-8 decoration-2' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
+      </nav>
+
     </div>
-    {menuOpen && <nav ref={mobileNavigationRef} id="mobile-navigation" aria-label={text.menu} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 xl:hidden">
+    <nav aria-label={text.browse} className="tablet-navigation">
+      {nav.map(([view, label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined}>{label}</button>)}
+    </nav>
+    {menuOpen && <nav ref={mobileNavigationRef} id="mobile-navigation" aria-label={text.menu} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 sm:hidden">
       <div className="mx-auto grid max-w-7xl gap-1">
-        {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={activeView === view ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${activeView === view ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
+        {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${isActive(view) ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
         <button type="button" onClick={() => navigate('saved')} className="flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium text-[#142f2a] hover:bg-white">{text.saved}<span>{saved.length}</span></button>
         <div className="mt-2 flex gap-2 border-t border-[#142f2a]/10 pt-3">
           {currentUser ? <><button type="button" onClick={() => navigate(accountView)} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-medium text-white"><LayoutDashboard className="size-4" />{accountLabel}</button><button type="button" onClick={() => { setMenuOpen(false); onLogout(); }} className="rounded-xl border border-[#142f2a]/15 px-4 text-sm text-rose-700">{text.logout}</button></> : <button type="button" onClick={() => { setMenuOpen(false); onOpenAuth(); }} className="min-h-11 w-full rounded-xl bg-[#142f2a] text-sm font-semibold text-white">{text.signIn}</button>}

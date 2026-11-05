@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import App from '../App';
 import { LanguageProvider } from '../context/LanguageContext';
 import { SavedPlacesProvider } from '../context/SavedPlacesContext';
-import { homeExperience } from '../i18n/homeExperience';
 import { loadingText, type StartupStatus } from '../i18n/loading';
 import { publicSiteText } from '../i18n/publicSite';
 import type { AppLanguage } from '../types';
@@ -26,7 +25,8 @@ test('all four languages show the header, homepage and search while initial data
   for (const language of ['fa', 'en', 'ru', 'hy'] as const) {
     const html = initialPage(language, 'loading');
     assert.match(html, /<header[ >]/);
-    assert.ok(html.includes(homeExperience(language).first));
+    assert.match(html, /aria-roledescription="carousel"/);
+    assert.match(html, /<h1>[^<]+<\/h1>/);
     assert.match(html, /id="home-checkin"/);
     assert.match(html, /id="home-checkout"/);
     assert.match(html, /aria-busy="true"/);
@@ -39,7 +39,7 @@ test('all four languages show the header, homepage and search while initial data
 test('failed initial loading keeps the homepage and retry available with an offline phrasebook', () => {
   const html = initialPage('en', 'error');
   assert.match(html, /<header[ >]/);
-  assert.ok(html.includes(homeExperience('en').first));
+  assert.match(html, /aria-roledescription="carousel"/);
   assert.match(html, /id="home-checkin"/);
   assert.match(html, /role="alert"/);
   assert.match(html, />Retry<\/button>/);
