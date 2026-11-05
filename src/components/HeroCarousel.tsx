@@ -63,7 +63,7 @@ export function HeroCarousel({ language, onNavigate }: {
   }, []);
   useEffect(() => {
     if (hovered || focused || hidden || reducedMotion) return;
-    const timer = window.setInterval(() => setActive(value => (value + 1) % images.length), 2000);
+    const timer = window.setInterval(() => setActive(value => (value + 1) % images.length), 4000);
     return () => window.clearInterval(timer);
   }, [hovered, focused, hidden, reducedMotion, active]);
   return <section className="hero-carousel" role="region" aria-roledescription="carousel" aria-label={t.label}
