@@ -1,9 +1,10 @@
+import { HeroCarousel } from '../components/HeroCarousel';
 import { stayExperience } from '../i18n/stayExperience';
 import { StayPhoto } from '../components/StayPhoto';
 import { homeExperience } from '../i18n/homeExperience';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2, Wallet, Compass } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2, Wallet } from 'lucide-react';
 import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
 import { getLocalized, getCityName, getAmenityLabel } from '../utils/i18n';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
@@ -59,16 +60,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
   return <div className="home-experience pb-3">
     <section className="discovery-hero">
       <div className="discovery-hero-inner">
-        <div className="discovery-copy">
-          <p className="discovery-kicker"><span />{text.eyebrow}</p>
-          <button type="button" onClick={() => { const field = document.getElementById('home-destination'); field?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); field?.focus({ preventScroll: true }); }} className="button-primary discovery-cta">{text.search}<Arrow className="size-4" /></button>
-          <div className="discovery-note"><Compass size={18} strokeWidth={1.5}/>{design.discover}</div>
-        </div>
-        <div className="discovery-visual">
-          <StayPhoto src="https://images.pexels.com/photos/35215765/pexels-photo-35215765/free-photo-of-republic-square-in-yerevan-with-iconic-clock-tower.jpeg?auto=compress&dpr=1&h=750&w=1260" alt="" className="discovery-photo" eager />
-          <div className="discovery-caption"><span className="discovery-caption-icon"><MapPin size={23}/></span><div><span>{design.local}</span><strong>{text.explore}</strong></div></div>
-          <span className="discovery-stamp" aria-hidden="true">ԲԱՐԵՎ<span>YEREVAN</span></span>
-        </div>
+        <div className="discovery-visual"><HeroCarousel language={currentLang} onNavigate={onNavigate} /></div>
 
     <div className="discovery-search">
       <div className="search-panel bg-white p-4 sm:p-6">
