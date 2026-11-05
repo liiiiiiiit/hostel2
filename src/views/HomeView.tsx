@@ -61,8 +61,6 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
       <div className="discovery-hero-inner">
         <div className="discovery-copy">
           <p className="discovery-kicker"><span />{text.eyebrow}</p>
-          <h1>{design.first}<span>{design.second}</span></h1>
-          <p className="discovery-intro">{design.intro}</p>
           <button type="button" onClick={() => { const field = document.getElementById('home-destination'); field?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); field?.focus({ preventScroll: true }); }} className="button-primary discovery-cta">{text.search}<Arrow className="size-4" /></button>
           <div className="discovery-note"><Compass size={18} strokeWidth={1.5}/>{design.discover}</div>
         </div>
