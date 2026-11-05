@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Pause, Play } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { AppLanguage } from '../types';
 import { StayPhoto } from './StayPhoto';
 
@@ -46,7 +46,6 @@ export function HeroCarousel({ language, onNavigate }: {
   language: AppLanguage; onNavigate: (view: string) => void;
 }) {
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(() => document.hidden);
@@ -54,7 +53,6 @@ export function HeroCarousel({ language, onNavigate }: {
   const t = copy[language];
   const slide = t.slides[active];
   const isRtl = language === 'fa';
-  const advance = (step: number) => setActive(value => (value + step + images.length) % images.length);
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const syncMotion = () => setReducedMotion(media.matches);
@@ -64,10 +62,10 @@ export function HeroCarousel({ language, onNavigate }: {
     return () => { media.removeEventListener('change', syncMotion); document.removeEventListener('visibilitychange', syncVisibility); };
   }, []);
   useEffect(() => {
-    if (paused || hovered || focused || hidden || reducedMotion) return;
-    const timer = window.setInterval(() => setActive(value => (value + 1) % images.length), 5000);
+    if (hovered || focused || hidden || reducedMotion) return;
+    const timer = window.setInterval(() => setActive(value => (value + 1) % images.length), 2000);
     return () => window.clearInterval(timer);
-  }, [paused, hovered, focused, hidden, reducedMotion, active]);
+  }, [hovered, focused, hidden, reducedMotion, active]);
   return <section className="hero-carousel" role="region" aria-roledescription="carousel" aria-label={t.label}
     onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
     onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
@@ -88,11 +86,7 @@ export function HeroCarousel({ language, onNavigate }: {
       <div className="hero-carousel-dots">{t.slides.map((item, index) => <button type="button" key={index}
         aria-label={`${t.slide} ${index + 1}: ${item.tag}`} aria-current={active === index ? 'true' : undefined}
         onClick={() => setActive(index)}><span /></button>)}</div>
-      <div className="hero-carousel-arrows">
-        <button type="button" aria-label={t.previous} onClick={() => advance(-1)}>{isRtl ? <ArrowRight size={18}/> : <ArrowLeft size={18}/>}</button>
-        {!reducedMotion && <button type="button" aria-label={paused ? t.play : t.pause} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? <Play size={15}/> : <Pause size={15}/>}</button>}
-        <button type="button" aria-label={t.next} onClick={() => advance(1)}>{isRtl ? <ArrowLeft size={18}/> : <ArrowRight size={18}/>}</button>
-      </div>
+
     </div>
   </section>;
 }
