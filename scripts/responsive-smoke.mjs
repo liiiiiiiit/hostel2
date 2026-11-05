@@ -62,6 +62,10 @@ async function inspect(page, label, screenshot = false) {
       return false;
     };
     const overflow = [...document.querySelectorAll('body *')].flatMap(element => {
+      // SVG paths are clipped to their SVG viewport; inspect the SVG itself.
+      if (element.ownerSVGElement) return [];
+      const closedDetails = element.closest('details:not([open])');
+      if (closedDetails && !closedDetails.querySelector(':scope > summary')?.contains(element)) return [];
       const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
       if (!rect.width || !rect.height || style.display === 'none' || style.visibility === 'hidden' || element.closest('dialog:not([open])') || hasHorizontalScroller(element)) return [];
       if (rect.left >= -1 && rect.right <= width + 1) return [];
@@ -168,6 +172,11 @@ try {
       } else await page.locator('.app-shell > header').getByRole('button').filter({ has: page.locator('svg.lucide-user-round') }).last().click();
       await page.getByRole('dialog').waitFor();
       await inspect(page, `${prefix}-sign-in`);
+      const demoAccounts = page.getByRole('dialog').locator('details');
+      if (await demoAccounts.count()) {
+        await demoAccounts.locator('summary').click();
+        await inspect(page, `${prefix}-sign-in-demo`);
+      }
       await page.keyboard.press('Escape');
       for (const [role, authenticated] of [['admin', admin], ['manager', manager], ['account', traveler]]) {
         await context.addCookies(await authenticated.cookies());
