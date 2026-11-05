@@ -42,15 +42,8 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
   }, [menuOpen, accountOpen]);
   return <header dir={currentLang === 'fa' ? 'rtl' : 'ltr'} className="site-header sticky top-0 z-40 border-b border-[#142f2a]/10 bg-white/95 backdrop-blur-xl">
     <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
-      <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white sm:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
-      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
-        <span className="hidden min-[380px]:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
-        <span className="brand-name text-xs min-[380px]:text-sm font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
-      </button>
-      <nav aria-label={text.menu} className="hidden items-center gap-1 xl:flex">
-        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${isActive(view) ? 'bg-[#142f2a]/7 text-[#142f2a] underline underline-offset-8 decoration-2' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
-      </nav>
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2.5">
+      <div className="flex shrink-0 items-center gap-0.5 sm:order-3 sm:gap-2.5">
+        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white sm:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
         <button type="button" onClick={() => navigate('saved')} aria-label={`${text.saved} (${saved.length} / ${compared.length})`} title={text.saved} className="relative hidden sm:flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white">
           <Heart className="size-5" strokeWidth={1.6} />{saved.length > 0 && <span className="absolute -end-0.5 top-0 flex min-w-4 items-center justify-center rounded-full bg-[#d6a65c] px-1 text-[10px] font-bold text-[#142f2a]">{saved.length}</span>}
         </button>
@@ -65,6 +58,14 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
           </div>}
         </div> : <button type="button" onClick={onOpenAuth} className="hidden min-h-10 items-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#234a40] sm:flex"><UserRound className="size-4" />{text.signIn}</button>}
       </div>
+      <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:order-1 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
+        <span className="hidden min-[380px]:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
+        <span className="brand-name text-xs min-[380px]:text-sm font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
+      </button>
+      <nav aria-label={text.menu} className="hidden items-center gap-1 sm:order-2 xl:flex">
+        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${isActive(view) ? 'bg-[#142f2a]/7 text-[#142f2a] underline underline-offset-8 decoration-2' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
+      </nav>
+
     </div>
     <nav aria-label={text.browse} className="tablet-navigation">
       {nav.map(([view, label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined}>{label}</button>)}
