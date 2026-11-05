@@ -208,7 +208,7 @@ html.dark .stay-photo { background: #293b30; }
 }
 
 
-/* Discovery refinement: the search precedes imagery on small screens. */
+/* Discovery refinement: lead with the destination photo on small screens. */
 .home-experience .discovery-hero {
   background: radial-gradient(ellipse at 90% 0, #e7d8bf80, transparent 55%), var(--stay-paper);
 }
@@ -278,7 +278,7 @@ html.dark .home-room-shortcuts .stay-category:hover { background: #304c3b; }
 }
 @media (max-width: 767px) {
   .home-experience .discovery-hero-inner {
-    grid-template-areas: "copy" "search" "visual";
+    grid-template-areas: "visual" "copy" "search";
     row-gap: 1.5rem; padding: 1.75rem 1rem 2rem;
   }
   .home-experience .discovery-copy h1 { font-size: clamp(2rem, 7vw, 2.8rem); margin-block: .8rem; }
