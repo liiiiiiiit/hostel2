@@ -1,7 +1,9 @@
+import { stayExperience } from '../i18n/stayExperience';
+import { StayPhoto } from '../components/StayPhoto';
 import { homeExperience } from '../i18n/homeExperience';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2, Wallet, Compass } from 'lucide-react';
 import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
 import { getLocalized, getCityName } from '../utils/i18n';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
@@ -23,17 +25,10 @@ interface Props {
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
-function StayImage({ src, alt, className = '' }: { src?: string; alt: string; className?: string }) {
-  const [failed, setFailed] = useState(false);
-  return <div className={`relative overflow-hidden bg-[#e5ece5] ${className}`}>
-    <Building2 aria-hidden="true" className="absolute start-1/2 top-1/2 size-12 -translate-x-1/2 -translate-y-1/2 text-[#aabfb0]" strokeWidth={1} />
-    {src && !failed && <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} className="relative size-full object-cover transition-transform duration-700 group-hover:scale-105" />}
-  </div>;
-}
-
 export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, onNavigate, getHostelRating, loading = false, unavailable = false }) => {
   const text = publicSiteText(currentLang);
   const ux = homeExperience(currentLang);
+  const design = stayExperience(currentLang);
   const Arrow = currentLang === 'fa' ? ArrowLeft : ArrowRight;
   const [tab, setTab] = useState<'hostels' | 'rentals'>('hostels');
   const [city, setCity] = useState('all');
@@ -62,24 +57,25 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
     <button type="button" onClick={() => onNavigate(view)} className="flex min-h-10 shrink-0 items-center gap-2 self-start text-sm font-semibold text-[#142f2a] hover:text-[#89703d] sm:self-auto">{action}<Arrow className="size-4" /></button>
   </div>;
   return <div className="pb-3">
-    <section className="relative overflow-hidden bg-[#142f2a]">
-      <div className="absolute inset-y-0 end-0 hidden w-[54%] overflow-hidden md:block">
-        <img src="https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1400&q=85" alt="" className="size-full object-cover opacity-85" fetchPriority="high" />
-        <div className={`absolute inset-0 ${currentLang === 'fa' ? 'bg-gradient-to-l' : 'bg-gradient-to-r'} from-[#142f2a] via-[#142f2a]/15 to-transparent`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#142f2a]/35 via-transparent to-transparent" />
-      </div>
-      <div className="relative mx-auto grid max-w-7xl gap-6 px-4 pb-20 pt-7 sm:px-6 sm:pb-24 sm:pt-12 md:grid-cols-2 lg:px-8 lg:pt-14">
-        <div className="max-w-xl">
-          <div className="mb-3 flex items-center gap-3 text-xs font-semibold tracking-[0.16em] text-[#e4be7d]"><span className="h-px w-7 bg-[#e4be7d]" />{text.eyebrow}</div>
-          <h1 className="text-3xl font-bold leading-[1.4] tracking-tight text-[#f6f7f5] sm:text-5xl sm:leading-[1.3]"><span className="block">{ux.first}</span><span className="block text-[#e4be7d]">{ux.second}</span></h1>
-          <p className="mt-3 max-w-md text-sm leading-7 text-[#bfcec2] sm:text-base">{ux.intro}</p>
-          <button type="button" onClick={() => onNavigate('hostels')} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-[#e4be7d] underline underline-offset-4">{ux.browse}<Arrow className="size-4"/></button>
+    <section className="discovery-hero">
+      <div className="discovery-hero-inner">
+        <div className="discovery-copy">
+          <p className="discovery-kicker"><span />{text.eyebrow}</p>
+          <h1>{design.first}<span>{design.second}</span></h1>
+          <p className="discovery-intro">{design.intro}</p>
+          <button type="button" onClick={() => document.getElementById('home-destination')?.focus()} className="button-primary discovery-cta">{text.search}<Arrow className="size-4" /></button>
+          <div className="discovery-note"><Compass size={18} strokeWidth={1.5}/>{design.discover}</div>
+        </div>
+        <div className="discovery-visual">
+          <StayPhoto src="https://images.pexels.com/photos/35215765/pexels-photo-35215765/free-photo-of-republic-square-in-yerevan-with-iconic-clock-tower.jpeg?auto=compress&dpr=1&h=750&w=1260" alt="" className="discovery-photo" eager />
+          <div className="discovery-caption"><span className="discovery-caption-icon"><MapPin size={23}/></span><div><span>{design.local}</span><strong>{text.explore}</strong></div></div>
+          <span className="discovery-stamp" aria-hidden="true">ԲԱՐԵՎ<span>YEREVAN</span></span>
         </div>
       </div>
     </section>
 
-    <div className="relative z-10 mx-auto -mt-12 max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="rounded-[1.4rem] border border-[#142f2a]/8 bg-white p-4 shadow-[0_16px_60px_-24px_rgba(20,47,42,0.25)] sm:p-6">
+    <div className="relative z-10 mx-auto -mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="search-panel bg-white p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex w-full min-w-0 rounded-xl bg-[#f1f4f0] p-1 sm:w-auto" role="group" aria-label={text.search}>
             {(['hostels','rentals'] as const).map(value => { const Icon = value === 'hostels' ? BedDouble : Home; return <button type="button" key={value} aria-pressed={tab === value} onClick={() => { setTab(value); setCity('all'); setError(''); }} className={`flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 sm:px-3 text-sm font-semibold transition-colors sm:px-5 ${tab === value ? 'bg-[#142f2a] text-white shadow-sm' : 'text-slate-500 hover:text-[#142f2a]'}`}><Icon className="hidden size-4 shrink-0 min-[380px]:block" /><span className="min-w-0 break-words">{text[value]}</span></button>; })}
@@ -87,13 +83,13 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
           {tab === 'hostels' && <div className="flex items-center gap-2 text-xs text-slate-500"><span className="hidden sm:inline">{text.quickDates}</span><button type="button" onClick={() => quickDate(0)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tonight}</button><span className="text-slate-200">/</span><button type="button" onClick={() => quickDate(1)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tomorrow}</button></div>}
         </div>
         <form onSubmit={search} className={`grid grid-cols-2 items-end gap-3 ${tab === 'hostels' ? 'lg:grid-cols-[1.2fr_1fr_1fr_.7fr_auto]' : 'lg:grid-cols-[1fr_auto]'}`}>
-          <label htmlFor="home-destination" className={`col-span-2 min-w-0 text-xs font-medium text-slate-500 ${tab === 'hostels' ? 'lg:col-span-1' : 'sm:col-span-1'}`}>{text.destination}<select id="home-destination" value={city} onChange={event => setCity(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]"><option value="all">{text.allCities}</option>{cities.map(value => <option key={value} value={value}>{getCityName(value,currentLang)}</option>)}</select></label>
+          <label htmlFor="home-destination" className={`col-span-2 min-w-0 text-xs font-medium text-slate-500 ${tab === 'hostels' ? 'lg:col-span-1' : 'sm:col-span-1'}`}>{text.destination}<select id="home-destination" value={city} onChange={event => setCity(event.target.value)} className="search-input mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]"><option value="all">{text.allCities}</option>{cities.map(value => <option key={value} value={value}>{getCityName(value,currentLang)}</option>)}</select></label>
           {tab === 'hostels' && <>
-            <label htmlFor="home-checkin" className="min-w-0 text-xs font-medium text-slate-500">{text.checkIn}<input id="home-checkin" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} className="mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
-            <label htmlFor="home-checkout" className="min-w-0 text-xs font-medium text-slate-500">{text.checkOut}<input id="home-checkout" type="date" required min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event => setCheckOut(event.target.value)} className="mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
-            <label htmlFor="home-guests" className="text-xs font-medium text-slate-500">{text.guests}<select id="home-guests" value={guests} onChange={event => setGuests(Number(event.target.value))} className="mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]">{[1,2,3,4,5,6].map(value => <option key={value} value={value}>{format(value)}</option>)}</select></label>
+            <label htmlFor="home-checkin" className="date-field-label min-w-0 text-xs font-medium text-slate-500">{text.checkIn}<input id="home-checkin" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} className="search-input mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
+            <label htmlFor="home-checkout" className="date-field-label min-w-0 text-xs font-medium text-slate-500">{text.checkOut}<input id="home-checkout" type="date" required min={addCalendarDays(checkIn || yerevanToday(),1)} max={addCalendarDays(yerevanToday(),89)} value={checkOut} onChange={event => setCheckOut(event.target.value)} className="search-input mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
+            <label htmlFor="home-guests" className="text-xs font-medium text-slate-500">{text.guests}<select id="home-guests" value={guests} onChange={event => setGuests(Number(event.target.value))} className="search-input mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]">{[1,2,3,4,5,6].map(value => <option key={value} value={value}>{format(value)}</option>)}</select></label>
           </>}
-          <button type="submit" style={tab === 'rentals' ? {gridColumn:'1 / -1'} : undefined} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d6a65c] px-3 text-sm font-bold text-[#142f2a] transition-colors hover:bg-[#e1b876] col-span-1 min-w-0"><Search className="size-4" />{tab === 'hostels' ? ux.searchHostels : ux.searchRentals}</button>
+          <button type="submit" style={tab === 'rentals' ? {gridColumn:'1 / -1'} : undefined} className="button-primary search-submit col-span-1 min-w-0"><Search className="size-4" />{tab === 'hostels' ? ux.searchHostels : ux.searchRentals}</button>
           {error && <p role="alert" className="col-span-full text-sm text-rose-700">{error}</p>}
         </form>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
@@ -103,34 +99,38 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
       </div>
     </div>
 
-    <div className="mx-auto max-w-7xl space-y-10 px-4 pt-8 sm:space-y-16 sm:px-6 sm:pt-12 lg:px-8">
-      <section aria-label={ux.shortcuts}>
-        <h2 className="mb-4 text-lg font-bold text-[#142f2a]">{ux.shortcuts}</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="font-semibold text-[#142f2a]">{label}</span><span className="text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
-      </section>
+    <div className="mx-auto max-w-7xl space-y-12 px-4 pt-6 sm:space-y-20 sm:px-6 sm:pt-8 lg:px-8">
+      <div className="stay-benefits">
+        <span><Wallet size={18}/>{design.pay}</span><span><Languages size={18}/>{design.languages}</span><button type="button" onClick={() => onNavigate('saved')}><CheckCircle2 size={18}/>{design.compare}<Arrow size={15}/></button>
+      </div>
       <section>
         {sectionHeading(text.hostelEyebrow,text.hostelTitle,text.hostelDesc,text.allHostels,'hostels')}
         {loading ? <ContentLoading lang={currentLang} listings /> : unavailable ? <p className="py-8 text-sm text-slate-500">{loadingText(currentLang).unavailable}</p> :
-        <div className="grid grid-flow-col auto-cols-[88%] gap-4 overflow-x-auto snap-x snap-mandatory pb-3 md:grid-flow-row md:auto-cols-auto md:grid-cols-2 lg:grid-cols-3">
-          {featuredHostels.map(hostel => { const rating = getHostelRating(hostel.id); return <article key={hostel.id} className="group min-w-0 snap-start overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white transition-shadow hover:shadow-[0_12px_40px_-20px_rgba(20,47,42,0.25)]">
-            <button type="button" onClick={() => openHostel(hostel.id)} className="relative block w-full text-start" aria-label={getLocalized(hostel.name,currentLang)}><StayImage src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="aspect-[4/2.8]" /><span className="absolute bottom-4 start-4 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-[#142f2a]">{hostel.district}</span>{rating.count > 0 && <span className="absolute end-4 top-4 flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-[#142f2a]"><Star className="size-3.5 fill-[#d6a65c] text-[#d6a65c]" />{rating.avg} <span className="font-normal text-slate-500">({rating.count})</span></span>}</button>
-            <div className="p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="min-h-14 text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => openHostel(hostel.id)} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3>{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div>}<PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => openHostel(hostel.id)} className="mt-2 min-h-11 w-full rounded-xl bg-[#f0f4ef] text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{hostel.publicPreview ? ux.information : text.details}</button></div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredHostels.map(hostel => { const rating = getHostelRating(hostel.id); return <article key={hostel.id} className="stay-card group min-w-0 snap-start overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white transition-shadow hover:shadow-[0_12px_40px_-20px_rgba(20,47,42,0.25)]">
+            <button type="button" onClick={() => openHostel(hostel.id)} className="relative block w-full text-start" aria-label={getLocalized(hostel.name,currentLang)}><StayPhoto src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="aspect-[4/3]" /><span className="absolute bottom-4 start-4 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-[#142f2a]">{hostel.district}</span>{rating.count > 0 && <span className="absolute end-4 top-4 flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-[#142f2a]"><Star className="size-3.5 fill-[#d6a65c] text-[#d6a65c]" />{rating.avg} <span className="font-normal text-slate-500">({rating.count})</span></span>}</button>
+            <div className="p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => openHostel(hostel.id)} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3>{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div>}<PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => openHostel(hostel.id)} className="mt-2 min-h-11 w-full rounded-xl bg-[#f0f4ef] text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{hostel.publicPreview ? ux.information : text.details}</button></div>
           </article>; })}
           {!hostels.length && <p className="py-10 text-sm text-slate-500">{text.noStays}</p>}
         </div>}
       </section>
 
+      <section aria-label={ux.shortcuts}>
+        <h2 className="mb-4 text-lg font-bold text-[#142f2a]">{ux.shortcuts}</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="font-semibold text-[#142f2a]">{label}</span><span className="text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
+      </section>
+
       {rentals.length > 0 && <section>
         {sectionHeading(text.rentalEyebrow,text.rentalTitle,text.rentalDesc,text.allRentals,'rentals')}
         <div className="grid gap-5 md:grid-cols-2">{rentals.slice(0,2).map(rental => <article key={rental.id} className="group grid overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white sm:grid-cols-[.9fr_1fr] md:grid-cols-1 lg:grid-cols-[.9fr_1fr]">
-          <button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} aria-label={getLocalized(rental.title,currentLang)} className="block min-h-56"><StayImage src={rental.photos[0]} alt={getLocalized(rental.title,currentLang)} className="h-full min-h-56" /></button>
+          <button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} aria-label={getLocalized(rental.title,currentLang)} className="block min-h-56"><StayPhoto src={rental.photos[0]} alt={getLocalized(rental.title,currentLang)} className="h-full min-h-56" /></button>
           <div className="flex flex-col p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{rental.neighborhood}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]">{getLocalized(rental.title,currentLang)}</h3><p className="mt-3 text-sm text-slate-500"><span className="ltr-isolate">{rental.areaSqm} m²</span></p><div className="mt-auto pt-4">{rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <p className="text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(rental.pricePerNightAMD ?? rental.pricePerMonthAMD ?? 0)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{rental.pricePerNightAMD ? text.perNight : text.perMonth}</span></p>}<PlaceActions kind="rental" id={rental.id} /><button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} className="mt-1 flex min-h-10 items-center gap-2 text-sm font-semibold text-[#142f2a] hover:underline">{text.propertyDetails}<Arrow className="size-4" /></button></div></div>
         </article>)}</div>
       </section>}
 
       {articles.length > 0 && <section>
         {sectionHeading(text.journalEyebrow,text.journalTitle,ux.guideIntro,text.allArticles,'guide')}
-        <div className="grid gap-6 md:grid-cols-3">{articles.slice(0,3).map(article => <article key={article.id} className="group"><button type="button" className="block w-full overflow-hidden rounded-2xl text-start" onClick={() => onNavigate('article-detail',{slug:article.slug})} aria-label={article.title}><StayImage src={article.featuredImage} alt="" className="aspect-[4/2.5]" /></button><p className="mt-4 text-xs font-semibold text-[#8e7044]">{article.category}</p><h3 className="mt-2 text-base font-semibold leading-7 text-[#142f2a]"><button type="button" className="text-start hover:underline" onClick={() => onNavigate('article-detail',{slug:article.slug})}>{article.title}</button></h3><button type="button" onClick={() => onNavigate('article-detail',{slug:article.slug})} className="mt-3 flex min-h-9 items-center gap-2 text-sm text-slate-500 hover:text-[#142f2a]">{text.readArticle}<Arrow className="size-3.5" /></button></article>)}</div>
+        <div className="grid gap-6 md:grid-cols-3">{articles.slice(0,3).map(article => <article key={article.id} className="group"><button type="button" className="block w-full overflow-hidden rounded-2xl text-start" onClick={() => onNavigate('article-detail',{slug:article.slug})} aria-label={article.title}><StayPhoto src={article.featuredImage} alt="" className="aspect-[4/2.5]" /></button><p className="mt-4 text-xs font-semibold text-[#8e7044]">{article.category}</p><h3 className="mt-2 text-base font-semibold leading-7 text-[#142f2a]"><button type="button" className="text-start hover:underline" onClick={() => onNavigate('article-detail',{slug:article.slug})}>{article.title}</button></h3><button type="button" onClick={() => onNavigate('article-detail',{slug:article.slug})} className="mt-3 flex min-h-9 items-center gap-2 text-sm text-slate-500 hover:text-[#142f2a]">{text.readArticle}<Arrow className="size-3.5" /></button></article>)}</div>
       </section>}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-8">
