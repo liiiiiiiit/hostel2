@@ -16,7 +16,7 @@ const server = createHttpServer(app);
 app.use(createApi(database));
 const publicData=()=>database.publicState();
 const publicHandler=(template:(url:string)=>Promise<string>)=>async(req:express.Request,res:express.Response,next:express.NextFunction)=>{if(!/^\/(fa|en|ru|hy)(\/|$)/.test(req.path)&&!['/sitemap.xml','/robots.txt'].includes(req.path)){next();return;}try{const base=(process.env.APP_URL||req.protocol+'://'+req.get('host')).replace(/\/$/,'');if(req.path==='/robots.txt'){res.type('text').send(robots(base));return;}const state=await publicData();if(req.path==='/sitemap.xml'){res.type('xml').send(sitemap(state,base));return;}const page=renderPublicHtml(await template(req.originalUrl),state,req.originalUrl,base);res.set({'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}).status(page.status).type('html').send(page.html);}catch{res.status(503).send('YEREVANHUB unavailable');}};
-if (production) {
+if (production || process.env.SERVE_BUILT_CLIENT === 'true') {
   app.use(express.static('dist'));
   app.use(publicHandler(()=>readFile('dist/index.html','utf8')));
   app.get('*', (_req, res) => res.sendFile(path.resolve('dist/index.html')));

@@ -48,8 +48,8 @@ export function HeroCarousel({ language, onNavigate }: {
   const [active, setActive] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [hidden, setHidden] = useState(() => document.hidden);
-  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
+  const [reducedMotion, setReducedMotion] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const t = copy[language];
   const slide = t.slides[active];
   const isRtl = language === 'fa';

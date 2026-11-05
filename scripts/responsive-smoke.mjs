@@ -17,7 +17,7 @@ const origin = `http://127.0.0.1:${port}`;
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/dev.ts'], {
   cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, PORT: String(port), DATABASE_URL: `file:${directory}/test.db`, MEDIA_DIRECTORY: path.join(directory, 'uploads'),
-    DEMO_MODE: 'true', DISABLE_HMR: 'true', NODE_ENV: 'development', APP_URL: origin,
+    DEMO_MODE: 'true', DISABLE_HMR: 'true', SERVE_BUILT_CLIENT: 'true', NODE_ENV: 'development', APP_URL: origin,
     ADMIN_EMAIL: '', ADMIN_PASSWORD: '', RESEND_API_KEY: '', NOTIFICATION_FROM: '', TELEGRAM_BOT_TOKEN: '', GEMINI_API_KEY: '' },
 });
 let output = '', browser;
@@ -26,7 +26,7 @@ server.stderr.on('data', chunk => { output += String(chunk); });
 const results = [], pageErrors = [];
 const viewports = [
   { width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 },
-  { width: 430, height: 932 }, { width: 768, height: 1024 }, { width: 820, height: 1180 },
+  { width: 430, height: 932 }, { width: 640, height: 800 }, { width: 768, height: 1024 }, { width: 820, height: 1180 },
   { width: 1024, height: 768 }, { width: 1366, height: 900 },
 ];
 const headers = { 'X-Requested-With': 'YerevanHub' };
@@ -37,11 +37,18 @@ async function action(context, name, args) {
   return data;
 }
 async function navigate(page, url) {
+  const target = new URL(origin + url);
+  const current = new URL(page.url());
+  const hashOnly = current.origin === target.origin && current.pathname === target.pathname && current.search === target.search;
   const loaded = page.waitForResponse(r => r.url() === origin + '/api/app' && r.request().method() === 'GET' && r.ok());
   await page.goto(origin + url, { waitUntil: 'domcontentloaded' });
+  // Hash-only dashboard navigation does not rerun Bootstrap. Reload to apply
+  // the next role's cookies and await an actual fresh catalogue request.
+  if (hashOnly) await page.reload({ waitUntil: 'domcontentloaded' });
   await loaded;
   await page.locator('.app-shell > header').waitFor();
   await page.getByTestId('content-loading').first().waitFor({ state: 'hidden' });
+  await page.locator('#site-preloader').waitFor({ state: 'detached' });
   await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); });
 }
 async function inspect(page, label, screenshot = false) {
@@ -90,12 +97,15 @@ try {
   const routes = [['home', ''], ['hostels', 'hostels'], ['hostel', `hostels/${hostel.slug || hostel.id}`],
     ['rentals', 'rentals'], ['rental', `rentals/${rental.slug || rental.id}`], ['guides', 'guides'],
     ['translator', 'translator'], ['recommendations', 'recommendations'], ['contact', 'contact']];
-  for (const language of ['fa', 'en', 'ru', 'hy']) {
+  const languages = process.env.RESPONSIVE_LANGUAGES?.split(',') || ['fa', 'en', 'ru', 'hy'];
+  assert.ok(languages.every(language => ['fa', 'en', 'ru', 'hy'].includes(language)), 'Unsupported audit language');
+  for (const language of languages) {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1366, deviceScaleFactor: 1 });
       await context.addInitScript(lang => localStorage.setItem('yerevanhub_lang', lang), language);
       await context.route('**/*', route => {
         const request = route.request();
+        if (process.env.RESPONSIVE_OFFLINE === 'true' && !request.url().startsWith(origin)) return route.abort();
         return request.url().startsWith(origin) || ['image', 'font', 'stylesheet'].includes(request.resourceType()) ? route.continue() : route.abort();
       });
       const page = await context.newPage();
@@ -105,10 +115,34 @@ try {
       for (const [name, segment] of routes) {
         await navigate(page, `/${language}/${segment}`);
         await inspect(page, `${prefix}-${name}`, language === 'fa' && [390, 768, 1024].includes(viewport.width) && ['home', 'hostel', 'translator'].includes(name));
+        if (name === 'home') {
+          const overlap = await page.evaluate(() => {
+            const brand = document.querySelector('.header-brand').getBoundingClientRect();
+            const controls = document.querySelector('.header-controls').getBoundingClientRect();
+            return brand.left < controls.right && controls.left < brand.right && brand.top < controls.bottom && controls.top < brand.bottom;
+          });
+          assert.equal(overlap, false, `${prefix}: header brand and controls overlap`);
+          // Larger text and every translation must fit the slide, not just the first image.
+          await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
+          for (let index = 0; index < 3; index++) {
+            await page.locator('.hero-carousel-dots button').nth(index).click();
+            const fits = await page.evaluate(() => {
+              const slide = document.querySelector('.hero-slide').getBoundingClientRect();
+              const copy = document.querySelector('.hero-slide-copy').getBoundingClientRect();
+              const actions = document.querySelector('.hero-slide-actions').getBoundingClientRect();
+              const controls = document.querySelector('.hero-carousel-controls').getBoundingClientRect();
+              return copy.top >= slide.top - 1 && copy.left >= slide.left - 1 && copy.right <= slide.right + 1 && actions.bottom <= controls.top + 1;
+            });
+            assert.ok(fits, `${prefix}: slide ${index + 1} clips enlarged text or overlaps controls`);
+            await inspect(page, `${prefix}-slide-${index + 1}-large-text`);
+          }
+          await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
+        }
         await page.getByTestId('theme-toggle').click();
         assert.equal(await page.locator('html').evaluate(element => element.classList.contains('dark')), true);
         await inspect(page, `${prefix}-${name}-dark`, language === 'fa' && [390, 768].includes(viewport.width) && name === 'home');
         await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.locator('#site-preloader').waitFor({ state: 'detached' });
         await page.getByTestId('theme-toggle').waitFor();
         assert.equal(await page.locator('html').evaluate(element => element.classList.contains('dark')), true, 'Appearance must survive reload');
         await page.getByTestId('theme-toggle').click();
@@ -118,7 +152,7 @@ try {
         }
       }
       await navigate(page, `/${language}/`);
-      if (viewport.width < 1280) {
+      if (viewport.width < 640) {
         const toggle = page.locator('[aria-controls="mobile-navigation"]');
         await toggle.click();
         await inspect(page, `${prefix}-mobile-menu`);
@@ -154,7 +188,7 @@ try {
   }
   assert.deepEqual(pageErrors, [], 'Uncaught browser errors');
   assert.ok(results.every(result => result.passed), `${results.filter(r => !r.passed).length} responsive layouts failed`);
-  console.log(`PASS ${results.length} responsive states across 8 widths and 4 languages`);
+  console.log(`PASS ${results.length} responsive states across ${viewports.length} widths and ${languages.length} languages`);
 } finally {
   await writeFile(path.join(artifacts, 'results.json'), JSON.stringify({ results, pageErrors }, null, 2));
   await writeFile(path.join(artifacts, 'server.log'), output);
