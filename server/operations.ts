@@ -155,6 +155,7 @@ function unitsAvailable(
   ids: string[],
   from = b.checkIn,
   to = b.checkOut,
+  occupyingNow = !!b.checkedInAt && !b.checkedOutAt,
 ) {
   const room = state.hostels
     .find((h) => h.id === b.hostelId)
@@ -172,7 +173,8 @@ function unitsAvailable(
         other.id !== b.id &&
         other.hostelId === b.hostelId &&
         other.status === "confirmed" &&
-        areDatesOverlapping(from, to, other.checkIn, other.checkOut) &&
+        (areDatesOverlapping(from, to, other.checkIn, other.checkOut) ||
+          (occupyingNow && other.checkedInAt && !other.checkedOutAt)) &&
         other.assignedUnitIds?.some((id) => ids.includes(id)),
     ) ||
     (state.unitBlocks ?? []).some(
@@ -294,8 +296,7 @@ export async function operate(
         b.checkedInAt
       )
         throw new Error("تاریخ یا وضعیت ورود معتبر نیست.");
-      unitsAvailable(state, b, b.assignedUnitIds ?? []);
-      if(state.bookings.some(other=>other.id!==b.id&&other.hostelId===b.hostelId&&other.status==="confirmed"&&other.checkedInAt&&!other.checkedOutAt&&other.assignedUnitIds?.some(id=>b.assignedUnitIds?.includes(id))))throw new Error("واحد انتخاب‌شده در این تاریخ اشغال یا مسدود است.");
+      unitsAvailable(state, b, b.assignedUnitIds ?? [], b.checkIn, b.checkOut, true);
       b.checkedInAt = new Date().toISOString();
     } else if (event === "check_out") {
       if (!b.checkedInAt || b.checkedOutAt)

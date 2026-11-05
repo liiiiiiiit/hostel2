@@ -115,12 +115,30 @@ try {
   assert.ok(otherPage.url().includes(privateRoom.id));
   await otherPage.getByLabel('Number of Guests',{exact:true}).waitFor();
   assert.equal(await otherPage.getByLabel('Number of Guests',{exact:true}).inputValue(),'2');assert.equal(await otherPage.getByLabel('Beds / Rooms',{exact:true}).inputValue(),'1');
+  const couponCreated = await context.request.post(origin+'/api/app', { headers: {'X-Requested-With':'YerevanHub'}, data: {
+    action:'addCoupon', args:[{code:'BROWSER10',percent:10,minAmountAMD:0,maxUses:10,usedCount:0,active:true,
+      startsAt:new Date(Date.now()-60000).toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString(),description:'Browser regression'}],
+  }});
+  assert.equal((await couponCreated.json()).success,true);
+  assert.deepEqual((await (await otherPage.request.get(origin+'/api/app')).json()).state.coupons,[]);
+  await otherPage.locator('details').filter({has:otherPage.locator('#booking-coupon')}).locator('summary').click();
+  async function applyKnownCoupon() {
+    await otherPage.locator('#booking-coupon').fill('BROWSER10');
+    const validation=otherPage.waitForResponse(response=>response.url().endsWith('/api/app')&&response.request().postDataJSON()?.action==='checkCoupon');
+    await otherPage.getByRole('button',{name:'Apply',exact:true}).click();
+    const quote=await(await validation).json();assert.equal(quote.success,true);assert.deepEqual(quote.state.coupons,[]);
+    await otherPage.getByRole('button',{name:'Remove code',exact:true}).waitFor();
+  }
+  await applyKnownCoupon();
+  await otherPage.getByRole('button',{name:'Remove code',exact:true}).click();
+  await applyKnownCoupon();
   await otherPage.getByPlaceholder('Ali / John').fill('Double Room Guest');await otherPage.getByPlaceholder('+374 91 ...').fill('+37491123456');await otherPage.locator('input[type=checkbox]').last().check();
   const doubleResponse=otherPage.waitForResponse(response=>response.url().endsWith('/api/app')&&response.request().method()==='POST');
   await otherPage.locator('button[type=submit]').click();const doubleBooking=(await (await doubleResponse).json()).booking;
-  assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,18000);
+  assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,16200);assert.equal(doubleBooking.couponCode,'BROWSER10');
   await otherPage.waitForURL(/#\/booking\/yvn-trk-/);
   console.log('PASS two guests reserve one private double room at the room price through an independent browser');
+  console.log('PASS known coupon applies, removes and reapplies without exposing the promotion list');
   const propertyPanel=page.getByTestId('property-management');
   await propertyPanel.getByRole('button',{name:'Homes & apartments',exact:true}).click();await propertyPanel.getByRole('button',{name:'Add',exact:true}).click();
   await translations(editor,'Name');await translations(editor,'Description');
