@@ -59,6 +59,7 @@ export function publicState(
       )
         delete copy.floorAndDoorCode;
       if (!manages(hostel.id)) {
+        delete copy.commissionRule;
         for (const room of copy.roomTypes) delete room.physicalUnits;
       }
       return copy;
@@ -158,7 +159,7 @@ export function publicState(
     rentalInquiries: inquiries.map((inquiry) =>
       admin ? inquiry : { ...inquiry, adminNotes: undefined },
     ),
-    coupons: state.coupons,
+    coupons: admin ? state.coupons : [],
     reviews: state.reviews
       .filter((r) => admin || r.status === "approved")
       .map((r) =>

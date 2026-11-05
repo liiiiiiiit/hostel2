@@ -37,6 +37,119 @@ async function fixture(t: TestContext) {
   return { database, databaseUrl:`file:${directory}/test.db`, base, client, visitor, hostel, booking };
 }
 
+test('failed password changes consume the rate limit even when their writes roll back', async t => {
+  const { client, database } = await fixture(t);
+  const admin = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const rejected = await admin.action('changePassword', ['Wrong-password-42', 'New-password-42']);
+    assert.equal(rejected.response.status, 400);
+  }
+  const limited = await admin.action('changePassword', ['Admin@2026', 'New-password-42']);
+  assert.equal(limited.response.status, 429);
+  assert.ok(Number(limited.response.headers.get('retry-after')) > 0);
+  await database.sqlTransaction(async tx => { await tx.execute('UPDATE rate_limits SET expires_at=0'); });
+  assert.equal((await admin.action('changePassword', ['Admin@2026', 'New-password-42'])).data.success, true);
+});
+
+async function receptionFixture(t: TestContext) {
+  const fixtureData = await fixture(t);
+  const { completeHostel } = await import('./property-fixtures.js');
+  const admin = fixtureData.client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const hostel = completeHostel();
+  hostel.isPublished = true; hostel.listingStatus = 'published';
+  assert.equal((await admin.action('saveHostel', [hostel])).data.success, true);
+  const room = hostel.roomTypes[0];
+  const request = { hostelId: hostel.id, roomTypeId: room.id, guestName: 'Reception Guest',
+    guestContact: 'reception@example.test', contactType: 'email', checkIn: yerevanToday(),
+    checkOut: addCalendarDays(yerevanToday(), 2), guestsCount: 1, quantity: 1, source: 'walk_in',
+    reason: 'Guest accepted terms', acceptedTerms: true, idempotencyKey: crypto.randomUUID() };
+  return { ...fixtureData, admin, hostel, room, request };
+}
+
+test('coupon codes are private to admins while guests can validate and redeem a known code', async t => {
+  const { admin, visitor, booking, database } = await receptionFixture(t);
+  await database.transaction(async state => {
+    state.coupons.push({ code: 'INVITE-ONLY-17', percent: 17, minAmountAMD: 0, maxUses: 1,
+      usedCount: 0, active: true, startsAt: new Date(Date.now() - 60000).toISOString(),
+      expiresAt: new Date(Date.now() + 86400000).toISOString(), description: 'Private promotion' });
+  });
+  assert.deepEqual((await visitor.get()).state.coupons, []);
+  assert.ok((await admin.get()).state.coupons.some(c => c.code === 'INVITE-ONLY-17'));
+  const quote = await visitor.action('checkCoupon', ['INVITE-ONLY-17', 100000]);
+  assert.equal(quote.data.coupon.percent, 17);
+  assert.deepEqual(quote.data.state.coupons, []);
+  const created = await visitor.action('createBooking', [{ ...booking, couponCode: 'INVITE-ONLY-17' }]);
+  assert.equal(created.data.success, true);
+  assert.equal(created.data.booking.discountPercent, 17);
+  assert.equal((await visitor.action('checkCoupon', ['INVITE-ONLY-17', 100000])).data.success, false);
+});
+
+test('a checked-in stay cannot be cancelled to release an occupied bed', async t => {
+  const { admin, room, request } = await receptionFixture(t);
+  const b = (await admin.action('recordExternalBooking', [request])).data.booking;
+  assert.equal((await admin.action('assignUnits', [b.id, [room.physicalUnits![0].id]])).data.success, true);
+  assert.equal((await admin.action('recordStayEvent', [b.id, 'check_in', 'Guest arrived'])).data.success, true);
+  assert.equal((await admin.action('updateBookingStatus', [b.id, 'cancelled', 'Cancel after arrival'])).data.success, false);
+  const saved = (await admin.get()).state.bookings.find(item => item.id === b.id)!;
+  assert.equal(saved.status, 'confirmed');
+  assert.equal(saved.checkedOutAt, undefined);
+  assert.equal((await admin.action('recordStayEvent', [b.id, 'check_out', 'Guest departed'])).data.success, true);
+});
+
+test('moving a checked-in guest cannot take a bed still occupied by an overdue guest', async t => {
+  const { admin, room, request, database } = await receptionFixture(t);
+  const first = (await admin.action('recordExternalBooking', [request])).data.booking;
+  await admin.action('assignUnits', [first.id, [room.physicalUnits![0].id]]);
+  await admin.action('recordStayEvent', [first.id, 'check_in', 'Arrived']);
+  await database.transaction(async state => {
+    const overdue = state.bookings.find(b => b.id === first.id)!;
+    overdue.checkIn = addCalendarDays(yerevanToday(), -5);
+    overdue.checkOut = addCalendarDays(yerevanToday(), -3);
+  });
+  const second = (await admin.action('recordExternalBooking', [{ ...request, idempotencyKey: crypto.randomUUID() }])).data.booking;
+  await admin.action('assignUnits', [second.id, [room.physicalUnits![1].id]]);
+  assert.equal((await admin.action('recordStayEvent', [second.id, 'check_in', 'Arrived'])).data.success, true);
+  assert.equal((await admin.action('assignUnits', [second.id, [room.physicalUnits![0].id]])).data.success, false);
+  assert.deepEqual((await admin.get()).state.bookings.find(b => b.id === second.id)!.assignedUnitIds, [room.physicalUnits![1].id]);
+  await admin.action('recordStayEvent', [first.id, 'check_out', 'Overdue guest left']);
+  assert.equal((await admin.action('assignUnits', [second.id, [room.physicalUnits![0].id]])).data.success, true);
+});
+
+test('room capacity edits count maintenance blocks together with confirmed reservations', async t => {
+  const { admin, hostel, room, request } = await receptionFixture(t);
+  const blocked = await admin.action('blockUnits', [{ hostelId: hostel.id, roomTypeId: room.id,
+    unitIds: [room.physicalUnits![0].id], from: request.checkIn, to: request.checkOut, reason: 'Maintenance' }]);
+  assert.equal(blocked.data.success, true);
+  const b = (await admin.action('recordExternalBooking', [request])).data.booking;
+  const edited = structuredClone(hostel);
+  edited.roomTypes[0].totalBedsOrRooms = 1;
+  edited.roomTypes[0].physicalUnits = [room.physicalUnits![0]];
+  assert.equal((await admin.action('saveHostel', [edited])).data.success, false);
+  assert.equal((await admin.get()).state.hostels.find(h => h.id === hostel.id)!.roomTypes[0].totalBedsOrRooms, 2);
+  await admin.action('updateBookingStatus', [b.id, 'cancelled', 'Plans changed']);
+  assert.equal((await admin.action('saveHostel', [edited])).data.success, true);
+});
+
+test('public property and booking action responses hide internal commission and staff history', async t => {
+  const { admin, visitor, hostel, room, request } = await receptionFixture(t);
+  hostel.commissionRule = { type: 'percent', value: 17, appliesOn: 'confirmed' };
+  await admin.action('saveHostel', [hostel]);
+  assert.equal((await visitor.get()).state.hostels.find(h => h.id === hostel.id)!.commissionRule, undefined);
+  assert.equal((await admin.get()).state.hostels.find(h => h.id === hostel.id)!.commissionRule?.value, 17);
+  const payload = { ...request, source: undefined, reason: undefined };
+  const first = (await visitor.action('createBooking', [payload])).data.booking;
+  assert.ok(first);
+  await admin.action('updateBookingStatus', [first.id, 'confirmed']);
+  await admin.action('recordFinanceEntry', [first.id, 'adjustment', 500, 'INTERNAL-FINANCE-NOTE', crypto.randomUUID()]);
+  const retry = (await visitor.action('createBooking', [payload])).data.booking;
+  assert.equal(retry.id, first.id);
+  assert.equal(retry.commissionRule, undefined);
+  assert.ok(retry.history.every(event => event.actorId === '' && !event.action.startsWith('finance_')));
+  assert.ok(!JSON.stringify(retry).includes('INTERNAL-FINANCE-NOTE'));
+});
+
 for (const scenario of [
   { name: 'weekly discount expires after shortening', nights: 7, nextNights: 2, coupon: false, percent: 0, source: 'none' },
   { name: 'monthly discount becomes weekly after shortening', nights: 28, nextNights: 7, coupon: false, percent: 20, source: 'weekly' },

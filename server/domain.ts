@@ -3,7 +3,7 @@ import { occupancyIsValid, guestsPerUnit } from '../src/utils/occupancy.js';
 import { publicationIssues } from '../src/utils/properties.js';
 import { hostelSchema, rentalSchema } from './property-schemas.js';
 import { isValidCoordinates } from '../src/utils/maps.js';
-import { addCalendarDays } from '../src/utils/dates.js';
+import { addCalendarDays, yerevanToday } from '../src/utils/dates.js';
 import { createPasswordCredential, verifyPassword, type PasswordCredential } from './passwords.js';
 import {
   Hostel,
@@ -586,6 +586,9 @@ export class Store {
     if (!booking) return { success: false, error: 'رزرو یافت نشد.' };
 
     if (booking.status === status) return { success: true };
+    if (booking.checkedInAt && !booking.checkedOutAt && ['cancelled', 'no_show'].includes(status)) {
+      return { success: false, error: 'ابتدا خروج مهمان را از بخش پذیرش ثبت کنید.' };
+    }
     const transitions: Record<BookingStatus, BookingStatus[]> = {
       pending: ['confirmed', 'rejected', 'cancelled', 'expired'],
       confirmed: ['cancelled', 'completed', 'no_show'],
@@ -839,6 +842,12 @@ export class Store {
       }
       const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
       if (active.length && (!room || room.type !== oldRoom.type || (room.bookingUnit??(room.type==='private'?'room':'bed')) !== (oldRoom.bookingUnit??(oldRoom.type==='private'?'room':'bed')) || active.some(booking=>!occupancyIsValid(room,booking.guestsCount,booking.quantity)) || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
+      const blocked = (this.state.unitBlocks ?? [])
+        .filter(block => block.hostelId === hostel.id && block.roomTypeId === oldRoom.id && !block.releasedAt && block.to > yerevanToday())
+        .map(block => ({ checkIn: block.from, checkOut: block.to, quantity: block.unitIds.length }));
+      if (room && peakBookedQuantity(yerevanToday(), '9999-12-31', [...active, ...blocked]) > room.totalBedsOrRooms) {
+        throw new Error('ظرفیت اتاق از مجموع رزروها و واحدهای مسدود کمتر است.');
+      }
     }
     if(hostel.roomTypes.some(room=>this.state.capacities.some(day=>day.hostelId===hostel.id&&day.roomTypeId===room.id&&day.date>=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'})&&day.capacity>room.totalBedsOrRooms)))throw new Error('ابتدا ظرفیت‌های روزانه را با تعداد واحدهای جدید هماهنگ کنید.');
     for (const oldRoom of previous?.roomTypes ?? []) {

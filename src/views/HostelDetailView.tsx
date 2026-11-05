@@ -10,7 +10,7 @@ import { VerificationInfo } from '../components/VerificationInfo';
 import { PlaceActions } from '../components/PlaceActions';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
 import React, { useEffect, useRef, useState } from 'react';
-import { AppLanguage, Hostel, RoomType, Review } from '../types';
+import { AppLanguage, Hostel, RoomType, Review, Coupon } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import {
   Building2,
@@ -350,6 +350,7 @@ export const HostelDetailView: React.FC<Props> = ({
   // Discount coupon state
   const [couponInput, setCouponInput] = useState('');
   const [appliedCouponCode, setAppliedCouponCode] = useState('');
+  const [validatedCoupon, setValidatedCoupon] = useState<Coupon | undefined>();
   const [couponSuccess, setCouponSuccess] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponBusy, setCouponBusy] = useState(false);
@@ -378,11 +379,10 @@ export const HostelDetailView: React.FC<Props> = ({
 
   // Pricing calculation
   const nights = calculateNights(checkIn, checkOut);
-  const currentCoupon = appStore.getState().coupons.find(
-    c => c.code.toUpperCase() === appliedCouponCode.trim().toUpperCase() && c.active
-  );
   const accommodationQuote=calculateBookingPrice({pricePerNight:selectedRoom?.pricePerNightAMD??hostel.minPricePerNightAMD,checkIn,checkOut,quantity,rules:selectedRoom?.pricingRules});
-  const couponValidation = validateCoupon(appliedCouponCode,accommodationQuote.baseAmount,currentCoupon);
+  // Keep only the coupon explicitly validated by the server. Public state no
+  // longer exposes the admin's complete promotion list.
+  const couponValidation = validateCoupon(appliedCouponCode,accommodationQuote.baseAmount,validatedCoupon);
   const discountPercent = couponValidation.valid ? couponValidation.discountPercent : 0;
 
   const earlyFee = (arrivalMode==='early_check_in' && arrivalAnalysis.isEarlyMorning && hostel.earlyCheckInAvailable) ? hostel.earlyCheckInFeeAMD : 0;
@@ -412,16 +412,18 @@ export const HostelDetailView: React.FC<Props> = ({
       accommodationQuote.baseAmount);
     setCouponBusy(false);
     if (!response.success || !response.coupon) {
-      setAppliedCouponCode(''); setCouponError(response.error || 'کد معتبر نیست.'); return;
+      setAppliedCouponCode(''); setValidatedCoupon(undefined); setCouponError(response.error || 'کد معتبر نیست.'); return;
     }
     const result = { discountPercent: response.coupon.percent };
 
     setAppliedCouponCode(clean);
+    setValidatedCoupon(response.coupon);
     setCouponSuccess(`Coupon applied (${result.discountPercent}% off)`);
   };
 
   const handleRemoveCoupon = () => {
     setAppliedCouponCode('');
+    setValidatedCoupon(undefined);
     setCouponInput('');
     setCouponSuccess('');
     setCouponError('');

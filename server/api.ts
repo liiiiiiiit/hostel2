@@ -136,15 +136,24 @@ export function createApi(database: Database) {
       const origin = req.headers.origin;
       if (req.headers['x-requested-with'] !== 'YerevanHub' || (origin && new URL(origin).host !== req.headers.host)) { res.status(403).json({ success: false, error: 'Origin not allowed' }); return; }
       const envelope = z.object({ action: z.enum(Object.keys(schemas) as [keyof typeof schemas, ...Array<keyof typeof schemas>]), args: z.array(z.unknown()) }).parse(req.body);
+      // Commit the attempt independently: validation or business-operation
+      // rollbacks must not reset password guessing and mutation limits.
+      const limit = await database.sqlTransaction(async tx => {
+        const now = Date.now();
+        const bucket = digest(`${req.ip ?? req.socket.remoteAddress ?? 'unknown'}:${envelope.action}`);
+        await tx.execute({ sql: 'DELETE FROM rate_limits WHERE expires_at<=?', args: [now] });
+        await tx.execute({ sql: 'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', args: [bucket, now + 60_000] });
+        const rate = (await tx.execute({ sql: 'SELECT count,expires_at FROM rate_limits WHERE key=?', args: [bucket] })).rows[0];
+        return { count: Number(rate.count), retryAfter: Math.max(1, Math.ceil((Number(rate.expires_at) - now) / 1000)) };
+      });
+      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+      if (limit.count > max) {
+        res.set('Retry-After', String(limit.retryAfter)).status(429).json({ success: false, error: localizeError('تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', req.headers['x-app-language']) });
+        return;
+      }
       const args = schemas[envelope.action].parse(envelope.args) as unknown[];
       const result = await database.transaction(async (state, tx) => {
         const now = Date.now();
-        const bucket = digest(`${req.ip ?? req.socket.remoteAddress ?? 'unknown'}:${envelope.action}`);
-        await tx.execute({ sql: 'DELETE FROM rate_limits WHERE expires_at<?', args: [now] });
-        await tx.execute({ sql: 'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', args: [bucket, now + 60_000] });
-        const rate = await tx.execute({ sql: 'SELECT count FROM rate_limits WHERE key=?', args: [bucket] });
-        const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
-        if (Number(rate.rows[0].count) > max) return { success: false, error: 'تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', rateLimited: true };
         let actor = await session(req,tx);
         const store = new Store(state, true); store.getState().currentUser = actor;
         const before = new Map(state.bookings.map(b => [b.id, b.status]));
@@ -216,15 +225,18 @@ export function createApi(database: Database) {
         for (const booking of changed) await enqueueBookingNotification(tx, state, booking);
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
-        if (actionResult.booking) { const {requestFingerprint:_fingerprint,idempotencyKey:_key,...safe}=actionResult.booking; if(actor?.role!=='admin'&&!(actor?.role==='hostel_manager'&&actor.assignedHostelIds?.includes(safe.hostelId)))delete safe.commissionRule;actionResult={...actionResult,booking:safe}; }
         await database.flush(state,tx);
-        return { ...actionResult, dispatch: (changed.length > 0||!!additional) && !database.demo, state: await visibleState(tx, actor, database.demo, bookingToken, inquiryToken) };
+        const responseState = await visibleState(tx, actor, database.demo, bookingToken, inquiryToken);
+        // Use the same redaction for action payloads and state, including retries
+        // that return an existing booking with staff and finance history.
+        if (actionResult.booking) actionResult = { ...actionResult, booking: responseState.bookings.find(booking => booking.id === actionResult.booking!.id) };
+        return { ...actionResult, dispatch: (changed.length > 0||!!additional) && !database.demo, state: responseState };
       },{action:envelope.action,args,sessionHash:parseCookies(req.headers.cookie)[cookieName] ? digest(parseCookies(req.headers.cookie)[cookieName]) : undefined});
       if('translationInput' in result&&result.translationInput){res.json({success:true,translation:await translateOnServer(result.translationInput)});return;}
       if ('runWorker' in result) { res.json({ success: true, ...await deliverNotifications(database) }); return; }
       // The accepted operation and its outbox are committed. Respond before any
       // optional provider call so a 15-second outage cannot time out the client.
-      res.status('rateLimited' in result ? 429 : res.statusCode).json(result);
+      res.json(result);
       if ('dispatch' in result && result.dispatch) {
         // Failure to deliver never rolls back an accepted booking; retries remain in the durable outbox.
         try { await deliverNotifications(database); } catch { /* Scheduler/admin can retry. */ }
