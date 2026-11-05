@@ -5,7 +5,7 @@ import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2, Wallet, Compass } from 'lucide-react';
 import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
-import { getLocalized, getCityName } from '../utils/i18n';
+import { getLocalized, getCityName, getAmenityLabel } from '../utils/i18n';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
 import { calculateNights } from '../utils/pricing';
 import { PlaceActions } from '../components/PlaceActions';
@@ -56,14 +56,14 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
     <div><p className="mb-2 text-xs font-semibold tracking-[0.13em] text-[#8e7044]">{eyebrow}</p><h2 className="text-2xl font-bold tracking-tight text-[#142f2a] sm:text-3xl">{title}</h2><p className="mt-2 max-w-xl text-sm leading-7 text-slate-500">{description}</p></div>
     <button type="button" onClick={() => onNavigate(view)} className="flex min-h-10 shrink-0 items-center gap-2 self-start text-sm font-semibold text-[#142f2a] hover:text-[#89703d] sm:self-auto">{action}<Arrow className="size-4" /></button>
   </div>;
-  return <div className="pb-3">
+  return <div className="home-experience pb-3">
     <section className="discovery-hero">
       <div className="discovery-hero-inner">
         <div className="discovery-copy">
           <p className="discovery-kicker"><span />{text.eyebrow}</p>
           <h1>{design.first}<span>{design.second}</span></h1>
           <p className="discovery-intro">{design.intro}</p>
-          <button type="button" onClick={() => document.getElementById('home-destination')?.focus()} className="button-primary discovery-cta">{text.search}<Arrow className="size-4" /></button>
+          <button type="button" onClick={() => { const field = document.getElementById('home-destination'); field?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); field?.focus({ preventScroll: true }); }} className="button-primary discovery-cta">{text.search}<Arrow className="size-4" /></button>
           <div className="discovery-note"><Compass size={18} strokeWidth={1.5}/>{design.discover}</div>
         </div>
         <div className="discovery-visual">
@@ -71,10 +71,8 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
           <div className="discovery-caption"><span className="discovery-caption-icon"><MapPin size={23}/></span><div><span>{design.local}</span><strong>{text.explore}</strong></div></div>
           <span className="discovery-stamp" aria-hidden="true">ԲԱՐԵՎ<span>YEREVAN</span></span>
         </div>
-      </div>
-    </section>
 
-    <div className="relative z-10 mx-auto -mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="discovery-search">
       <div className="search-panel bg-white p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex w-full min-w-0 rounded-xl bg-[#f1f4f0] p-1 sm:w-auto" role="group" aria-label={text.search}>
@@ -82,7 +80,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
           </div>
           {tab === 'hostels' && <div className="flex items-center gap-2 text-xs text-slate-500"><span className="hidden sm:inline">{text.quickDates}</span><button type="button" onClick={() => quickDate(0)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tonight}</button><span className="text-slate-200">/</span><button type="button" onClick={() => quickDate(1)} className="rounded-lg px-2 py-2 font-medium hover:bg-slate-50 hover:text-[#142f2a]">{text.tomorrow}</button></div>}
         </div>
-        <form onSubmit={search} className={`grid grid-cols-2 items-end gap-3 ${tab === 'hostels' ? 'lg:grid-cols-[1.2fr_1fr_1fr_.7fr_auto]' : 'lg:grid-cols-[1fr_auto]'}`}>
+        <form aria-label={text.search} onSubmit={search} className={`grid grid-cols-2 items-end gap-3 ${tab === 'hostels' ? 'lg:grid-cols-[1.2fr_1fr_1fr_.7fr_auto]' : 'lg:grid-cols-[1fr_auto]'}`}>
           <label htmlFor="home-destination" className={`col-span-2 min-w-0 text-xs font-medium text-slate-500 ${tab === 'hostels' ? 'lg:col-span-1' : 'sm:col-span-1'}`}>{text.destination}<select id="home-destination" value={city} onChange={event => setCity(event.target.value)} className="search-input mt-2 min-h-12 w-full rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]"><option value="all">{text.allCities}</option>{cities.map(value => <option key={value} value={value}>{getCityName(value,currentLang)}</option>)}</select></label>
           {tab === 'hostels' && <>
             <label htmlFor="home-checkin" className="date-field-label min-w-0 text-xs font-medium text-slate-500">{text.checkIn}<input id="home-checkin" type="date" required min={yerevanToday()} max={addCalendarDays(yerevanToday(),88)} value={checkIn} onChange={event => { setCheckIn(event.target.value); if (event.target.value >= checkOut) setCheckOut(addCalendarDays(event.target.value,1)); }} className="search-input mt-2 min-h-12 w-full min-w-0 rounded-xl border border-[#142f2a]/12 bg-[#f8faf7] px-3 text-sm font-semibold text-[#142f2a]" /></label>
@@ -98,18 +96,24 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
         </div>
       </div>
     </div>
+      </div>
+    </section>
 
     <div className="mx-auto max-w-7xl space-y-12 px-4 pt-6 sm:space-y-20 sm:px-6 sm:pt-8 lg:px-8">
       <div className="stay-benefits">
         <span><Wallet size={18}/>{design.pay}</span><span><Languages size={18}/>{design.languages}</span><button type="button" onClick={() => onNavigate('saved')}><CheckCircle2 size={18}/>{design.compare}<Arrow size={15}/></button>
       </div>
-      <section>
+      <section className="featured-stays">
         {sectionHeading(text.hostelEyebrow,text.hostelTitle,text.hostelDesc,text.allHostels,'hostels')}
+
+        <div className="home-room-shortcuts" role="group" aria-label={design.rooms}>
+          {([{ type: 'all', label: design.all }, { type: 'private', label: design.private }, { type: 'dorm_female', label: design.female }, { type: 'dorm_mixed', label: design.shared }]).map(({ type, label }) => <button key={type} type="button" className="stay-category" onClick={() => onNavigate('hostels', { type, city, checkIn, checkOut, guests })}><BedDouble size={16} aria-hidden="true" />{label}<Arrow size={14} aria-hidden="true" /></button>)}
+        </div>
         {loading ? <ContentLoading lang={currentLang} listings /> : unavailable ? <p className="py-8 text-sm text-slate-500">{loadingText(currentLang).unavailable}</p> :
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {featuredHostels.map(hostel => { const rating = getHostelRating(hostel.id); return <article key={hostel.id} className="stay-card group min-w-0 snap-start overflow-hidden rounded-[1.4rem] border border-[#142f2a]/10 bg-white transition-shadow hover:shadow-[0_12px_40px_-20px_rgba(20,47,42,0.25)]">
             <button type="button" onClick={() => openHostel(hostel.id)} className="relative block w-full text-start" aria-label={getLocalized(hostel.name,currentLang)}><StayPhoto src={hostel.photos[0]} alt={getLocalized(hostel.name,currentLang)} className="aspect-[4/3]" /><span className="absolute bottom-4 start-4 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-medium text-[#142f2a]">{hostel.district}</span>{rating.count > 0 && <span className="absolute end-4 top-4 flex items-center gap-1.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-xs font-semibold text-[#142f2a]"><Star className="size-3.5 fill-[#d6a65c] text-[#d6a65c]" />{rating.avg} <span className="font-normal text-slate-500">({rating.count})</span></span>}</button>
-            <div className="p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => openHostel(hostel.id)} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3>{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div>}<PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => openHostel(hostel.id)} className="mt-2 min-h-11 w-full rounded-xl bg-[#f0f4ef] text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{hostel.publicPreview ? ux.information : text.details}</button></div>
+            <div className="stay-card-content p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{getCityName(hostel.city,currentLang)}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]"><button type="button" onClick={() => openHostel(hostel.id)} className="text-start hover:underline">{getLocalized(hostel.name,currentLang)}</button></h3><ul className="stay-card-amenities">{(['wifi', 'lockers', 'kitchen'] as const).filter(key => hostel.amenities[key]).map(key => <li key={key}><CheckCircle2 size={13} aria-hidden="true" />{getAmenityLabel(key, currentLang)}</li>)}</ul>{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-4"><div><p className="text-xs text-slate-500">{text.from}</p><p className="mt-1 text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(hostel.minPricePerNightAMD)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{text.perNight}</span></p></div><ArrowUpRight className="mb-1 size-5 text-[#8c9f90]" /></div>}<PlaceActions kind="hostel" id={hostel.id} /><button type="button" onClick={() => openHostel(hostel.id)} className="button-primary stay-card-action mt-2 w-full">{hostel.publicPreview ? ux.information : text.details}</button></div>
           </article>; })}
           {!hostels.length && <p className="py-10 text-sm text-slate-500">{text.noStays}</p>}
         </div>}

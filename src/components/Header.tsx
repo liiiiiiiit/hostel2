@@ -40,7 +40,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
     document.addEventListener('pointerdown', close); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape); };
   }, [menuOpen, accountOpen]);
-  return <header className="sticky top-0 z-40 border-b border-[#142f2a]/10 bg-white/95 backdrop-blur-xl">
+  return <header className="site-header sticky top-0 z-40 border-b border-[#142f2a]/10 bg-white/95 backdrop-blur-xl">
     <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
       <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
         <span className="hidden min-[380px]:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
@@ -63,10 +63,13 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
             <button type="button" onClick={() => { setAccountOpen(false); onLogout(); }} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm text-rose-700 hover:bg-rose-50"><LogOut className="size-4" />{text.logout}</button>
           </div>}
         </div> : <button type="button" onClick={onOpenAuth} className="hidden min-h-10 items-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#234a40] sm:flex"><UserRound className="size-4" />{text.signIn}</button>}
-        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white xl:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
+        <button ref={mobileToggleRef} type="button" aria-label={menuOpen ? text.closeMenu : text.menu} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)} className="flex size-10 items-center justify-center rounded-xl text-[#142f2a] hover:bg-white sm:hidden">{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
       </div>
     </div>
-    {menuOpen && <nav ref={mobileNavigationRef} id="mobile-navigation" aria-label={text.menu} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 xl:hidden">
+    <nav aria-label={text.browse} className="tablet-navigation">
+      {nav.map(([view, label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined}>{label}</button>)}
+    </nav>
+    {menuOpen && <nav ref={mobileNavigationRef} id="mobile-navigation" aria-label={text.menu} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 sm:hidden">
       <div className="mx-auto grid max-w-7xl gap-1">
         {nav.map(([view,label]) => <button key={view} type="button" onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium ${isActive(view) ? 'bg-[#142f2a] text-white' : 'text-[#142f2a] hover:bg-white'}`}>{label}<ArrowUpRight className="size-4 opacity-50" /></button>)}
         <button type="button" onClick={() => navigate('saved')} className="flex min-h-12 items-center justify-between rounded-xl px-4 text-start text-sm font-medium text-[#142f2a] hover:bg-white">{text.saved}<span>{saved.length}</span></button>

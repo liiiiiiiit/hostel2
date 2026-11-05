@@ -206,3 +206,94 @@ html.dark .stay-photo { background: #293b30; }
 @media (max-width: 420px) {
   .date-field-label { grid-column: 1 / -1; }
 }
+
+
+/* Discovery refinement: the search precedes imagery on small screens. */
+.home-experience .discovery-hero {
+  background: radial-gradient(ellipse at 90% 0, #e7d8bf80, transparent 55%), var(--stay-paper);
+}
+.home-experience .discovery-hero-inner {
+  grid-template-areas: "copy visual" "search search";
+  row-gap: 2.25rem;
+  padding-block: 3rem 2.5rem;
+}
+.home-experience .discovery-copy { grid-area: copy; }
+.home-experience .discovery-visual { grid-area: visual; }
+.discovery-search { grid-area: search; min-width: 0; position: relative; z-index: 1; }
+.home-experience .discovery-photo { height: 370px; border-radius: 1.25rem 5rem 1.25rem 1.25rem; }
+html[dir="rtl"] .home-experience .discovery-photo { border-radius: 5rem 1.25rem 1.25rem 1.25rem; }
+.home-experience .discovery-copy h1 { font-size: clamp(2.35rem, 4vw, 3.8rem); }
+.home-experience .search-panel {
+  box-shadow: 0 14px 40px -24px #142f2a45;
+  border-color: var(--stay-line);
+}
+.home-experience .search-input:focus-visible {
+  outline: 3px solid #a78049;
+  outline-offset: 3px;
+}
+.home-experience .stay-benefits {
+  padding-block: .75rem 1.25rem;
+  border-bottom: 1px solid var(--stay-line);
+}
+.home-room-shortcuts { display: flex; flex-wrap: wrap; gap: .65rem; margin-block: -.25rem 1.75rem; }
+.home-room-shortcuts .stay-category { border-radius: .85rem; }
+.home-room-shortcuts .stay-category:hover { background: #edf3ee; }
+.home-room-shortcuts .stay-category svg:last-child { opacity: .6; }
+.home-experience .stay-card {
+  display: flex; flex-direction: column;
+  border-radius: 1.25rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.home-experience .stay-card:focus-within { border-color: #7a947d; }
+.stay-card-content { display: flex; flex: 1; flex-direction: column; align-items: stretch; }
+.stay-card-amenities {
+  display: flex; flex-wrap: wrap; gap: .4rem .8rem;
+  list-style: none; padding: 0; margin: .8rem 0 0;
+  min-height: 2rem; color: var(--stay-muted); font-size: .72rem;
+}
+.stay-card-amenities li { display: inline-flex; align-items: center; gap: .35rem; }
+.stay-card-amenities svg { flex-shrink: 0; }
+.stay-card-action { margin-top: auto; }
+.site-header > div { min-width: 0; }
+.tablet-navigation { display: none; }
+.site-header button { touch-action: manipulation; }
+html.dark .home-experience .discovery-hero {
+  background: radial-gradient(ellipse at 90% 0, #32433490, transparent 55%), var(--stay-paper);
+}
+html.dark .home-room-shortcuts .stay-category:hover { background: #304c3b; }
+
+@media (min-width: 640px) and (max-width: 1279px) {
+  html { scroll-padding-top: 9rem; }
+  .tablet-navigation {
+    display: flex; gap: .35rem; justify-content: center; flex-wrap: wrap;
+    padding: .25rem 1rem .6rem; border-top: 1px solid var(--stay-line);
+  }
+  .tablet-navigation button {
+    min-height: 44px; padding: .5rem 1rem;
+    border-radius: .7rem; color: var(--stay-muted); font-size: .8rem; font-weight: 600;
+  }
+  .tablet-navigation button[aria-current="page"] { background: #edf3ee; color: #183d30; }
+  .tablet-navigation button:hover { background: #edf3ee; color: #183d30; }
+  html.dark .tablet-navigation button:is(:hover, [aria-current="page"]) { background: #304c3b; color: #e5eee8; }
+}
+@media (max-width: 767px) {
+  .home-experience .discovery-hero-inner {
+    grid-template-areas: "copy" "search" "visual";
+    row-gap: 1.5rem; padding: 1.75rem 1rem 2rem;
+  }
+  .home-experience .discovery-copy h1 { font-size: clamp(2rem, 7vw, 2.8rem); margin-block: .8rem; }
+  html[dir="rtl"] .home-experience .discovery-copy h1 { line-height: 1.5; }
+  .home-experience .discovery-intro { max-width: 36rem; font-size: .875rem; }
+  .home-experience .discovery-cta { display: none; }
+  .home-experience .discovery-photo { height: 220px; }
+  .home-experience .discovery-stamp { top: -.5rem; }
+  .home-experience .search-panel { border-radius: 1rem; }
+  .home-experience .search-submit { padding-inline: .65rem; white-space: normal; }
+  .home-room-shortcuts { gap: .5rem; }
+  .home-room-shortcuts .stay-category { font-size: .75rem; padding: .5rem .75rem; }
+  .home-experience .stay-benefits { gap: .5rem 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stay-photo > img, .home-experience .stay-card { transition: none; }
+  .group:hover .stay-photo > img { transform: none; }
+}
