@@ -111,7 +111,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
 
       <section aria-label={ux.shortcuts}>
         <h2 className="mb-4 text-lg font-bold text-[#142f2a]">{ux.shortcuts}</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="font-semibold text-[#142f2a]">{label}</span><span className="text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] font-semibold text-[#142f2a]">{label}</span><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
       </section>
 
       {rentals.length > 0 && <section>
@@ -133,7 +133,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
         {hostels.some(stay=>stay.publicPreview) && <p className="mt-6 flex items-start gap-2 border-t border-slate-100 pt-5 text-sm leading-7 text-slate-600"><CheckCircle2 className="mt-1 size-5 shrink-0"/>{ux.preview}</p>}
       </section>
       <section className="flex flex-col items-start justify-between gap-6 rounded-[1.5rem] border border-[#142f2a]/10 bg-[#eaf0e7] p-6 sm:flex-row sm:items-center sm:p-9">
-        <div className="flex items-center gap-5"><span className="hidden size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#467452] sm:flex"><Languages className="size-7" strokeWidth={1.4} /></span><div><h2 className="text-xl font-semibold text-[#142f2a]">{text.translatorTitle}</h2><p className="mt-2 text-sm leading-7 text-[#5f7566]">{text.translatorDesc}</p></div></div><button type="button" onClick={() => onNavigate('translator')} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#142f2a]/20 px-5 text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{text.translatorAction}<Arrow className="size-4" /></button>
+        <div className="flex min-w-0 flex-1 items-center gap-5"><span className="hidden size-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#467452] sm:flex"><Languages className="size-7" strokeWidth={1.4} /></span><div className="min-w-0"><h2 className="text-xl font-semibold text-[#142f2a]">{text.translatorTitle}</h2><p className="mt-2 text-sm leading-7 text-[#5f7566]">{text.translatorDesc}</p></div></div><button type="button" onClick={() => onNavigate('translator')} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#142f2a]/20 px-5 text-sm font-semibold text-[#142f2a] transition-colors hover:bg-[#142f2a] hover:text-white">{text.translatorAction}<Arrow className="size-4" /></button>
       </section>
     </div>
   </div>;

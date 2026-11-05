@@ -102,7 +102,7 @@ try {
   for (const language of languages) {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1366, deviceScaleFactor: 1 });
-      await context.addInitScript(lang => localStorage.setItem('yerevanhub_lang', lang), language);
+      await context.addInitScript(lang => { try { localStorage.setItem('yerevanhub_lang', lang); } catch { /* Opaque documents have no storage. */ } }, language);
       await context.route('**/*', route => {
         const request = route.request();
         if (process.env.RESPONSIVE_OFFLINE === 'true' && !request.url().startsWith(origin)) return route.abort();
