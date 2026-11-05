@@ -59,8 +59,8 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
         </div> : <button type="button" onClick={onOpenAuth} className="hidden min-h-10 items-center gap-2 rounded-xl bg-[#142f2a] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#234a40] sm:flex"><UserRound className="size-4" />{text.signIn}</button>}
       </div>
       <button onClick={() => navigate('home')} type="button" className="flex shrink-0 items-center gap-1.5 sm:order-1 sm:gap-2.5 text-[#142f2a]" aria-label="YEREVANHUB Home">
-        <span className="hidden min-[380px]:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
-        <span className="brand-name text-xs min-[380px]:text-sm font-extrabold sm:text-lg">YEREVAN<span className="text-[#99733e]">HUB</span></span>
+        <span className="hidden sm:flex size-8 sm:size-10 items-center justify-center rounded-xl bg-[#142f2a] text-[#e4be7d]"><Building2 className="size-5" strokeWidth={1.5} /></span>
+        <span dir="ltr" className="brand-name inline-flex items-baseline gap-1 text-base leading-none min-[380px]:text-lg sm:gap-1.5 sm:text-xl" style={{ letterSpacing: '.035em' }}><span className="font-extrabold">YEREVAN</span><span className="font-semibold text-[#99733e] dark:text-[#e4be7d]">HUB</span></span>
       </button>
       <nav aria-label={text.menu} className="hidden items-center gap-1 sm:order-2 xl:flex">
         {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${isActive(view) ? 'bg-[#142f2a]/7 text-[#142f2a] underline underline-offset-8 decoration-2' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
