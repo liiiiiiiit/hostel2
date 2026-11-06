@@ -40,3 +40,5 @@ This review fixes the issues listed above; it does not establish that every poss
 - Added admin overview/navigation screenshots at mobile and desktop widths to the responsive CI job, plus open-menu overflow coverage in every language.
 
 - Browser QA exposed a startup/lazy-loading race in the responsive harness: waiting for the first loader to disappear could measure a subsequent Suspense fallback rather than the final page. Navigation now waits for a real page heading before inspecting layout; the loading skeleton also explicitly constrains its grid tracks and wraps long localized text.
+
+- CI screenshots also identified an unbreakable Armenian heading protruding beyond a 320px screen even though its block fit. Main content now allows long localized words to wrap without hiding horizontal overflow or clipping content.
