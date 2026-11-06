@@ -180,7 +180,26 @@ try {
   const location=mapPage.getByTestId('property-location');await location.waitFor();
   assert.ok((await location.locator('a[href*="yandex.com"]').getAttribute('href')).includes('pt=44.5152%2C40.1785'));
   assert.ok((await location.locator('a[href*="google.com/maps/search"]').getAttribute('href')).includes('query=40.1785%2C44.5152'));
-  assert.ok(!(await location.innerHTML()).includes('PRIVATE-BROWSER-ADDRESS'));await mapPage.close();
+  assert.ok(!(await location.innerHTML()).includes('PRIVATE-BROWSER-ADDRESS'));
+  // External frames are blocked in this deterministic suite. Assert the actual
+  // iframe provider, exact point, locale and responsive bounds, not its load event.
+  for(const language of ['fa','en','ru','hy']) {
+    for(const width of [320,768,1366]) {
+      await mapPage.setViewportSize({width,height:900});
+      for(const [segment,slug,point] of [['rentals','browser-apartment',{lat:40.1785,lng:44.5152}],['hostels','browser-hostel',managedHostel.coordinates]]) {
+        await mapPage.goto(`${origin}/${language}/${segment}/${slug}`);
+        const card=mapPage.getByTestId('property-location');await card.waitFor();
+        const frame=card.locator('iframe');await frame.scrollIntoViewIfNeeded();
+        const source=new URL(await frame.getAttribute('src'));
+        assert.equal(source.origin,'https://yandex.com');assert.equal(source.pathname,'/map-widget/v1/');
+        assert.equal(source.searchParams.get('pt'),`${point.lng},${point.lat},pm2rdm`);
+        assert.equal(source.searchParams.get('lang'),language==='ru'?'ru_RU':'en_RU');
+        const bounds=await frame.boundingBox();assert.ok(bounds.width>100&&bounds.x>=-1&&bounds.x+bounds.width<=width+1);
+        assert.ok(!(await card.innerHTML()).includes('openstreetmap.org'));
+      }
+    }
+  }
+  await mapPage.close();
   console.log('PASS administrator creates an apartment with public map coordinates; provider links preserve the point and exact address stays private');
   const crawled=await context.request.get(origin+'/en/hostels/browser-hostel');assert.equal(crawled.status(),200);const html=await crawled.text();assert.ok(html.includes('<title>Name English · YEREVANHUB</title>'));assert.ok(html.includes('hreflang="fa"'));assert.ok(html.includes('Name English'));
   assert.equal((await context.request.get(origin+'/en/hostels/missing-property')).status(),404);

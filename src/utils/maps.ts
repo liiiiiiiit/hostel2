@@ -18,14 +18,16 @@ export function getMapBounds(point: Coordinates): [number, number, number, numbe
     Math.min(180, point.lng + lngSpan), Math.min(MAX_MERCATOR_LATITUDE, point.lat + latSpan)];
 }
 
-export function getMapLinks(point: Coordinates): { embed: string | null; openStreetMap: string; directions: string } | null {
+/** Yandex widget uses longitude,latitude, unlike Google's latitude,longitude. */
+export function getMapLinks(point: Coordinates, language = 'en'): { embed: string | null; directions: string } | null {
   if (!isValidCoordinates(point)) return null;
-  const bounds = getMapBounds(point);
-  const query = new URLSearchParams({ layer: 'mapnik', marker: `${point.lat},${point.lng}` });
-  if (bounds) query.set('bbox', bounds.join(','));
+  const query = new URLSearchParams({
+    ll: `${point.lng},${point.lat}`, pt: `${point.lng},${point.lat},pm2rdm`,
+    z: '16', lang: language === 'ru' ? 'ru_RU' : 'en_RU',
+  });
   return {
-    embed: bounds ? `https://www.openstreetmap.org/export/embed.html?${query}` : null,
-    openStreetMap: `https://www.openstreetmap.org/?mlat=${point.lat}&mlon=${point.lng}#map=17/${point.lat}/${point.lng}`,
+    // The projected widget cannot represent polar coordinates without moving the pin.
+    embed: Math.abs(point.lat) <= MAX_MERCATOR_LATITUDE ? `https://yandex.com/map-widget/v1/?${query}` : null,
     directions: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${point.lat},${point.lng}`)}`,
   };
 }

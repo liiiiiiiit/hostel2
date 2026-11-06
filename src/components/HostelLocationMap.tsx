@@ -9,7 +9,7 @@ interface LocationProps { currentLang: AppLanguage; name: string; address: strin
 export const PropertyLocationMap: React.FC<LocationProps> = ({ currentLang, name, address, point, verified = false, checkedAt, rental = false }) => {
   const t = mapText(currentLang);
   const c = locationText(currentLang);
-  const links = point ? getMapLinks(point) : null;
+  const links = point ? getMapLinks(point, currentLang) : null;
   const providers = getProviderLinks(point, address);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -30,7 +30,7 @@ export const PropertyLocationMap: React.FC<LocationProps> = ({ currentLang, name
       <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${verified ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}><ShieldCheck className="h-3.5 w-3.5" />{rental ? c.publicPoint : verified ? t.verified : t.approximate}</span>
     </div>
     <div className="relative h-72 bg-slate-100 sm:h-96">
-      {links?.embed ? <iframe key={links.embed} src={links.embed} title={`${t.title}: ${name}`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full border-0" />
+      {links?.embed ? <iframe key={links.embed} src={links.embed} title={`${t.title}: ${name}`} loading="lazy" allowFullScreen referrerPolicy="no-referrer" className="h-full w-full border-0" />
         : <div className="grid h-full place-items-center p-6 text-center text-sm text-slate-600"><div><MapPin className="mx-auto mb-3 h-8 w-8" />{!links && providers ? c.searchHint : t.unavailable}</div></div>}
     </div>
     <div className="space-y-4 p-5 sm:p-6">

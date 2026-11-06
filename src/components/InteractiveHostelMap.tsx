@@ -16,7 +16,7 @@ export const InteractiveHostelMap: React.FC<Props> = ({ hostels, selectedHostelI
   const { currentLang, getLocalized } = useLanguage(); const t = mapText(currentLang);
   const [internalSelectedId, setSelected] = useState<string | null>(hostels[0]?.id ?? null);
   const selected = hostels.find(hostel => hostel.id === (selectedHostelId !== undefined ? selectedHostelId : internalSelectedId)) ?? hostels[0];
-  const links = selected && selected.coordinatesProvided !== false ? getMapLinks(selected.coordinates) : null;
+  const links = selected && selected.coordinatesProvided !== false ? getMapLinks(selected.coordinates, currentLang) : null;
   if (!selected) return <div className={`rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 ${className}`}>{t.empty}</div>;
   return <section className={`overflow-hidden rounded-3xl border border-slate-200 bg-white ${className}`} aria-label={t.mapTitle}>
     {showTitle && <div className="p-5 sm:p-6"><h2 className="text-lg font-bold text-slate-950">{t.mapTitle}</h2><p className="mt-1 text-sm text-slate-500">{t.select}</p></div>}
@@ -30,7 +30,7 @@ export const InteractiveHostelMap: React.FC<Props> = ({ hostels, selectedHostelI
       </div>
       <div>
         <div className={`${heightClass} bg-slate-100`}>
-          {links?.embed ? <iframe key={links.embed} src={links.embed} title={`${t.mapTitle}: ${getLocalized(selected.name)}`} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full border-0" /> : <div className="grid h-full place-items-center p-8 text-center text-sm text-slate-500">{t.unavailable}</div>}
+          {links?.embed ? <iframe key={links.embed} src={links.embed} title={`${t.mapTitle}: ${getLocalized(selected.name)}`} loading="lazy" allowFullScreen referrerPolicy="no-referrer" className="h-full w-full border-0" /> : <div className="grid h-full place-items-center p-8 text-center text-sm text-slate-500">{t.unavailable}</div>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 p-5">
           <div><h3 className="text-sm font-bold">{getLocalized(selected.name)}</h3><p className="mt-1 text-xs leading-6 text-slate-500">{getLocalized(selected.address)}</p></div>

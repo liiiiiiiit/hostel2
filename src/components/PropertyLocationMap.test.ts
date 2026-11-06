@@ -27,8 +27,9 @@ test('rental maps in all languages use only public information, with address fal
     assert.ok(fallback.includes('yandex.com/maps/') && fallback.includes('google.com/maps/search/'));
     assert.ok(!fallback.includes('<iframe') && !fallback.includes('SECRET'));
     const pinned = renderToStaticMarkup(createElement(RentalLocationMap,{rental:{...rental,publicCoordinates:{lat:40.1,lng:44.2}},currentLang}));
-    assert.ok(pinned.includes('marker=40.1%2C44.2') && pinned.includes('pt=44.2%2C40.1%2Cpm2rdm'));
-    assert.ok(!pinned.includes('SECRET'));
+    assert.ok(pinned.includes('https://yandex.com/map-widget/v1/?') && pinned.includes('pt=44.2%2C40.1%2Cpm2rdm'));
+    assert.ok(!pinned.includes('SECRET') && !pinned.includes('openstreetmap.org'));
+    assert.ok(pinned.includes(`lang=${currentLang==='ru'?'ru_RU':'en_RU'}`));
   }
 });
 

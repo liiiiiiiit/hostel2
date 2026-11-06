@@ -81,6 +81,6 @@ Run `BROWSER_PATH=/path/to/chrome npm run test:responsive` for the mobile/tablet
 
 ### Property maps
 
-Hostel and rental detail pages share a responsive location card with a saved-point map, Yandex Maps and Google Maps links, Google directions and address copying. The embedded basemap uses OpenStreetMap; external provider links require no API key. Without a saved point the card offers public-address searches, not a fabricated pin.
+Hostel and rental detail pages share a responsive location card with a saved-point map, Yandex Maps and Google Maps links, Google directions and address copying. The embedded basemap uses the Yandex Maps iframe widget; external provider links require no API key. Without a saved point the card offers public-address searches, not a fabricated pin.
 
 For rentals, open **Admin → Homes & apartments → Edit → Basic information** and set the optional public latitude and longitude. These coordinates are visible to visitors; use an approximate public point when appropriate. Leave both blank to remove the pin. The internal exact address and landlord notes never enter map URLs. Existing listings remain compatible and require no database migration.
