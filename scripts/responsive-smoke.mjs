@@ -144,10 +144,17 @@ try {
             const brandOrder = await page.evaluate(() => {
               const mark = document.querySelector('.header-brand-mark').getBoundingClientRect();
               const wordmark = document.querySelector('.header-wordmark').getBoundingClientRect();
-              const markOnRight = window.innerWidth < 640 || document.querySelector('.site-header').dir === 'rtl';
+              const rtl = document.querySelector('.site-header').dir === 'rtl';
+              const markOnRight = window.innerWidth < 640 ? !rtl : rtl;
               return markOnRight ? mark.left >= wordmark.right - 1 : mark.right <= wordmark.left + 1;
             });
             assert.equal(brandOrder, true, `${prefix}: brand mark order must match the mobile/desktop language rule`);
+            const controlOrder = await page.evaluate(() => {
+              const language = document.querySelector('.header-controls button[aria-label="Select language"]').getBoundingClientRect();
+              const theme = document.querySelector('.header-controls [data-testid="theme-toggle"]').getBoundingClientRect();
+              return document.querySelector('.site-header').dir === 'rtl' ? language.left >= theme.right - 1 : language.right <= theme.left + 1;
+            });
+            assert.equal(controlOrder, true, `${prefix}: language control must precede the theme control in reading order`);
           }
           if (viewport.width >= 1280) {
             const desktopFits = await page.evaluate(() => {

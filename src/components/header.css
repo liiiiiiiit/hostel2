@@ -203,6 +203,11 @@ html.dark .site-header .header-controls .header-sign-in-button {
 html.dark .site-header .header-controls .header-sign-in-button:hover {
   background: #416f50;
 }
+@media (max-width: 639px) {
+  .site-header[dir="rtl"] .header-brand {
+    flex-direction: row;
+  }
+}
 @media (min-width: 380px) {
   .header-brand-mark {
     width: 40px;

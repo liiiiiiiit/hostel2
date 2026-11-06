@@ -141,11 +141,11 @@ export const Header: React.FC<Props> = ({
               </span>
             )}
           </button>
-          <ThemeToggle language={currentLang} />
           <LanguageSelector
             currentLang={currentLang}
             onLanguageChange={onLanguageChange}
           />
+          <ThemeToggle language={currentLang} />
           {currentUser ? (
             <div className="header-account" ref={accountRef}>
               <button

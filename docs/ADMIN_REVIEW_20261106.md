@@ -51,4 +51,6 @@ Replaced overlapping generations of header CSS and responsive flex/order utiliti
 Responsive CI now includes 1280px and 1440px in addition to the previous widths, and checks the three header regions for overlap on every inspected page, theme, account role and open-menu state.
 
 
-Current brand placement: below 640px the mark is on the physical right of the wordmark in every language. At 640px and above, Persian keeps the mark on the right, while English, Russian and Armenian put it on the left. This also covers the 980px layout used by a phone requesting the desktop site. The responsive matrix explicitly checks this rule in all four languages, including the additional 980px viewport.
+Current brand placement: below 640px Persian places the mark on the physical left of the wordmark, while English, Russian and Armenian place it on the right. At 640px and above, Persian keeps the mark on the right, while English, Russian and Armenian put it on the left. This also covers the 980px layout used by a phone requesting the desktop site. The responsive matrix explicitly checks this rule in all four languages, including the additional 980px viewport.
+
+The language selector and theme toggle exchange positions in every layout. Responsive CI also asserts their physical order for RTL and LTR headers.
