@@ -398,3 +398,44 @@ html.dark .header-controls > button:hover { background-color: #ffffff0d; }
 @media (prefers-reduced-motion: reduce) {
   .hero-slide-photo > img { animation: none; }
 }
+
+/* Workspaces share the public site's forest palette with denser operational layouts. */
+.dashboard-shell { --workspace-panel: #fff; --workspace-line: #dfe6e0; --workspace-hover: #f0f5f1; --workspace-muted: #5c7164; }
+.dashboard-heading { padding-block-end: 1.5rem; border-bottom: 1px solid var(--workspace-line); }
+.dashboard-nav { display: flex; flex-direction: column; gap: .25rem; padding: .75rem; border: 1px solid var(--workspace-line); background: var(--workspace-panel); border-radius: 1.25rem; }
+.dashboard-nav-caption { padding: .5rem .75rem .75rem; letter-spacing: .04em; }
+.dashboard-nav-item { display: flex; align-items: center; gap: .75rem; min-height: 46px; padding: .7rem .75rem; border-radius: .75rem; color: var(--workspace-muted); font-size: .875rem; font-weight: 550; text-align: start; overflow-wrap: anywhere; transition: background .15s, color .15s; }
+.dashboard-nav-item > svg { flex-shrink: 0; }
+.dashboard-nav-item:hover:not(:disabled) { background: var(--workspace-hover); color: var(--ink); }
+.dashboard-nav-item.is-active { background: #183d30; color: #fff; box-shadow: 0 3px 8px #183d3014; }
+.dashboard-nav-count { padding: .1rem .45rem; border-radius: .4rem; background: var(--workspace-hover); color: var(--ink); font-size: .7rem; }
+.dashboard-nav-item.is-active .dashboard-nav-count { background: #ffffff22; color: #fff; }
+.dashboard-menu-toggle { align-items: center; gap: .75rem; width: 100%; min-height: 50px; padding: .85rem 1rem; border-radius: 1rem; border: 1px solid var(--workspace-line); background: var(--workspace-panel); font-weight: 600; }
+.dashboard-content { outline: none; overflow-wrap: anywhere; }
+.dashboard-content :is(.flex, .grid) > * { min-width: 0; }
+.dashboard-stat { min-width: 0; padding: 1.25rem; border-radius: 1.25rem; border: 1px solid var(--workspace-line); background: var(--workspace-panel); box-shadow: 0 4px 20px -16px #183d3040; }
+button.dashboard-stat:hover { border-color: #799b84; background: var(--workspace-hover); }
+.dashboard-stat-icon, .admin-guest-avatar { display: inline-flex; justify-content: center; align-items: center; background: var(--workspace-hover); color: var(--ink); flex-shrink: 0; }
+.dashboard-stat-icon { width: 36px; height: 36px; border-radius: .75rem; }
+.admin-guest-avatar { width: 42px; height: 42px; border-radius: 50%; font-weight: 650; }
+.admin-booking-details { background: var(--workspace-hover); border-radius: .85rem; padding: 1rem; }
+.admin-booking-details dt { display: flex; gap: .4rem; align-items: center; font-size: .7rem; color: var(--workspace-muted); margin-bottom: .4rem; }
+.admin-booking-details dd { margin: 0; }
+.admin-workspace .surface { border-radius: 1.25rem; }
+html.dark .dashboard-shell { --workspace-panel: #19261f; --workspace-line: #35493c; --workspace-hover: #23372b; --workspace-muted: #b2c3b7; }
+html.dark .dashboard-nav-item.is-active { background: #326148; }
+@media (max-width: 1023px) {
+  .dashboard-nav { display: none; margin-top: .5rem; max-height: 60vh; overflow-y: auto; }
+  .dashboard-nav.is-open { display: flex; }
+  .dashboard-menu-toggle { display: flex; }
+  .dashboard-nav-caption { display: none; }
+}
+@media (min-width: 1024px) {
+  .dashboard-menu-toggle { display: none; }
+  .dashboard-nav { max-height: calc(100dvh - 7rem); overflow-y: auto; scrollbar-width: thin; }
+}
+@media (max-width: 479px) {
+  .dashboard-actions { width: 100%; }
+  .dashboard-actions > button { flex: 1 1 8rem; }
+  .dashboard-content .button-primary, .dashboard-content .button-secondary { padding-inline: .85rem; }
+}

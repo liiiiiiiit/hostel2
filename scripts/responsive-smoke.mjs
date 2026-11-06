@@ -184,9 +184,10 @@ try {
         const dashboard = role === 'account' ? 'traveler' : role;
         await page.getByTestId(`${dashboard}-dashboard`).waitFor();
         await inspect(page, `${prefix}-${role}`);
-        for (const tabName of ['profile', 'reception', 'finance', 'operations', 'hostels', 'rentals', 'articles']) {
+        for (const tabName of ['bookings', 'properties', 'managers', 'coupons', 'reviews', 'audit', 'profile', 'reception', 'finance', 'operations', 'hostels', 'rentals', 'articles']) {
           const tab = page.getByTestId('workspace-tab-' + tabName);
           if (await tab.count()) {
+            if (!await tab.isVisible()) await page.locator('.dashboard-menu-toggle').click();
             await tab.click();
             await inspect(page, `${prefix}-${role}-${tabName}`);
           }

@@ -13,6 +13,12 @@ const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:proc
 let browser;let activePage;let serverOutput="";
 server.stderr.on("data",chunk=>serverOutput+=String(chunk));
 const errors=[];
+async function workspaceTab(page,id) {
+  const tab=page.getByTestId('workspace-tab-'+id);
+  await tab.waitFor({state:'attached'});
+  if(!await tab.isVisible())await page.locator('.dashboard-menu-toggle').click();
+  await tab.click();
+}
 const artifactDirectory=process.env.BROWSER_ARTIFACTS_DIR;if(artifactDirectory)await mkdir(artifactDirectory,{recursive:true});
 try {
   await new Promise((resolve,reject)=>{
@@ -160,7 +166,7 @@ try {
   const crawled=await context.request.get(origin+'/en/hostels/browser-hostel');assert.equal(crawled.status(),200);const html=await crawled.text();assert.ok(html.includes('<title>Name English · YEREVANHUB</title>'));assert.ok(html.includes('hreflang="fa"'));assert.ok(html.includes('Name English'));
   assert.equal((await context.request.get(origin+'/en/hostels/missing-property')).status(),404);
   await otherPage.getByText('Double Room Guest',{exact:true}).waitFor();assert.match(await otherPage.locator('meta[name=robots]').getAttribute('content'),/noindex/);assert.ok(!(await otherPage.title()).includes('Double Room Guest'));
-  await page.getByTestId('workspace-tab-reception').click();const reception=page.getByTestId('reception-panel');await reception.getByLabel('Reception & calendar',{exact:true}).selectOption(managedHostel.id);await reception.getByLabel('Room type',{exact:true}).selectOption(managedHostel.roomTypes.find(room=>room.type==='dorm_female').id);
+  await workspaceTab(page,'reception');const reception=page.getByTestId('reception-panel');await reception.getByLabel('Reception & calendar',{exact:true}).selectOption(managedHostel.id);await reception.getByLabel('Room type',{exact:true}).selectOption(managedHostel.roomTypes.find(room=>room.type==='dorm_female').id);
   const manual=reception.locator('details').filter({has:page.getByText('Record external booking',{exact:true})}).first();await manual.locator('summary').first().click();
   await manual.getByLabel('Guest name',{exact:true}).fill('Telephone Guest');await manual.getByLabel('Contact',{exact:true}).fill('telephone@example.test');await manual.getByLabel('Booking source',{exact:true}).selectOption('telephone');await manual.getByLabel('Reason / note',{exact:true}).fill('Guest accepted conditions by telephone');await manual.getByLabel('Accepted conditions',{exact:true}).check();
   const externalResponse=page.waitForResponse(response=>response.url().endsWith('/api/app')&&response.request().method()==='POST'&&response.request().postDataJSON()?.action==='recordExternalBooking');await manual.getByRole('button',{name:'Save',exact:true}).click();const externalBooking=(await(await externalResponse).json()).booking;assert.equal(externalBooking.status,'confirmed');assert.equal(externalBooking.source,'telephone');
@@ -169,12 +175,12 @@ try {
   await action('Assign beds / rooms','assignUnits');await action('Record check-in','recordStayEvent');await action('Record check-out','recordStayEvent');
   assert.equal((await(await context.request.get(origin+'/api/app')).json()).state.bookings.find(b=>b.id===externalBooking.id).status,'completed');
   console.log('PASS reception records a telephone booking, assigns a physical bed, and records actual check-in/check-out');
-  await page.getByTestId('workspace-tab-finance').click();const finance=page.getByTestId('finance-panel');await finance.getByLabel('Guest name',{exact:true}).selectOption(externalBooking.id);await finance.getByLabel('Amount · AMD',{exact:true}).fill('1000');await finance.getByLabel('Reason / note',{exact:true}).fill('Cash recorded at reception');await finance.getByRole('button',{name:'Save',exact:true}).click();await finance.getByText('Saved.',{exact:true}).waitFor();
+  await workspaceTab(page,'finance');const finance=page.getByTestId('finance-panel');await finance.getByLabel('Guest name',{exact:true}).selectOption(externalBooking.id);await finance.getByLabel('Amount · AMD',{exact:true}).fill('1000');await finance.getByLabel('Reason / note',{exact:true}).fill('Cash recorded at reception');await finance.getByRole('button',{name:'Save',exact:true}).click();await finance.getByText('Saved.',{exact:true}).waitFor();
   assert.equal((await(await context.request.get(origin+'/api/app')).json()).state.financeEntries.filter(e=>e.bookingId===externalBooking.id).length,1);
   console.log('PASS finance records actual property payment separately from reservation value');
   const accountContext=await browser.newContext();await accountContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await accountContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const accountPassword=crypto.randomUUID();await accountContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'registerTraveler',args:['Browser Account','browser-account@example.test',null,accountPassword]}});
-  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await accountPage.getByTestId('workspace-tab-profile').click();const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
+  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await workspaceTab(accountPage,'profile');const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
   await accountPage.goto(origin+'/en/hostels/browser-hostel');await accountPage.getByRole('button',{name:'Save',exact:true}).click();
   const secondDevice=await browser.newContext();await secondDevice.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['browser-account@example.test',accountPassword]}});const accountState=(await(await secondDevice.request.get(origin+'/api/app')).json()).state;assert.equal(accountState.currentUser.name,'Updated Browser Account');assert.ok(accountState.savedPlaces.includes('hostel:'+managedHostel.id));await secondDevice.close();await accountContext.close();
   console.log('PASS profile edits and saved properties persist across independent authenticated browser contexts');
@@ -194,14 +200,14 @@ try {
       await screen.goto(origin+`/#/${role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();
       assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} mobile overflow`);
       if(role==='manager'){
-        await screen.getByTestId('workspace-tab-operations').click();
+        await workspaceTab(screen,'operations');
         await screen.getByTestId('workspace-property').selectOption(publicHostels[1].id);
         assert.equal(await screen.getByTestId('operations-property').inputValue(),publicHostels[1].id);
         await screen.getByTestId('operations-property').selectOption(publicHostels[0].id);
         assert.equal(await screen.getByTestId('workspace-property').inputValue(),publicHostels[0].id);
         assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: operations mobile overflow`);
       }
-      for(const tab of ['reception','finance','profile']){await screen.getByTestId('workspace-tab-'+tab).click();assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
+      for(const tab of ['reception','finance','profile']){await workspaceTab(screen,tab);assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
       if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,`${role}-fa-mobile.png`),fullPage:true});
     }
     await mobile.close();
