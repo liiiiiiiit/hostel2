@@ -27,7 +27,7 @@ const results = [], pageErrors = [];
 const viewports = [
   { width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 },
   { width: 430, height: 932 }, { width: 640, height: 800 }, { width: 768, height: 1024 }, { width: 820, height: 1180 },
-  { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 },
+  { width: 980, height: 900 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 },
 ];
 const headers = { 'X-Requested-With': 'YerevanHub' };
 async function action(context, name, args) {
@@ -144,9 +144,10 @@ try {
             const brandOrder = await page.evaluate(() => {
               const mark = document.querySelector('.header-brand-mark').getBoundingClientRect();
               const wordmark = document.querySelector('.header-wordmark').getBoundingClientRect();
-              return mark.left >= wordmark.right - 1;
+              const markOnRight = window.innerWidth < 640 || document.querySelector('.site-header').dir === 'rtl';
+              return markOnRight ? mark.left >= wordmark.right - 1 : mark.right <= wordmark.left + 1;
             });
-            assert.equal(brandOrder, true, `${prefix}: brand mark must appear to the right of the wordmark`);
+            assert.equal(brandOrder, true, `${prefix}: brand mark order must match the mobile/desktop language rule`);
           }
           if (viewport.width >= 1280) {
             const desktopFits = await page.evaluate(() => {

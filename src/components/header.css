@@ -224,6 +224,9 @@ html.dark .site-header .header-controls .header-sign-in-button:hover {
     justify-self: start;
     gap: 10px;
   }
+  .site-header[dir="ltr"] .header-brand {
+    flex-direction: row;
+  }
   .header-controls {
     justify-self: end;
     gap: 6px;
