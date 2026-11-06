@@ -27,7 +27,7 @@ async function inspect(page,label,screenshot=false) {
     const bounds=form.getBoundingClientRect();
     const controls=[...form.querySelectorAll('input,select,button[type="submit"]')].map(element=>{
       const rect=element.getBoundingClientRect(),parent=element.parentElement.getBoundingClientRect();
-      return {id:element.id||'submit',left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,parentLeft:parent.left,parentRight:parent.right,boxSizing:getComputedStyle(element).boxSizing};
+      return {id:element.id||'submit',left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,parentLeft:parent.left,parentRight:parent.right,boxSizing:getComputedStyle(element).boxSizing,direction:getComputedStyle(element).direction};
     });
     const issues=[];
     for(const control of controls) {
@@ -35,6 +35,7 @@ async function inspect(page,label,screenshot=false) {
       if(control.id!=='submit'&&(control.left<control.parentLeft-1||control.right>control.parentRight+1))issues.push(`${control.id}: outside label`);
       if(control.boxSizing!=='border-box')issues.push(`${control.id}: incorrect box sizing`);
       if(control.id.includes('check')&&control.width<140)issues.push(`${control.id}: date too narrow`);
+      if(control.id.includes('check')&&control.direction!=='ltr')issues.push(`${control.id}: ambiguous RTL date order`);
     }
     for(let i=0;i<controls.length;i++)for(const b of controls.slice(i+1)) {
       const a=controls[i];

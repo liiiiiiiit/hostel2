@@ -511,6 +511,10 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
   -webkit-appearance: none;
   appearance: none;
   min-height: 52px;
+  padding-block: .75rem;
+  line-height: 1.5;
+  direction: ltr;
+  unicode-bidi: isolate;
   text-align: start;
 }
 .home-search-form input[type="date"]::-webkit-date-and-time-value {
