@@ -122,7 +122,7 @@ try {
       const prefix = `${language}-${viewport.width}`;
       for (const [name, segment] of routes) {
         await navigate(page, `/${language}/${segment}`);
-        await inspect(page, `${prefix}-${name}`, language === 'fa' && [390, 768, 1024].includes(viewport.width) && ['home', 'hostel', 'translator'].includes(name));
+        await inspect(page, `${prefix}-${name}`, language === 'fa' && [390, 768, 1024, 1366].includes(viewport.width) && ['home', 'hostel', 'translator'].includes(name));
         if (name === 'home') {
           const overlap = await page.evaluate(() => {
             const brand = document.querySelector('.header-brand').getBoundingClientRect();
@@ -130,6 +130,24 @@ try {
             return brand.left < controls.right && controls.left < brand.right && brand.top < controls.bottom && controls.top < brand.bottom;
           });
           assert.equal(overlap, false, `${prefix}: header brand and controls overlap`);
+          if (viewport.width >= 1024) {
+            const brandOrder = await page.evaluate(() => {
+              const mark = document.querySelector('.header-brand-mark').getBoundingClientRect();
+              const wordmark = document.querySelector('.header-wordmark').getBoundingClientRect();
+              return document.documentElement.dir === 'rtl' ? mark.left >= wordmark.right - 1 : mark.right <= wordmark.left + 1;
+            });
+            assert.equal(brandOrder, true, `${prefix}: desktop logo does not follow reading direction`);
+          }
+          if (viewport.width >= 1280) {
+            const desktopFits = await page.evaluate(() => {
+              const nav = document.querySelector('.desktop-navigation').getBoundingClientRect();
+              const brand = document.querySelector('.header-brand').getBoundingClientRect();
+              const controls = document.querySelector('.header-controls').getBoundingClientRect();
+              const overlaps = rect => nav.left < rect.right && rect.left < nav.right && nav.top < rect.bottom && rect.top < nav.bottom;
+              return !overlaps(brand) && !overlaps(controls);
+            });
+            assert.equal(desktopFits, true, `${prefix}: desktop navigation overlaps header controls`);
+          }
           // Larger text and every translation must fit the slide, not just the first image.
           await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
           for (let index = 0; index < 3; index++) {

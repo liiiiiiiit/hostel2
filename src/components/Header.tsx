@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Heart, Menu, X, UserRound, LogOut, LayoutDashboard } from 'lucide-react';
+import { ArrowUpRight, Heart, Menu, X, UserRound, LogOut, LayoutDashboard, BedDouble, House, BookOpen, Languages } from 'lucide-react';
 import type { AppLanguage, User } from '../types';
 import { LanguageSelector } from './LanguageSelector';
 import { ThemeToggle } from './ThemeToggle';
@@ -25,6 +25,7 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const mobileNavigationRef = useRef<HTMLElement>(null);
   const nav = [ ['hostels', text.hostels], ['rentals', text.rentals], ['guide', text.guide], ['translator', text.translator] ];
+  const navIcons: Record<string, typeof BedDouble> = { hostels: BedDouble, rentals: House, guide: BookOpen, translator: Languages };
   const isActive = (view: string) => activeView === view || (view === 'hostels' && activeView === 'hostel-detail') || (view === 'rentals' && activeView === 'rental-detail') || (view === 'guide' && activeView === 'article-detail');
   const accountView = currentUser?.role === 'admin' ? 'admin' : currentUser?.role === 'hostel_manager' ? 'manager' : 'account';
   const accountLabel = currentUser?.role === 'admin' ? text.admin : currentUser?.role === 'hostel_manager' ? text.manager : text.account;
@@ -64,8 +65,11 @@ export const Header: React.FC<Props> = ({ currentLang, onLanguageChange, activeV
         </span>
         <span className="brand-name header-wordmark"><span>YEREVAN</span><span>HUB</span></span>
       </button>
-      <nav aria-label={text.menu} className="hidden items-center gap-1 sm:order-2 xl:flex">
-        {nav.map(([view,label]) => <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className={`rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${isActive(view) ? 'bg-[#142f2a]/7 text-[#142f2a] underline underline-offset-8 decoration-2' : 'text-slate-600 hover:bg-white hover:text-[#142f2a]'}`}>{label}</button>)}
+      <nav aria-label={text.menu} className="desktop-navigation hidden sm:order-2 xl:flex">
+        {nav.map(([view,label]) => {
+          const Icon = navIcons[view];
+          return <button type="button" key={view} onClick={() => navigate(view)} aria-current={isActive(view) ? 'page' : undefined} className="header-nav-link"><Icon className="header-nav-icon" aria-hidden="true" strokeWidth={1.7}/><span>{label}</span></button>;
+        })}
       </nav>
 
     </div>
