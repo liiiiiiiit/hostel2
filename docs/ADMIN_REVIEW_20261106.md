@@ -38,3 +38,5 @@ This review fixes the issues listed above; it does not establish that every poss
 - Extracted `AdminOverview`: dated welcome banner, four summary cards, compact recent bookings, quick-action tiles, attention queue, property publication counts and recent activity. All figures come from the current API state; draft counts use `listingStatus` with legacy fallback.
 - Replaced competing export buttons with a native, keyboard-accessible report menu. Booking filters now use an aligned responsive grid.
 - Added admin overview/navigation screenshots at mobile and desktop widths to the responsive CI job, plus open-menu overflow coverage in every language.
+
+- Browser QA exposed a startup/lazy-loading race in the responsive harness: waiting for the first loader to disappear could measure a subsequent Suspense fallback rather than the final page. Navigation now waits for a real page heading before inspecting layout; the loading skeleton also explicitly constrains its grid tracks and wraps long localized text.

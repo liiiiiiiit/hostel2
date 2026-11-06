@@ -47,6 +47,10 @@ async function navigate(page, url) {
   if (hashOnly) await page.reload({ waitUntil: 'domcontentloaded' });
   await loaded;
   await page.locator('.app-shell > header').waitFor();
+  // Startup and React.lazy can mount separate fallbacks in succession. Wait for
+  // actual page content before measuring; absence of the first loader can race
+  // the second one and accidentally measure a hidden Suspense subtree.
+  await page.locator('main h1, main h2').first().waitFor({ state: 'visible' });
   await page.getByTestId('content-loading').first().waitFor({ state: 'hidden' });
   await page.locator('#site-preloader').waitFor({ state: 'detached' });
   await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); });
