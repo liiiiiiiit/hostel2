@@ -38,6 +38,18 @@ try {
   await page.goto(origin+'/#/booking/invalid-token');await page.getByRole('alert').waitFor();
   await page.locator('main').getByText('Page not found or access unavailable.',{exact:true}).waitFor();
   await page.goto(origin+'/');
+  for(const [asset,mime] of [
+    ['/favicon.svg',/^image\/svg\+xml/],
+    ['/favicon.ico',/^image\/(x-icon|vnd\.microsoft\.icon)/],
+    ['/favicon-32x32.png',/^image\/png/],
+    ['/apple-touch-icon.png',/^image\/png/],
+  ]) {
+    const response=await context.request.get(origin+asset);
+    assert.equal(response.status(),200,asset);
+    assert.match(response.headers()['content-type'],mime,asset);
+  }
+  assert.equal(await page.locator('head link[rel="icon"][type="image/svg+xml"]').getAttribute('href'),'/favicon.svg');
+  assert.equal(await page.locator('head link[rel="apple-touch-icon"]').getAttribute('href'),'/apple-touch-icon.png');
   await page.getByRole('button',{name:'Details & Booking',exact:true}).first().click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Compare',exact:true}).click();
