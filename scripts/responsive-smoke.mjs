@@ -183,7 +183,20 @@ try {
         await navigate(page, `/#/${role}`);
         const dashboard = role === 'account' ? 'traveler' : role;
         await page.getByTestId(`${dashboard}-dashboard`).waitFor();
-        await inspect(page, `${prefix}-${role}`);
+        const adminScreenshot = role === 'admin' && language === 'fa' && [390, 1366].includes(viewport.width);
+        await inspect(page, `${prefix}-${role}`, adminScreenshot);
+        if (role === 'admin') {
+          const reports = page.locator('.admin-report-menu');
+          await reports.locator('summary').click();
+          await inspect(page, `${prefix}-admin-reports`);
+          await reports.locator('summary').click();
+          const menu = page.locator('.dashboard-menu-toggle');
+          if (await menu.isVisible()) {
+            await menu.click();
+            await inspect(page, `${prefix}-admin-navigation`, adminScreenshot);
+            await menu.click();
+          }
+        }
         for (const tabName of ['bookings', 'properties', 'managers', 'coupons', 'reviews', 'audit', 'profile', 'reception', 'finance', 'operations', 'hostels', 'rentals', 'articles']) {
           const tab = page.getByTestId('workspace-tab-' + tabName);
           if (await tab.count()) {

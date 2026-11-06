@@ -1,3 +1,4 @@
+import { AdminOverview } from "../components/admin/AdminOverview";
 import { AdminArticles } from "../components/admin/AdminArticles";
 import { AdminField as Field } from "../components/admin/AdminField";
 import { AdminBookingCard } from "../components/admin/AdminBookingCard";
@@ -24,6 +25,8 @@ import {
   House,
   Search,
   Download,
+  ChevronDown,
+  Wallet,
   Plus,
   ArrowUpRight,
   Check,
@@ -33,11 +36,7 @@ import {
 import { appStore } from "../services/store";
 import { useLanguage } from "../context/LanguageContext";
 import { dashboardText, bookingStatusText } from "../i18n/dashboard";
-import {
-  DashboardLayout,
-  DashboardStat,
-  DashboardEmpty,
-} from "../components/DashboardLayout";
+import { DashboardLayout, DashboardEmpty } from "../components/DashboardLayout";
 import { PropertyOperationsPanel } from "../components/PropertyOperationsPanel";
 import { toCsv } from "../utils/csv";
 import { yerevanToday } from "../utils/dates";
@@ -114,9 +113,6 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const pendingReviews = state.reviews.filter((r) => r.status === "pending");
   const inquiries = state.rentalInquiries.filter(
     (i) => i.status === "pending_review",
-  );
-  const unresolved = state.bookings.filter(
-    (b) => b.entranceIssueReported && b.status === "confirmed",
   );
   const go = (id: string) => {
     if (actionLock.current) return;
@@ -200,6 +196,50 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       icon: <Users size={17} />,
     },
   ];
+  const navigationGroups = [
+    {
+      label: admin.daily,
+      ids: ["overview", "bookings", "reception", "finance"],
+    },
+    {
+      label: admin.propertyGroup,
+      ids: ["properties", "operations", "managers"],
+    },
+    {
+      label: admin.contentGroup,
+      ids: ["rentals", "reviews", "articles", "coupons"],
+    },
+    { label: admin.system, ids: ["audit", "profile"] },
+  ];
+  const organizedNav = navigationGroups.flatMap((group) =>
+    group.ids.flatMap((id) => {
+      const item = nav.find((item) => item.id === id);
+      return item
+        ? [
+            {
+              ...item,
+              group: group.label,
+              icon: id === "finance" ? <Wallet size={17} /> : item.icon,
+            },
+          ]
+        : [];
+    }),
+  );
+  const openBookings = (
+    options: {
+      status?: BookingStatus | "all";
+      arrivalsOn?: string;
+      issuesOnly?: boolean;
+    } = {},
+  ) => {
+    if (actionLock.current) return;
+    go("bookings");
+    setStatus(options.status ?? "all");
+    setArrivalsOn(options.arrivalsOn ?? "");
+    setIssuesOnly(options.issuesOnly ?? false);
+    setQuery("");
+    setPage(1);
+  };
   const exportCsv = () =>
     download(
       `bookings-${today}.csv`,
@@ -311,39 +351,72 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     </div>
   );
   const actions = (
-    <>
-      <button className="button-secondary" onClick={exportCsv}>
-        <Download size={15} />
-        {t.download}
-      </button>
-      <button
-        className="button-secondary"
-        onClick={() =>
-          download(
-            `bookings-${today}.json`,
-            JSON.stringify(
-              {
-                exportedAt: new Date().toISOString(),
-                currency: "AMD",
-                bookings: bookingReport(filtered),
-              },
-              null,
-              2,
-            ),
-            "application/json",
-          )
+    <details
+      className="admin-report-menu"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector("summary")?.focus();
         }
-      >
-        {t.backup}
-      </button>
-    </>
+      }}
+    >
+      <summary className="button-secondary">
+        <Download size={16} />
+        {admin.report}
+        <ChevronDown size={14} />
+      </summary>
+      <div className="admin-report-options">
+        <button
+          type="button"
+          onClick={(event) => {
+            exportCsv();
+            event.currentTarget.closest("details")?.removeAttribute("open");
+          }}
+        >
+          {t.download} · CSV
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            download(
+              `bookings-${today}.json`,
+              JSON.stringify(
+                {
+                  exportedAt: new Date().toISOString(),
+                  currency: "AMD",
+                  bookings: bookingReport(filtered),
+                },
+                null,
+                2,
+              ),
+              "application/json",
+            );
+            event.currentTarget.closest("details")?.removeAttribute("open");
+          }}
+        >
+          {t.backup} · JSON
+        </button>
+      </div>
+    </details>
   );
   return (
     <div data-testid="admin-dashboard" className="admin-workspace">
       <DashboardLayout
         title={t.admin}
         subtitle={t.welcome}
-        nav={nav}
+        nav={organizedNav}
+        organized
+        sidebarFooter={
+          <div className="admin-sidebar-identity">
+            <span aria-hidden="true">
+              {Array.from(state.currentUser?.name || "A")[0]}
+            </span>
+            <div>
+              <strong>{state.currentUser?.name}</strong>
+              <p>{admin.account}</p>
+            </div>
+          </div>
+        }
         active={section}
         onChange={go}
         actions={actions}
@@ -359,114 +432,24 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
           </div>
         )}
         {section === "overview" && (
-          <>
-            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <DashboardStat
-                label={t.needsAction}
-                value={pending.length}
-                icon={<CalendarDays size={18} />}
-                onClick={() => {
-                  go("bookings");
-                  setStatus("pending");
-                  setArrivalsOn("");
-                  setQuery("");
-                  setIssuesOnly(false);
-                  setPage(1);
-                }}
-              />
-              <DashboardStat
-                label={t.todayArrivals}
-                icon={<CalendarDays size={18} />}
-                value={
-                  state.bookings.filter(
-                    (b) => b.checkIn === today && b.status === "confirmed",
-                  ).length
-                }
-                onClick={() => {
-                  go("bookings");
-                  setStatus("confirmed");
-                  setQuery("");
-                  setArrivalsOn(today);
-                  setIssuesOnly(false);
-                  setPage(1);
-                }}
-              />
-              <DashboardStat
-                label={t.reviewCount}
-                icon={<Star size={18} />}
-                value={pendingReviews.length}
-                onClick={() => go("reviews")}
-              />
-              <DashboardStat
-                label={t.propertiesCount}
-                icon={<Building2 size={18} />}
-                value={state.hostels.length}
-                onClick={() => go("properties")}
-              />
-            </div>
-            {unresolved.length > 0 && (
-              <button
-                className="w-full text-start surface p-4 border-rose-200 text-rose-800"
-                onClick={() => {
-                  go("bookings");
-                  setStatus("all");
-                  setQuery("");
-                  setIssuesOnly(true);
-                  setArrivalsOn("");
-                  setPage(1);
-                }}
-              >
-                {t.unresolved} · {unresolved.length}
-              </button>
-            )}
-            <div className="surface p-5">
-              <h2 className="font-semibold mb-4">{t.shortcuts}</h2>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  className="button-primary"
-                  onClick={() => go("operations")}
-                >
-                  <Settings2 size={16} />
-                  {t.manageProperty}
-                </button>
-                <button
-                  className="button-secondary"
-                  onClick={() => {
-                    go("managers");
-                    setShowForm(true);
-                  }}
-                >
-                  <Users size={16} />
-                  {tAdmin.createManagerTitle}
-                </button>
-                <button
-                  className="button-secondary"
-                  onClick={() => {
-                    go("articles");
-                    setShowForm(true);
-                  }}
-                >
-                  <Plus size={16} />
-                  {tAdmin.createArticleTitle}
-                </button>
-              </div>
-            </div>
-            {sectionHeader(t.recentBookings)}
-            <div className="space-y-4">
-              {selectAdminBookings(state.bookings, {})
-                .slice(0, 5)
-                .map(bookingCard)}
-              {state.bookings.length === 0 && (
-                <DashboardEmpty title={t.noResults} />
-              )}
-            </div>
-          </>
+          <AdminOverview
+            state={state}
+            today={today}
+            onSection={go}
+            onBookings={openBookings}
+            onNavigate={onNavigate}
+            onCreate={(section) => {
+              if (actionLock.current) return;
+              go(section);
+              setShowForm(true);
+            }}
+          />
         )}
         {section === "bookings" && (
           <>
             {sectionHeader(t.bookings)}
-            <div className="surface p-4 flex flex-wrap gap-3">
-              <label className="relative flex-1 min-w-0 basis-64">
+            <div className="surface admin-booking-filters p-4">
+              <label className="relative min-w-0 admin-booking-search">
                 <Search
                   size={17}
                   className="absolute start-3 top-3.5 text-slate-400"

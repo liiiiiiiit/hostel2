@@ -29,3 +29,12 @@ Based on `codex/hostel-ux-redesign-20261105` at `c9ec7a4`, which includes the re
 No schema migration or new environment variable is introduced. Review and merge into the latest redesign branch, then deploy that branch using the existing VPS process (`npm ci`, checks/build, and restart `hostel2.service`). The dependency override is recorded in both package files and is applied by `npm ci`.
 
 This review fixes the issues listed above; it does not establish that every possible defect or production configuration issue has been eliminated. Live provider credentials, VPS configuration and real-device visual acceptance were not available in this workspace.
+
+
+## Follow-up: organized admin interface
+
+- Grouped sidebar into daily operations, properties/hosts, content/requests and administration. Existing navigation identifiers and workflows remain intact.
+- Added an admin-specific page heading and administrator identity; shared traveler and manager dashboards retain their existing presentation.
+- Extracted `AdminOverview`: dated welcome banner, four summary cards, compact recent bookings, quick-action tiles, attention queue, property publication counts and recent activity. All figures come from the current API state; draft counts use `listingStatus` with legacy fallback.
+- Replaced competing export buttons with a native, keyboard-accessible report menu. Booking filters now use an aligned responsive grid.
+- Added admin overview/navigation screenshots at mobile and desktop widths to the responsive CI job, plus open-menu overflow coverage in every language.

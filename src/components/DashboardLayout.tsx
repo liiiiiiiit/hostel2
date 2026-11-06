@@ -14,6 +14,7 @@ export interface DashboardNavItem {
   label: string;
   icon?: React.ReactNode;
   count?: number;
+  group?: string;
 }
 export function DashboardLayout({
   title,
@@ -24,6 +25,8 @@ export function DashboardLayout({
   children,
   actions,
   disabled = false,
+  sidebarFooter,
+  organized = false,
 }: {
   title: string;
   subtitle?: string;
@@ -33,6 +36,8 @@ export function DashboardLayout({
   children: React.ReactNode;
   actions?: React.ReactNode;
   disabled?: boolean;
+  sidebarFooter?: React.ReactNode;
+  organized?: boolean;
 }) {
   const { currentLang } = useLanguage(),
     t = dashboardText(currentLang);
@@ -50,15 +55,18 @@ export function DashboardLayout({
     );
   };
   return (
-    <div className="dashboard-shell max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <div
+      className={`${organized ? "dashboard-organized " : ""}dashboard-shell max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8`}
+    >
       <header className="dashboard-heading flex flex-wrap items-center justify-between gap-5 mb-6">
         <div className="min-w-0">
           <p className="eyebrow mb-2 flex items-center gap-2">
             <LayoutDashboard size={14} />
-            YEREVANHUB <span aria-hidden="true">/</span> {t.workspace}
+            YEREVANHUB <span aria-hidden="true">/</span>{" "}
+            {organized ? title : t.workspace}
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950">
-            {title}
+            {organized ? (selected?.label ?? title) : title}
           </h1>
           {subtitle && (
             <p className="text-sm text-slate-500 mt-2 max-w-2xl">{subtitle}</p>
@@ -98,25 +106,33 @@ export function DashboardLayout({
             }}
           >
             <p className="dashboard-nav-caption eyebrow">{t.menu}</p>
-            {nav.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                disabled={disabled}
-                data-testid={`workspace-tab-${item.id}`}
-                aria-current={active === item.id ? "page" : undefined}
-                onClick={() => change(item.id)}
-                className={`dashboard-nav-item ${active === item.id ? "is-active" : ""}`}
-              >
-                {item.icon}
-                <span className="min-w-0 flex-1">{item.label}</span>
-                {item.count !== undefined && item.count > 0 && (
-                  <span className="dashboard-nav-count">
-                    {item.count.toLocaleString(currentLang)}
-                  </span>
+            {nav.map((item, index) => (
+              <React.Fragment key={item.id}>
+                {item.group && item.group !== nav[index - 1]?.group && (
+                  <h2 className="dashboard-nav-group">{item.group}</h2>
                 )}
-              </button>
+                <button
+                  type="button"
+                  key={item.id}
+                  disabled={disabled}
+                  data-testid={`workspace-tab-${item.id}`}
+                  aria-current={active === item.id ? "page" : undefined}
+                  onClick={() => change(item.id)}
+                  className={`dashboard-nav-item ${active === item.id ? "is-active" : ""}`}
+                >
+                  {item.icon}
+                  <span className="min-w-0 flex-1">{item.label}</span>
+                  {item.count !== undefined && item.count > 0 && (
+                    <span className="dashboard-nav-count">
+                      {item.count.toLocaleString(currentLang)}
+                    </span>
+                  )}
+                </button>
+              </React.Fragment>
             ))}
+            {sidebarFooter && (
+              <div className="dashboard-sidebar-footer">{sidebarFooter}</div>
+            )}
           </nav>
         </aside>
         <div

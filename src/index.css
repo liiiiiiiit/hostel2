@@ -439,3 +439,118 @@ html.dark .dashboard-nav-item.is-active { background: #326148; }
   .dashboard-actions > button { flex: 1 1 8rem; }
   .dashboard-content .button-primary, .dashboard-content .button-secondary { padding-inline: .85rem; }
 }
+
+/* Organized administration: grouped navigation and a compact daily overview. */
+.dashboard-nav-group { margin: 1rem .75rem .35rem; color: var(--workspace-muted); font-size: .65rem; font-weight: 650; letter-spacing: .04em; line-height: 1.7; }
+.dashboard-nav-group:first-of-type { margin-top: .3rem; }
+.dashboard-organized .dashboard-nav-caption { display: none; }
+.dashboard-organized .dashboard-heading { border: 0; margin-bottom: 1.5rem; padding-bottom: 0; }
+.dashboard-organized .dashboard-nav { padding: .85rem .65rem; border-radius: 1.35rem; box-shadow: 0 8px 30px -24px #183d3040; }
+.dashboard-organized .dashboard-nav-item { padding: .65rem .8rem; min-height: 44px; font-size: .8rem; }
+.dashboard-organized .dashboard-nav-item.is-active { background: #e8f2eb; color: #21573b; box-shadow: inset 3px 0 0 #347652; }
+[dir="rtl"] .dashboard-organized .dashboard-nav-item.is-active { box-shadow: inset -3px 0 0 #347652; }
+.dashboard-organized .dashboard-nav-item.is-active .dashboard-nav-count { background: #21573b; color: white; }
+.dashboard-sidebar-footer { margin: 1rem .4rem 0; border-top: 1px solid var(--workspace-line); padding-top: 1rem; }
+.admin-sidebar-identity { display: flex; align-items: center; gap: .7rem; padding-inline: .4rem; }
+.admin-sidebar-identity > span { display: grid; place-items: center; width: 35px; height: 35px; border-radius: .75rem; background: var(--workspace-hover); font-weight: 650; flex-shrink: 0; }
+.admin-sidebar-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.admin-sidebar-identity strong { display: block; font-size: .78rem; }
+.admin-sidebar-identity p { font-size: .7rem; color: var(--workspace-muted); }
+.admin-report-menu { position: relative; }
+.admin-report-menu > summary { list-style: none; user-select: none; }
+.admin-report-menu > summary::-webkit-details-marker { display: none; }
+.admin-report-options { position: absolute; z-index: 25; inset-inline-end: 0; top: calc(100% + .5rem); width: max-content; max-width: min(280px, 80vw); padding: .4rem; border: 1px solid var(--workspace-line); border-radius: 1rem; background: var(--workspace-panel); box-shadow: 0 12px 40px #102c231a; }
+.admin-report-options > button { display: block; text-align: start; width: 100%; padding: .7rem .9rem; border-radius: .6rem; font-size: .8rem; }
+.admin-report-options > button:hover { background: var(--workspace-hover); }
+.admin-day-banner { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 1.75rem; border-radius: 1.35rem; background: radial-gradient(ellipse at top right, #416c51, transparent 65%), #183d30; color: #fff; }
+.admin-day-label { display: inline-flex; align-items: center; gap: .5rem; font-size: .68rem; color: #d9e8db; }
+.admin-day-label > span { width: 6px; height: 6px; background: #b9d89f; border-radius: 50%; }
+.admin-day-banner h2 { font-size: clamp(1.1rem, 2.2vw, 1.65rem); font-weight: 650; margin: .55rem 0; color: #fff; }
+.admin-day-banner p { color: #d7e4da; font-size: .8rem; max-width: 35rem; }
+.admin-day-date { display: inline-flex; align-items: center; gap: .6rem; border: 1px solid #ffffff26; border-radius: .85rem; background: #ffffff0c; padding: .8rem 1rem; font-size: .75rem; flex-shrink: 0; }
+.admin-day-date svg { flex-shrink: 0; }
+.admin-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.admin-overview .dashboard-stat { position: relative; padding: 1.15rem; box-shadow: none; }
+.admin-overview .dashboard-stat .text-3xl { font-size: 2rem; }
+.admin-overview .dashboard-stat-icon { background: #edf4ef; color: #3b6b4b; width: 32px; height: 32px; }
+.admin-overview-columns { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.admin-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.3rem 1.4rem; border-bottom: 1px solid var(--workspace-line); }
+.admin-panel-heading h2 { font-size: .95rem; font-weight: 650; }
+.admin-panel-heading p { font-size: .75rem; color: var(--workspace-muted); margin-top: .4rem; }
+.admin-panel-kicker { display: block; font-size: .65rem; color: var(--workspace-muted); margin-bottom: .3rem; }
+.admin-text-link { display: inline-flex; align-items: center; gap: .4rem; color: var(--ink); font-size: .72rem; font-weight: 600; flex-shrink: 0; padding-block: .5rem; }
+.admin-text-link:hover { text-decoration: underline; text-underline-offset: .3rem; }
+.admin-recent-row { display: flex; align-items: center; gap: .85rem; width: 100%; padding: 1.05rem 1.4rem; text-align: start; border-bottom: 1px solid var(--workspace-line); }
+.admin-recent-row:last-child { border-bottom: 0; border-radius: 0 0 1.25rem 1.25rem; }
+.admin-recent-row:hover { background: var(--workspace-hover); }
+.admin-recent-guest { min-width: 0; flex: 1; }
+.admin-recent-guest > strong, .admin-recent-guest > span, .admin-recent-guest > time { display: block; }
+.admin-recent-guest > strong { font-size: .85rem; font-weight: 600; }
+.admin-recent-guest > span, .admin-recent-guest > time { color: var(--workspace-muted); font-size: .7rem; margin-top: .15rem; }
+.admin-recent-guest > time { font-size: .65rem; direction: ltr; unicode-bidi: isolate; text-align: start; }
+.admin-recent-amount { display: flex; flex-direction: column; align-items: end; gap: .4rem; max-width: 45%; }
+.admin-recent-amount > strong { font-size: .8rem; font-weight: 600; }
+.admin-recent-amount small { font-size: .6rem; font-weight: 400; }
+.admin-recent-amount > span { font-size: .65rem; }
+.admin-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: 1.25rem; }
+.admin-shortcuts > button { position: relative; display: flex; flex-direction: column; align-items: start; gap: .75rem; text-align: start; border: 1px solid var(--workspace-line); border-radius: 1rem; padding: 1rem; font-size: .75rem; font-weight: 550; }
+.admin-shortcuts > button:hover { background: var(--workspace-hover); border-color: #7a9e86; }
+.admin-shortcuts > button > svg:last-child { position: absolute; inset-inline-end: .8rem; top: 1rem; color: var(--workspace-muted); }
+.admin-shortcut-icon { display: grid; place-items: center; height: 36px; width: 36px; border-radius: .65rem; background: var(--workspace-hover); }
+.admin-attention-total { display: grid; place-items: center; min-width: 28px; padding-inline: .5rem; height: 28px; border-radius: .6rem; background: #fff3dd; color: #825f25; font-size: .75rem; font-weight: 650; }
+.admin-attention-list { margin-top: 1rem; }
+.admin-attention-list > button { display: flex; align-items: center; gap: .65rem; width: 100%; text-align: start; padding: .85rem 0; border-bottom: 1px solid var(--workspace-line); }
+.admin-attention-list > button:last-child { border: 0; padding-bottom: 0; }
+.admin-attention-list > button > span { flex: 1; font-size: .75rem; }
+.admin-attention-list > button > strong { font-size: .8rem; }
+.admin-attention-list > button > svg { flex-shrink: 0; color: var(--workspace-muted); }
+.admin-all-clear { padding-top: 1.5rem; color: var(--workspace-muted); }
+.admin-all-clear > svg { color: #4c855d; margin-bottom: .75rem; }
+.admin-all-clear h3 { font-size: .85rem; color: var(--ink); font-weight: 600; }
+.admin-all-clear p { margin-top: .4rem; font-size: .75rem; }
+.admin-inventory { margin-top: 1.25rem; font-size: .75rem; }
+.admin-inventory > div { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-block: .45rem; }
+.admin-inventory dt { color: var(--workspace-muted); }
+.admin-inventory dd { font-weight: 650; }
+.admin-activity-list { margin-top: 1.25rem; }
+.admin-activity-list article { display: flex; align-items: start; gap: .75rem; padding-bottom: 1.25rem; }
+.admin-activity-list article:last-child { padding-bottom: 0; }
+.admin-activity-list article > span { width: 7px; height: 7px; background: #83a48b; border-radius: 50%; flex-shrink: 0; margin-top: .5rem; }
+.admin-activity-list strong { font-size: .75rem; font-weight: 600; }
+.admin-activity-list p { color: var(--workspace-muted); font-size: .7rem; margin-block: .15rem; }
+.admin-activity-list time { color: var(--workspace-muted); font-size: .6rem; }
+.admin-booking-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr) minmax(0, .8fr); gap: 1rem; align-items: end; }
+.admin-booking-search { grid-column: 1 / -1; }
+.admin-booking-filters > .field { max-width: none; }
+.admin-booking-filters > .field-label { margin-bottom: 0; }
+.admin-workspace .dashboard-content > .flex > h2 { font-size: 1.15rem; }
+html.dark .dashboard-organized .dashboard-nav-item.is-active { background: #284a36; color: #c3e2cb; box-shadow: inset 3px 0 0 #9ec9ac; }
+html.dark[dir="rtl"] .dashboard-organized .dashboard-nav-item.is-active { box-shadow: inset -3px 0 0 #9ec9ac; }
+html.dark .admin-overview .dashboard-stat-icon { background: #243e2d; color: #c0d8c5; }
+html.dark .admin-attention-total { background: #433720; color: #ebcb94; }
+html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, #31523e, transparent 65%), #1b3528; }
+@media (max-width: 1279px) {
+  .admin-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-overview-columns { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+  .admin-day-banner { align-items: start; flex-direction: column; padding: 1.35rem; gap: 1rem; }
+  .admin-day-date { padding: .55rem .75rem; font-size: .7rem; flex-shrink: 1; }
+  .admin-shortcuts { grid-template-columns: minmax(0, 1fr); }
+  .admin-shortcuts > button { flex-direction: row; align-items: center; padding: .8rem; padding-inline-end: 2.25rem; }
+  .admin-shortcut-icon { flex-shrink: 0; }
+  .admin-shortcuts > button > svg:last-child { top: 1.4rem; }
+  .admin-booking-filters { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+}
+@media (max-width: 479px) {
+  .admin-stat-grid { gap: .65rem; }
+  .admin-overview .dashboard-stat { padding: .9rem; }
+  .admin-overview .dashboard-stat > .flex:first-child { flex-direction: column-reverse; gap: .6rem; }
+  .admin-overview .dashboard-stat .text-sm { font-size: .75rem; }
+  .admin-panel-heading { padding: 1.1rem; }
+  .admin-recent-row { padding: 1rem; gap: .6rem; }
+  .admin-recent-row .admin-guest-avatar { display: none; }
+  .admin-recent-amount > span { padding-inline: .5rem; }
+  .admin-report-menu { width: 100%; }
+  .admin-report-menu > summary { width: 100%; }
+}
