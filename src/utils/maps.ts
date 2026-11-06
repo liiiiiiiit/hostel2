@@ -29,3 +29,19 @@ export function getMapLinks(point: Coordinates): { embed: string | null; openStr
     directions: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${point.lat},${point.lng}`)}`,
   };
 }
+
+/** Only public addresses may be supplied here. Search is not a confirmed pin. */
+export function getProviderLinks(point: unknown, publicAddress: string) {
+  const query = isValidCoordinates(point) ? `${point.lat},${point.lng}` : publicAddress.trim();
+  if (!query) return null;
+  const yandex = new URL('https://yandex.com/maps/');
+  if (isValidCoordinates(point)) {
+    yandex.searchParams.set('ll', `${point.lng},${point.lat}`);
+    yandex.searchParams.set('pt', `${point.lng},${point.lat},pm2rdm`);
+    yandex.searchParams.set('z', '16');
+  } else yandex.searchParams.set('text', query);
+  return {
+    yandex: yandex.href,
+    google: `https://www.google.com/maps/search/?${new URLSearchParams({api:'1',query})}`,
+  };
+}

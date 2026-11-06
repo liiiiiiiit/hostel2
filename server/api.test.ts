@@ -514,11 +514,11 @@ test('administrator creates, edits, previews and publishes female beds, private 
   const published=(await visitor.get()).state.hostels.find(item=>item.id===hostel.id)!;
   assert.equal(published.name.en,'Updated hostel');assert.equal(published.roomTypes.length,2);
   assert.equal(published.roomTypes[1].maxGuestsPerUnit,2);assert.equal(published.roomTypes[1].physicalUnits,undefined);
-  const rental=completeRental();rental.status='published';
+  const rental=completeRental();rental.status='published';rental.publicCoordinates={lat:40.1785,lng:44.5152};
   assert.equal((await manager.action('saveRental',[rental])).response.status,403);
   assert.equal((await admin.action('saveRental',[rental])).data.success,true);
   const publicRental=(await visitor.get()).state.rentals.find(item=>item.id===rental.id)!;
-  assert.equal(publicRental.addressExactInternal,'');assert.equal(publicRental.landlordInternalNotes,'');
+  assert.deepEqual(publicRental.publicCoordinates,rental.publicCoordinates);assert.equal(publicRental.addressExactInternal,'');assert.equal(publicRental.landlordInternalNotes,'');
   const inquiry=await visitor.action('createRentalInquiry',[{propertyId:rental.id,guestName:'Rental guest',contact:'guest@example.test',requestType:'visit',residentsCount:2}]);
   assert.equal(inquiry.data.success,true);
   await admin.action('updateRentalInquiryStatus',[inquiry.data.inquiry.id,'agreed','PRIVATE-ADMIN-NOTE']);

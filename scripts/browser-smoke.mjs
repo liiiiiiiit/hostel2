@@ -162,6 +162,7 @@ try {
   await translations(editor,'Name');await translations(editor,'Description');
   await editor.getByLabel('Page slug',{exact:true}).fill('browser-apartment');await editor.getByLabel('City',{exact:true}).fill('Yerevan');
   await editor.getByLabel('Approximate public location',{exact:true}).fill('Kentron');await editor.getByLabel('Public address',{exact:true}).fill('Kentron area');
+  await editor.getByTestId('rental-public-lat').fill('40.1785');await editor.getByTestId('rental-public-lng').fill('44.5152');
   await editor.getByLabel('Internal exact address',{exact:true}).fill('PRIVATE-BROWSER-ADDRESS');
   await editor.getByRole('button',{name:'2. Details & policies',exact:true}).click();
   for(const [label,amount] of [['Area · m²','50'],['Floor','2'],['Total floors','4'],['Beds','2'],['Bedrooms','1'],['Bathrooms','1'],['Maximum residents','2'],['Nightly price / unit · AMD','22000'],['Minimum nights','2']])await editor.getByLabel(label,{exact:true}).fill(amount);
@@ -174,7 +175,13 @@ try {
   await editor.getByLabel('Save & publish',{exact:true}).selectOption('published');await editor.getByRole('button',{name:'Save & publish',exact:true}).click();
   await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();await editor.getByRole('button',{name:'Close editor',exact:true}).click();
   const publicState=await (await otherPage.request.get(origin+'/api/app')).json();assert.ok(!JSON.stringify(publicState).includes('PRIVATE-BROWSER-ADDRESS'));
-  console.log('PASS administrator creates an apartment through the complete editor and exact address stays private');
+  const savedRental=publicState.state.rentals.find(item=>item.slug==='browser-apartment');assert.deepEqual(savedRental.publicCoordinates,{lat:40.1785,lng:44.5152});
+  const mapPage=await other.newPage();await mapPage.goto(origin+'/en/rentals/browser-apartment');
+  const location=mapPage.getByTestId('property-location');await location.waitFor();
+  assert.ok((await location.locator('a[href*="yandex.com"]').getAttribute('href')).includes('pt=44.5152%2C40.1785'));
+  assert.ok((await location.locator('a[href*="google.com/maps/search"]').getAttribute('href')).includes('query=40.1785%2C44.5152'));
+  assert.ok(!(await location.innerHTML()).includes('PRIVATE-BROWSER-ADDRESS'));await mapPage.close();
+  console.log('PASS administrator creates an apartment with public map coordinates; provider links preserve the point and exact address stays private');
   const crawled=await context.request.get(origin+'/en/hostels/browser-hostel');assert.equal(crawled.status(),200);const html=await crawled.text();assert.ok(html.includes('<title>Name English · YEREVANHUB</title>'));assert.ok(html.includes('hreflang="fa"'));assert.ok(html.includes('Name English'));
   assert.equal((await context.request.get(origin+'/en/hostels/missing-property')).status(),404);
   await otherPage.getByText('Double Room Guest',{exact:true}).waitFor();assert.match(await otherPage.locator('meta[name=robots]').getAttribute('content'),/noindex/);assert.ok(!(await otherPage.title()).includes('Double Room Guest'));

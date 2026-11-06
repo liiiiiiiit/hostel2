@@ -78,3 +78,9 @@ Reception, secure accounts, financial records, public SEO routes, workers and en
 The header appearance button switches between light and dark mode in all four languages. The choice is saved in `yerevanhub_theme`; without a saved choice, device appearance is used. `public/theme.js` applies it before rendering to avoid a light flash.
 
 Run `BROWSER_PATH=/path/to/chrome npm run test:responsive` for the mobile/tablet matrix (320, 360, 390, 430, 640, 768, 820, 1024 and 1366 px, four languages). The command builds the frontend first, then checks the built client against an isolated development database. It covers light/dark pages, navigation, sign-in, dashboards and all three hero slides with enlarged text. Results and screenshots are saved under `test-artifacts/responsive`. Set `RESPONSIVE_LANGUAGES=fa` to run one language, or `RESPONSIVE_OFFLINE=true` to check layout without third-party image/font delivery. GitHub Actions runs each language as a separate job. Notification credentials are disabled for these tests. Viewport emulation does not replace testing Safari or physical iOS/Android devices.
+
+### Property maps
+
+Hostel and rental detail pages share a responsive location card with a saved-point map, Yandex Maps and Google Maps links, Google directions and address copying. The embedded basemap uses OpenStreetMap; external provider links require no API key. Without a saved point the card offers public-address searches, not a fabricated pin.
+
+For rentals, open **Admin → Homes & apartments → Edit → Basic information** and set the optional public latitude and longitude. These coordinates are visible to visitors; use an approximate public point when appropriate. Leave both blank to remove the pin. The internal exact address and landlord notes never enter map URLs. Existing listings remain compatible and require no database migration.

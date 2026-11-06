@@ -16,7 +16,7 @@ export const InteractiveHostelMap: React.FC<Props> = ({ hostels, selectedHostelI
   const { currentLang, getLocalized } = useLanguage(); const t = mapText(currentLang);
   const [internalSelectedId, setSelected] = useState<string | null>(hostels[0]?.id ?? null);
   const selected = hostels.find(hostel => hostel.id === (selectedHostelId !== undefined ? selectedHostelId : internalSelectedId)) ?? hostels[0];
-  const links = selected ? getMapLinks(selected.coordinates) : null;
+  const links = selected && selected.coordinatesProvided !== false ? getMapLinks(selected.coordinates) : null;
   if (!selected) return <div className={`rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 ${className}`}>{t.empty}</div>;
   return <section className={`overflow-hidden rounded-3xl border border-slate-200 bg-white ${className}`} aria-label={t.mapTitle}>
     {showTitle && <div className="p-5 sm:p-6"><h2 className="text-lg font-bold text-slate-950">{t.mapTitle}</h2><p className="mt-1 text-sm text-slate-500">{t.select}</p></div>}

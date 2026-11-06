@@ -7,6 +7,7 @@ import { UI_TRANSLATIONS } from '../i18n/translations';
 import { getLocalized, getCityName } from '../utils/i18n';
 import { yerevanToday } from '../utils/dates';
 import { appStore } from '../services/store';
+import { RentalLocationMap } from '../components/HostelLocationMap';
 import { VerificationInfo } from '../components/VerificationInfo';
 import { PlaceActions } from '../components/PlaceActions';
 interface Props { currentLang: AppLanguage; rental: RentalProperty; onNavigate: (view: string, params?: any) => void }
@@ -60,6 +61,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
         </dl><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer py-1">{c.terms}</summary><p className="text-sm text-slate-600 leading-7 mt-3 whitespace-pre-line">{rental.depositTerms}</p></details></section>
         <details className="surface p-5 sm:p-7"><summary className="text-xl font-semibold cursor-pointer">{c.utilities}</summary><dl className="divide-y divide-slate-100 text-sm mt-4">{(Object.entries(rental.utilitiesBreakdown) as [keyof RentalProperty['utilitiesBreakdown'],string][]).map(([key,value])=><div className="flex justify-between gap-4 py-3" key={key}><dt className="text-slate-500">{({electricity:c.electricity,water:c.water,gas:c.gas,internet:c.internet,buildingMaintenance:c.maintenance})[key]}</dt><dd>{utilityValue(value)}</dd></div>)}</dl></details>
 </>}
+        <RentalLocationMap rental={rental} currentLang={currentLang} />
         <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
       </div>
       {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>

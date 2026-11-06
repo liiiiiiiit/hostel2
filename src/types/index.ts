@@ -217,6 +217,8 @@ export interface RentalProperty {
   neighborhood: string;
   approximateLocationLabel: string;
   addressPublic: string;
+  /** Optional public map point; never the private internal address. */
+  publicCoordinates?: { lat: number; lng: number };
   addressExactInternal: string;
   photos: string[];
   areaSqm: number;
