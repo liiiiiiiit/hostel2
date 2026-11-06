@@ -140,13 +140,13 @@ try {
             return brand.left < controls.right && controls.left < brand.right && brand.top < controls.bottom && controls.top < brand.bottom;
           });
           assert.equal(overlap, false, `${prefix}: header brand and controls overlap`);
-          if (viewport.width >= 1024) {
+          {
             const brandOrder = await page.evaluate(() => {
               const mark = document.querySelector('.header-brand-mark').getBoundingClientRect();
               const wordmark = document.querySelector('.header-wordmark').getBoundingClientRect();
-              return document.documentElement.dir === 'rtl' ? mark.left >= wordmark.right - 1 : mark.right <= wordmark.left + 1;
+              return mark.left >= wordmark.right - 1;
             });
-            assert.equal(brandOrder, true, `${prefix}: desktop logo does not follow reading direction`);
+            assert.equal(brandOrder, true, `${prefix}: brand mark must appear to the right of the wordmark`);
           }
           if (viewport.width >= 1280) {
             const desktopFits = await page.evaluate(() => {

@@ -22,6 +22,7 @@
   padding: 10px 12px;
 }
 .header-brand {
+  flex-direction: row-reverse;
   grid-area: brand;
   justify-self: end;
   display: inline-flex;
@@ -287,9 +288,6 @@ html.dark .site-header .header-controls .header-sign-in-button:hover {
   .header-wordmark > span:last-child {
     font-size: inherit;
     letter-spacing: 0.055em;
-  }
-  .site-header[dir="rtl"] .header-brand {
-    flex-direction: row-reverse;
   }
 }
 @media (min-width: 1280px) {
