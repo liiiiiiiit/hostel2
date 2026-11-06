@@ -54,3 +54,10 @@ Responsive CI now includes 1280px and 1440px in addition to the previous widths,
 Current brand placement: below 640px Persian places the mark on the physical left of the wordmark, while English, Russian and Armenian place it on the right. At 640px and above, Persian keeps the mark on the right, while English, Russian and Armenian put it on the left. This also covers the 980px layout used by a phone requesting the desktop site. The responsive matrix explicitly checks this rule in all four languages, including the additional 980px viewport.
 
 The language selector and theme toggle exchange positions in every layout. Responsive CI also asserts their physical order for RTL and LTR headers.
+
+
+## iPad search form overlap
+
+The arrival/departure controls in the supplied iPad photo extend into adjacent grid cells. The homepage form now uses explicit zero-minimum grid tracks, 16px gaps and border-box sizing with bounded inline widths. The iOS date-value pseudo-elements are normalized while retaining the native date picker. Tablet widths use a two-column form; the full five-column hostel search row starts at 1280px. The rental form keeps its destination and submit action aligned separately.
+
+A dedicated WebKit CI job exercises iPad device emulation at ten portrait/landscape sizes in four languages, both themes and enlarged text. It checks actual control border rectangles against their labels/form and each other, captures form screenshots, and verifies date correction and guest/date query propagation on submit. This is automated WebKit emulation, not a claim of a physical iPad test.
