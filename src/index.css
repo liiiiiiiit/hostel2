@@ -263,20 +263,6 @@ html.dark .home-experience .discovery-hero {
 }
 html.dark .home-room-shortcuts .stay-category:hover { background: #304c3b; }
 
-@media (min-width: 640px) and (max-width: 1279px) {
-  html { scroll-padding-top: 9rem; }
-  .tablet-navigation {
-    display: flex; gap: .35rem; justify-content: center; flex-wrap: wrap;
-    padding: .25rem 1rem .6rem; border-top: 1px solid var(--stay-line);
-  }
-  .tablet-navigation button {
-    min-height: 44px; padding: .5rem 1rem;
-    border-radius: .7rem; color: var(--stay-muted); font-size: .8rem; font-weight: 600;
-  }
-  .tablet-navigation button[aria-current="page"] { background: #edf3ee; color: #183d30; }
-  .tablet-navigation button:hover { background: #edf3ee; color: #183d30; }
-  html.dark .tablet-navigation button:is(:hover, [aria-current="page"]) { background: #304c3b; color: #e5eee8; }
-}
 @media (max-width: 767px) {
   .home-experience .discovery-hero-inner {
     grid-template-areas: "visual" "copy" "search";
@@ -297,63 +283,6 @@ html.dark .home-room-shortcuts .stay-category:hover { background: #304c3b; }
 @media (prefers-reduced-motion: reduce) {
   .stay-photo > img, .home-experience .stay-card { transition: none; }
   .group:hover .stay-photo > img { transform: none; }
-}
-
-
-/* A compact Ararat signature and coordinated header controls. */
-.site-header {
-  background: #fffdf7ed;
-  border-bottom-color: #b9975b30;
-  box-shadow: 0 6px 24px -18px #183d3055;
-  backdrop-filter: blur(20px) saturate(145%);
-}
-.site-header .header-inner { height: 76px; }
-.header-brand { border-radius: .9rem; padding-block: .3rem; }
-.header-brand-mark {
-  display: grid; place-items: center; flex-shrink: 0;
-  width: 36px; height: 40px; border-radius: 13px;
-  color: #f8f7f3; background: linear-gradient(145deg, #315b46, #142f2a);
-  border: 1px solid #b9975b66;
-  box-shadow: 0 3px 9px #142f2a18, inset 0 1px #ffffff20;
-}
-.header-brand-mark svg { width: 31px; height: 30px; }
-.header-brand .header-wordmark {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  font-size: 12px; line-height: 1.15; letter-spacing: .055em; font-weight: 800;
-}
-.header-wordmark > span:last-child { color: #99733e; font-size: 10px; letter-spacing: .25em; font-weight: 600; }
-.site-header .header-controls {
-  gap: 2px; padding: 3px; border-radius: 16px;
-  border: 1px solid #183d3012; background: #183d3005;
-}
-.header-controls > button, .header-controls > div > button { min-height: 44px; border-radius: 12px; }
-.header-controls > button { min-width: 44px; }
-.header-controls > div > button { box-shadow: none; }
-.header-controls > button:hover { background-color: #183d300a; }
-.site-header #mobile-navigation { border-radius: 0 0 20px 20px; box-shadow: 0 16px 24px -20px #142f2a66; }
-.site-header #mobile-navigation button { border-radius: 12px; }
-html.dark .site-header { background: #16251ded; border-color: #d8b77726; box-shadow: 0 6px 24px -18px #0008; }
-html.dark .header-brand-mark { background: linear-gradient(145deg, #355b46, #1b3428); border-color: #d8b77755; color: #f4ede0; }
-html.dark .header-wordmark > span:last-child { color: #e4be7d; }
-html.dark .site-header .header-controls { background: #ffffff05; border-color: #ffffff12; }
-html.dark .header-controls > button:hover { background-color: #ffffff0d; }
-@media (max-width: 639px) {
-  .site-header .header-inner { padding-inline: 10px; gap: 6px; }
-  .header-controls > button { width: 44px; height: 44px; flex-shrink: 0; }
-}
-@media (min-width: 380px) {
-  .header-brand-mark { width: 40px; height: 44px; }
-  .header-brand .header-wordmark { font-size: 14px; }
-  .header-wordmark > span:last-child { font-size: 11px; }
-}
-@media (min-width: 640px) {
-  .site-header .header-controls { gap: 4px; }
-}
-@media (min-width: 1024px) {
-  .header-brand-mark { width: 46px; height: 48px; }
-  .header-brand-mark svg { width: 37px; height: 35px; }
-  .header-brand .header-wordmark { flex-direction: row; align-items: baseline; gap: 6px; font-size: 19px; }
-  .header-wordmark > span:last-child { font-size: inherit; letter-spacing: .055em; }
 }
 
 
@@ -554,26 +483,4 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
   .admin-recent-amount > span { padding-inline: .5rem; }
   .admin-report-menu { width: 100%; }
   .admin-report-menu > summary { width: 100%; }
-}
-
-
-/* Desktop navigation pairs service icons with a restrained, grouped control. */
-@media (min-width: 1024px) {
-  .site-header[dir="rtl"] .header-brand { flex-direction: row-reverse; }
-}
-@media (min-width: 1280px) {
-  .desktop-navigation { align-items: center; gap: 3px; min-width: 0; padding: 4px; border: 1px solid #183d3010; border-radius: 16px; background: #183d3004; }
-  .desktop-navigation .header-nav-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; min-width: 0; padding: 9px 10px; border: 1px solid transparent; border-radius: 12px; color: #506659; font-size: .78rem; font-weight: 600; line-height: 1.5; text-align: center; transition: background .18s, border-color .18s, color .18s, box-shadow .18s; }
-  .header-nav-icon { width: 16px; height: 16px; flex-shrink: 0; opacity: .75; }
-  .header-nav-link > span { overflow-wrap: anywhere; }
-  .desktop-navigation .header-nav-link:hover { background: #fffdf7; border-color: #183d3010; color: #183d30; }
-  .desktop-navigation .header-nav-link[aria-current="page"] { background: #183d30; border-color: #183d30; color: #fff; box-shadow: 0 3px 9px #183d3020; }
-  .header-nav-link[aria-current="page"] .header-nav-icon { opacity: 1; }
-  html.dark .desktop-navigation { background: #ffffff04; border-color: #ffffff0e; }
-  html.dark .desktop-navigation .header-nav-link { color: #bdcfc2; }
-  html.dark .desktop-navigation .header-nav-link:hover { background: #2a4133; border-color: #48604f; color: #f3f7f4; }
-  html.dark .desktop-navigation .header-nav-link[aria-current="page"] { background: #365e45; border-color: #6d9479; color: #fff; }
-}
-@media (min-width: 1440px) {
-  .desktop-navigation .header-nav-link { padding-inline: 12px; font-size: .82rem; }
 }

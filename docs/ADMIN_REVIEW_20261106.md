@@ -42,3 +42,10 @@ This review fixes the issues listed above; it does not establish that every poss
 - Browser QA exposed a startup/lazy-loading race in the responsive harness: waiting for the first loader to disappear could measure a subsequent Suspense fallback rather than the final page. Navigation now waits for a real page heading before inspecting layout; the loading skeleton also explicitly constrains its grid tracks and wraps long localized text.
 
 - CI screenshots also identified an unbreakable Armenian heading protruding beyond a 320px screen even though its block fit. Main content now allows long localized words to wrap without hiding horizontal overflow or clipping content.
+
+
+## Follow-up: stable header layout
+
+Replaced overlapping generations of header CSS and responsive flex/order utilities with a dedicated `header.css` and explicit grid areas. The desktop layout reserves independent tracks for branding, service navigation and account controls. Mobile keeps the grouped controls at the reading-direction start; Persian desktop keeps the mark to the right of the English wordmark. Typography, button heights and spacing are consistent, and service links use restrained active/hover states instead of nested framed groups.
+
+Responsive CI now includes 1280px and 1440px in addition to the previous widths, and checks the three header regions for overlap on every inspected page, theme, account role and open-menu state.

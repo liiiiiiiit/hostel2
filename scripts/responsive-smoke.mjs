@@ -27,7 +27,7 @@ const results = [], pageErrors = [];
 const viewports = [
   { width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 },
   { width: 430, height: 932 }, { width: 640, height: 800 }, { width: 768, height: 1024 }, { width: 820, height: 1180 },
-  { width: 1024, height: 768 }, { width: 1366, height: 900 },
+  { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 },
 ];
 const headers = { 'X-Requested-With': 'YerevanHub' };
 async function action(context, name, args) {
@@ -76,9 +76,19 @@ async function inspect(page, label, screenshot = false) {
       if (element.classList.contains('skip-link')) return [];
       return [{ tag: element.tagName, class: String(element.className).slice(0, 150), text: element.textContent?.trim().slice(0, 100), left: Math.round(rect.left), right: Math.round(rect.right) }];
     }).slice(0, 12);
-    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow };
+    const headerParts = [...document.querySelectorAll('.header-inner > .header-brand, .header-inner > .header-controls, .header-inner > .desktop-navigation')]
+      .map(element => ({name: element.className, rect: element.getBoundingClientRect()}))
+      .filter(part => part.rect.width && part.rect.height);
+    const headerOverlap = [];
+    for (let index = 0; index < headerParts.length; index++) {
+      for (const other of headerParts.slice(index + 1)) {
+        const part = headerParts[index], a = part.rect, b = other.rect;
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) headerOverlap.push([part.name, other.name]);
+      }
+    }
+    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow, headerOverlap };
   });
-  const passed = state.documentWidth <= state.width + 1 && state.overflow.length === 0;
+  const passed = state.documentWidth <= state.width + 1 && state.overflow.length === 0 && state.headerOverlap.length === 0;
   const result = { label, passed, ...state };
   results.push(result);
   console.log('RESPONSIVE ' + JSON.stringify(result));
