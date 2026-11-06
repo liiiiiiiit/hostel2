@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./components/header.css";
 
 @theme {
   --font-sans: 'Vazirmatn', 'Noto Sans Armenian', 'Inter', system-ui, sans-serif;
