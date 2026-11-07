@@ -156,7 +156,7 @@ try {
   assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,16200);assert.equal(doubleBooking.couponCode,'BROWSER10');
   await otherPage.waitForURL(/#\/booking\/yvn-trk-/);
   const changeWorkflow=otherPage.getByTestId('booking-workflow');
-  await changeWorkflow.getByText('Request stay change',{exact:true}).click();
+  await changeWorkflow.locator('summary').filter({hasText:'Request stay change'}).click();
   await changeWorkflow.getByLabel('Guests',{exact:true}).fill('3');
   await changeWorkflow.getByLabel('Units',{exact:true}).fill('2');
   await changeWorkflow.getByLabel('Guests',{exact:true}).fill('2');
