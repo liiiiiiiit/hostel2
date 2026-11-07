@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BedDouble, Building2, Check, MapPi
 import { AppLanguage, RentalProperty } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import { getLocalized, getCityName } from '../utils/i18n';
-import { yerevanToday } from '../utils/dates';
+import { yerevanToday, yerevanDateTime } from '../utils/dates';
 import { appStore } from '../services/store';
 import { RentalLocationMap } from '../components/HostelLocationMap';
 import { VerificationInfo } from '../components/VerificationInfo';
@@ -71,7 +71,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           <fieldset className="grid grid-cols-2 gap-2"><legend className="sr-only">{c.request}</legend>{(['visit','rent'] as const).map(value=><button type="button" key={value} aria-pressed={requestType===value} disabled={isSubmitting} onClick={()=>setRequestType(value)} className={`rounded-xl py-3 text-sm font-medium border ${requestType===value?'bg-[#142f2a] border-[#142f2a] text-white':'border-slate-200 bg-white text-slate-600'}`}>{value==='visit'?c.visit:c.rent}</button>)}</fieldset>
           <div><label htmlFor="rental-name" className="block text-sm font-medium mb-1.5">{c.name}</label><input id="rental-name" name="name" autoComplete="name" required maxLength={200} value={guestName} onChange={e=>setGuestName(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
           <div><label htmlFor="rental-contact" className="block text-sm font-medium mb-1.5">{c.contact}</label><input id="rental-contact" name="contact" required maxLength={254} value={contact} onChange={e=>setContact(e.target.value)} className="field w-full ltr-isolate text-start" disabled={isSubmitting} /></div>
-          {requestType==='visit'?<div><label htmlFor="rental-visit-date" className="block text-sm font-medium mb-1.5">{c.visitDate}</label><input id="rental-visit-date" type="datetime-local" required min={`${yerevanToday()}T00:00`} value={proposedVisitDate} onChange={e=>setProposedVisitDate(e.target.value)} className="field w-full min-w-0" disabled={isSubmitting} /></div>:<>
+          {requestType==='visit'?<div><label htmlFor="rental-visit-date" className="block text-sm font-medium mb-1.5">{c.visitDate}</label><input id="rental-visit-date" type="datetime-local" required min={yerevanDateTime()} value={proposedVisitDate} onChange={e=>setProposedVisitDate(e.target.value)} className="field w-full min-w-0" disabled={isSubmitting} /></div>:<>
             <div><label htmlFor="rental-start-date" className="block text-sm font-medium mb-1.5">{c.startDate}</label><input id="rental-start-date" type="date" required min={yerevanToday()} value={desiredStartDate} onChange={e=>setDesiredStartDate(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
             <div><label htmlFor="rental-duration" className="block text-sm font-medium mb-1.5">{c.duration}</label><input id="rental-duration" required value={desiredDurationText} maxLength={200} placeholder={c.durationHint} onChange={e=>setDesiredDurationText(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
           </>}

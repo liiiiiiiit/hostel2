@@ -1,3 +1,4 @@
+import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
 import {sessionCookiePolicy} from './session-config.js';
 import {scheduledWork} from './jobs.js';
 import {accountSchemas,accountAction} from './accounts.js';
@@ -37,7 +38,7 @@ const schemas = {
   updateBookingStatus: z.tuple([text, status, optionalText]),
   cancelBookingByGuest: z.tuple([text, z.string().trim().min(1).max(1000)]), reportEntranceIssue: z.tuple([text, z.string().max(2000)]),
   submitReview: z.tuple([text, z.number().int().min(1).max(5), z.string().trim().min(1).max(3000), scores.optional()]),
-  createRentalInquiry: z.tuple([z.object({ propertyId: text, guestName: text, contact: text, requestType: z.enum(['rent','visit']), desiredStartDate: date.optional(), desiredDurationText: optionalText, proposedVisitDate: optionalText, residentsCount: positive, notes: optionalText })]),
+  createRentalInquiry: z.tuple([z.object({ propertyId: text, guestName: text, contact: text, requestType: z.enum(['rent','visit']), desiredStartDate: date.optional(), desiredDurationText: optionalText, proposedVisitDate: optionalText, residentsCount: positive, notes: optionalText }).refine(rentalScheduleIsValid, 'Invalid rental schedule')]),
   setCapacity: z.tuple([text, text, date, z.number().int().min(0).max(100)]),
   setVerification: z.tuple([z.enum(['hostel','rental']), text, z.boolean(), z.string().max(1000)]),
   checkCoupon: z.tuple([text, z.number().min(0)]),

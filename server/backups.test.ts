@@ -13,3 +13,29 @@ test('cloud restore writes new object keys and rewrites references with a mock s
  await database.transaction(async state=>{state.hostels[0].photos=[oldUrl];});await database.client.execute({sql:'INSERT INTO media_assets VALUES(?,?,?,?,?,?,?)',args:[id,oldUrl,oldUrl,'blob',bytes.length,'admin',new Date().toISOString()]});const snapshot=await exportSnapshot(database.client,async()=>bytes);const target=createClient({url:`file:${directory}/target.db`}),uploads:string[]=[];await restoreSnapshot(target,snapshot,'',{upload:async(key,value)=>{assert.equal(value.toString(),bytes.toString());uploads.push(key);return 'https://target.public.blob.vercel-storage.com/'+key;},remove:async()=>{}});
  assert.equal(uploads.length,1);assert.match(uploads[0],/^restores\//);const asset=(await target.execute('SELECT * FROM media_assets')).rows[0];assert.equal(asset.backend,'blob');assert.ok(String(asset.url).includes(uploads[0]));const property=(await target.execute("SELECT url FROM property_photos WHERE kind='hostel' ORDER BY sort_order LIMIT 1")).rows[0];assert.equal(property.url,asset.url);target.close();await database.close();
 });
+
+test('failed restore removes newly written local images and can retry on the same empty target', async t => {
+  const directory=await mkdtemp(path.join(tmpdir(),'yh-failed-restore-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));
+  const database=new Database({url:`file:${directory}/source.db`,demo:true});
+  t.after(()=>database.close());
+  await database.waitUntilReady();
+  const id=crypto.randomUUID(),bytes=Buffer.from('restore-test-image');
+  await database.client.execute({sql:'INSERT INTO media_assets VALUES(?,?,?,?,?,?,?)',args:[id,`/api/app?media=${id}`,id+'.webp','local',bytes.length,'admin',new Date().toISOString()]});
+  const snapshot=await exportSnapshot(database.client,async()=>bytes);
+  const target=createClient({url:`file:${directory}/target.db`});t.after(()=>target.close());
+  const original=target.transaction.bind(target);
+  const fail=t.mock.method(target,'transaction',async(...args:Parameters<typeof target.transaction>)=>{
+    const tx=await original(...args);
+    t.mock.method(tx,'commit',async()=>{throw new Error('Simulated commit failure');});
+    return tx;
+  });
+  const media=path.join(directory,'media');
+  await assert.rejects(()=>restoreSnapshot(target,snapshot,media),/Simulated commit failure/);
+  const {readdir}=await import('node:fs/promises');
+  assert.deepEqual(await readdir(media),[],'Rollback must not strand files that make the next restore fail');
+  assert.equal((await target.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.length,0);
+  fail.mock.restore();
+  await restoreSnapshot(target,snapshot,media);
+  assert.equal((await readFile(path.join(media,id+'.webp'))).toString(),bytes.toString());
+});

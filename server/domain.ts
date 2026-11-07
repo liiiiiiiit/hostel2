@@ -1,3 +1,4 @@
+import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
 import { createHash } from 'node:crypto';
 import { occupancyIsValid, guestsPerUnit } from '../src/utils/occupancy.js';
 import { publicationIssues } from '../src/utils/properties.js';
@@ -604,6 +605,7 @@ export class Store {
 
     if (status === 'confirmed' && !roomType) return { success: false, error: 'نوع اتاق معتبر نیست.' };
     if (status === 'confirmed' && roomType) {
+      if (!occupancyIsValid(roomType, booking.guestsCount, booking.quantity) || (booking.agreement && (booking.agreement.bookingUnit !== (roomType.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit !== guestsPerUnit(roomType)))) return { success: false, error: 'تعداد مهمان با ظرفیت تخت یا اتاق سازگار نیست.' };
       // Re-verify peak capacity before confirming
       const activeConfirmed = this.state.bookings.filter(
         b =>
@@ -697,7 +699,7 @@ export class Store {
 
     if (scores && Object.values(scores).some(score => !Number.isInteger(score) || score < 1 || score > 5)) return { success: false, error: 'امتیاز معتبر نیست.' };
     const review: Review = {
-      id: `rev-${Date.now()}`,
+      id: `rev-${crypto.randomUUID()}`,
       bookingId: booking.id,
       hostelId: booking.hostelId,
       hostelName: booking.hostelName,
@@ -759,6 +761,7 @@ export class Store {
     const rental = this.state.rentals.find(r => r.id === data.propertyId);
     if (!rental || rental.status !== 'published') return { success: false, error: 'ملک یافت نشد.' };
     if (rental.publicPreview) return { success: false, error: 'این ملک آزمایشی است و درخواست اجاره یا بازدید نمی‌پذیرد.' };
+    if (!rentalScheduleIsValid(data)) return { success:false, error:'تاریخ یا مدت درخواست اجاره و بازدید معتبر نیست.' };
     if (!data.guestName.trim() || !data.contact.trim() ||
         (data.residentsCount !== undefined && (!Number.isInteger(data.residentsCount) || data.residentsCount < 1 || data.residentsCount > rental.maxResidents))) {
       return { success: false, error: 'اطلاعات متقاضی یا تعداد ساکنین معتبر نیست.' };
@@ -833,14 +836,16 @@ export class Store {
       if (room.physicalUnits && new Set(room.physicalUnits.map(unit => unit.id)).size !== room.physicalUnits.length) throw new Error('شناسه واحد فیزیکی تکراری است.');
     }
     if (hostel.media?.some(image => image.roomTypeId && !hostel.roomTypes.some(room => room.id === image.roomTypeId))) throw new Error('اتاق مربوط به تصویر موجود نیست.');
-    const commitments = this.state.bookings.filter(booking => booking.hostelId === hostel.id && booking.checkOut > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Yerevan' }) && booking.status === 'confirmed');
+    const commitments = this.state.bookings.filter(booking => booking.hostelId === hostel.id && (booking.checkOut > yerevanToday() || booking.checkedInAt && !booking.checkedOutAt) && (booking.status === 'confirmed' || booking.status === 'pending' && Date.parse(booking.expiresAt) > Date.now()));
     for (const oldRoom of previous?.roomTypes ?? []) {
       const room = hostel.roomTypes.find(item => item.id === oldRoom.id);
       if (!room && (this.state.bookings.some(booking => booking.hostelId === hostel.id && booking.roomTypeId === oldRoom.id)
         || this.state.unitBlocks?.some(block => block.hostelId === hostel.id && block.roomTypeId === oldRoom.id))) {
         throw new Error('این نوع اتاق دارای سابقهٔ رزرو یا مسدودی است و قابل حذف نیست.');
       }
-      const active = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
+      const protectedBookings = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
+      if (protectedBookings.some(booking => !room || room.type !== oldRoom.type || !occupancyIsValid(room, booking.guestsCount, booking.quantity) || booking.agreement && (booking.agreement.bookingUnit !== (room.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit !== guestsPerUnit(room)))) throw new Error('نوع یا ظرفیت مهمان اتاق با درخواست‌های فعال سازگار نیست.');
+      const active = protectedBookings.filter(booking => booking.status === 'confirmed');
       if (active.length && (!room || room.type !== oldRoom.type || (room.bookingUnit??(room.type==='private'?'room':'bed')) !== (oldRoom.bookingUnit??(oldRoom.type==='private'?'room':'bed')) || active.some(booking=>!occupancyIsValid(room,booking.guestsCount,booking.quantity)) || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
       const blocked = (this.state.unitBlocks ?? [])
         .filter(block => block.hostelId === hostel.id && block.roomTypeId === oldRoom.id && !block.releasedAt && block.to > yerevanToday())
@@ -1005,7 +1010,7 @@ export class Store {
   // Phrases
   public addPhrase(phrase: TravelPhrase) {
     this.requireAdmin();
-    phrase.id = `phr-${Date.now()}`;
+    phrase.id = `phr-${crypto.randomUUID()}`;
     this.state.phrases.push(phrase);
     this.persist();
   }

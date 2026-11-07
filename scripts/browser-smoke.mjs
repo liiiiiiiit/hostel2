@@ -155,6 +155,15 @@ try {
   await otherPage.locator('button[type=submit]').click();const doubleBooking=(await (await doubleResponse).json()).booking;
   assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,16200);assert.equal(doubleBooking.couponCode,'BROWSER10');
   await otherPage.waitForURL(/#\/booking\/yvn-trk-/);
+  const changeWorkflow=otherPage.getByTestId('booking-workflow');
+  await changeWorkflow.getByText('Request stay change',{exact:true}).click();
+  await changeWorkflow.getByLabel('Guests',{exact:true}).fill('3');
+  await changeWorkflow.getByLabel('Units',{exact:true}).fill('2');
+  await changeWorkflow.getByLabel('Guests',{exact:true}).fill('2');
+  await changeWorkflow.getByLabel('Units',{exact:true}).evaluate(element=>element.blur());
+  assert.equal(await changeWorkflow.getByLabel('Units',{exact:true}).inputValue(),'1','Restoring the original guest count restores its agreed room quantity');
+  console.log('PASS stay-change guest count round trip restores the agreed quantity');
+
   console.log('PASS two guests reserve one private double room at the room price through an independent browser');
   console.log('PASS known coupon applies, removes and reapplies without exposing the promotion list');
   const propertyPanel=page.getByTestId('property-management');
@@ -225,6 +234,19 @@ try {
   const multiHostPassword=crypto.randomUUID();
   const managerCreated=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'createHostelManager',args:[{name:'Multi-property browser host',email:'multi-host@example.test',initialPassword:multiHostPassword,assignedHostelIds:publicHostels.slice(0,2).map(item=>item.id)}]}});assert.equal((await managerCreated.json()).success,true);
   const managerContext=await browser.newContext();const managerLogin=await managerContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['multi-host@example.test',multiHostPassword]}});assert.equal((await managerLogin.json()).success,true);const managerCookies=await managerContext.cookies();
+  const receptionTarget=publicHostels[1];
+  const finishGuest='QA multi-property reception';
+  const external=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'recordExternalBooking',args:[{hostelId:receptionTarget.id,roomTypeId:receptionTarget.roomTypes[0].id,guestName:finishGuest,guestContact:'qa@example.test',contactType:'email',checkIn:new Date(Date.now()+7*86400000).toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'}),checkOut:new Date(Date.now()+8*86400000).toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'}),quantity:1,guestsCount:1,source:'telephone',reason:'QA navigation check',acceptedTerms:true,idempotencyKey:crypto.randomUUID()}]}});
+  assert.equal((await external.json()).success,true);
+  await managerContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
+  await managerContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+  const managerPage=await managerContext.newPage();managerPage.on('pageerror',error=>errors.push(error.stack||error.message));
+  await managerPage.goto(origin+'/en/manager');await managerPage.getByTestId('manager-dashboard').waitFor();
+  await workspaceTab(managerPage,'bookings');
+  await managerPage.locator('article').filter({has:managerPage.getByRole('heading',{name:finishGuest,exact:true})}).getByRole('button',{name:'Complete stay',exact:true}).click();
+  assert.equal(await managerPage.getByTestId('workspace-property').inputValue(),receptionTarget.id);
+  assert.equal(await managerPage.getByTestId('reception-panel').getByLabel('Reception & calendar',{exact:true}).inputValue(),receptionTarget.id);
+  await managerPage.close();console.log('PASS manager finish action selects the booking property instead of the first assigned hostel');
   for(const language of ['fa','en','ru','hy']){
     const mobile=await browser.newContext({viewport:{width:390,height:844}});
     await mobile.addInitScript(lang=>{if(window===window.top)localStorage.setItem('yerevanhub_lang',lang);},language);

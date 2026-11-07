@@ -5,7 +5,7 @@ import {
   createCipheriv,
   createDecipheriv,
 } from "node:crypto";
-import { readFile, mkdir, writeFile, readdir } from "node:fs/promises";
+import { readFile, mkdir, readdir, unlink, open } from "node:fs/promises";
 import path from "node:path";
 import { mediaDirectory } from "./media.js";
 interface Snapshot {
@@ -202,6 +202,7 @@ export async function restoreSnapshot(
     return value;
   };
   const tx = await client.transaction("write");
+  const writtenFiles: string[] = [];
   try {
     for (const table of snapshot.tables) {
       identifier(table.name);
@@ -234,15 +235,18 @@ export async function restoreSnapshot(
     }
     if((await tx.execute('PRAGMA foreign_key_check')).rows.length)throw new Error('Backup contains inconsistent references');
     if (!storage)
-      for (const asset of snapshot.assets)
-        await writeFile(
-          path.join(targetMediaDirectory, asset.id + ".webp"),
-          Buffer.from(asset.bytes, "base64"),
-          { mode: 0o600, flag: "wx" },
-        );
+      for (const asset of snapshot.assets) {
+        const file = path.join(targetMediaDirectory, asset.id + ".webp");
+        // Own the path before writing so even a partial write is cleaned up.
+        const handle = await open(file, 'wx', 0o600);
+        writtenFiles.push(file);
+        try { await handle.writeFile(Buffer.from(asset.bytes, 'base64')); }
+        finally { await handle.close(); }
+      }
     await tx.commit();
   } catch (error) {
     await tx.rollback();
+    for (const file of writtenFiles) await unlink(file).catch(() => {});
     if (storage)
       for (const url of locations.values())
         await storage.remove(url).catch(() => {});
