@@ -27,7 +27,7 @@ const results = [], pageErrors = [];
 const viewports = [
   { width: 320, height: 740 }, { width: 360, height: 800 }, { width: 390, height: 844 },
   { width: 430, height: 932 }, { width: 640, height: 800 }, { width: 768, height: 1024 }, { width: 820, height: 1180 },
-  { width: 1024, height: 768 }, { width: 1366, height: 900 },
+  { width: 980, height: 900 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 },
 ];
 const headers = { 'X-Requested-With': 'YerevanHub' };
 async function action(context, name, args) {
@@ -47,6 +47,10 @@ async function navigate(page, url) {
   if (hashOnly) await page.reload({ waitUntil: 'domcontentloaded' });
   await loaded;
   await page.locator('.app-shell > header').waitFor();
+  // Startup and React.lazy can mount separate fallbacks in succession. Wait for
+  // actual page content before measuring; absence of the first loader can race
+  // the second one and accidentally measure a hidden Suspense subtree.
+  await page.locator('main h1, main h2').first().waitFor({ state: 'visible' });
   await page.getByTestId('content-loading').first().waitFor({ state: 'hidden' });
   await page.locator('#site-preloader').waitFor({ state: 'detached' });
   await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); });
@@ -72,9 +76,19 @@ async function inspect(page, label, screenshot = false) {
       if (element.classList.contains('skip-link')) return [];
       return [{ tag: element.tagName, class: String(element.className).slice(0, 150), text: element.textContent?.trim().slice(0, 100), left: Math.round(rect.left), right: Math.round(rect.right) }];
     }).slice(0, 12);
-    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow };
+    const headerParts = [...document.querySelectorAll('.header-inner > .header-brand, .header-inner > .header-controls, .header-inner > .desktop-navigation')]
+      .map(element => ({name: element.className, rect: element.getBoundingClientRect()}))
+      .filter(part => part.rect.width && part.rect.height);
+    const headerOverlap = [];
+    for (let index = 0; index < headerParts.length; index++) {
+      for (const other of headerParts.slice(index + 1)) {
+        const part = headerParts[index], a = part.rect, b = other.rect;
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) headerOverlap.push([part.name, other.name]);
+      }
+    }
+    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow, headerOverlap };
   });
-  const passed = state.documentWidth <= state.width + 1 && state.overflow.length === 0;
+  const passed = state.documentWidth <= state.width + 1 && state.overflow.length === 0 && state.headerOverlap.length === 0;
   const result = { label, passed, ...state };
   results.push(result);
   console.log('RESPONSIVE ' + JSON.stringify(result));
@@ -118,7 +132,7 @@ try {
       const prefix = `${language}-${viewport.width}`;
       for (const [name, segment] of routes) {
         await navigate(page, `/${language}/${segment}`);
-        await inspect(page, `${prefix}-${name}`, language === 'fa' && [390, 768, 1024].includes(viewport.width) && ['home', 'hostel', 'translator'].includes(name));
+        await inspect(page, `${prefix}-${name}`, language === 'fa' && [390, 768, 1024, 1366].includes(viewport.width) && ['home', 'hostel', 'translator'].includes(name));
         if (name === 'home') {
           const overlap = await page.evaluate(() => {
             const brand = document.querySelector('.header-brand').getBoundingClientRect();
@@ -126,6 +140,32 @@ try {
             return brand.left < controls.right && controls.left < brand.right && brand.top < controls.bottom && controls.top < brand.bottom;
           });
           assert.equal(overlap, false, `${prefix}: header brand and controls overlap`);
+          {
+            const brandOrder = await page.evaluate(() => {
+              const mark = document.querySelector('.header-brand-mark').getBoundingClientRect();
+              const wordmark = document.querySelector('.header-wordmark').getBoundingClientRect();
+              const rtl = document.querySelector('.site-header').dir === 'rtl';
+              const markOnRight = window.innerWidth < 640 ? !rtl : rtl;
+              return markOnRight ? mark.left >= wordmark.right - 1 : mark.right <= wordmark.left + 1;
+            });
+            assert.equal(brandOrder, true, `${prefix}: brand mark order must match the mobile/desktop language rule`);
+            const controlOrder = await page.evaluate(() => {
+              const language = document.querySelector('.header-controls button[aria-label="Select language"]').getBoundingClientRect();
+              const theme = document.querySelector('.header-controls [data-testid="theme-toggle"]').getBoundingClientRect();
+              return document.querySelector('.site-header').dir === 'rtl' ? language.left >= theme.right - 1 : language.right <= theme.left + 1;
+            });
+            assert.equal(controlOrder, true, `${prefix}: language control must precede the theme control in reading order`);
+          }
+          if (viewport.width >= 1280) {
+            const desktopFits = await page.evaluate(() => {
+              const nav = document.querySelector('.desktop-navigation').getBoundingClientRect();
+              const brand = document.querySelector('.header-brand').getBoundingClientRect();
+              const controls = document.querySelector('.header-controls').getBoundingClientRect();
+              const overlaps = rect => nav.left < rect.right && rect.left < nav.right && nav.top < rect.bottom && rect.top < nav.bottom;
+              return !overlaps(brand) && !overlaps(controls);
+            });
+            assert.equal(desktopFits, true, `${prefix}: desktop navigation overlaps header controls`);
+          }
           // Larger text and every translation must fit the slide, not just the first image.
           await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
           for (let index = 0; index < 3; index++) {
@@ -183,10 +223,24 @@ try {
         await navigate(page, `/#/${role}`);
         const dashboard = role === 'account' ? 'traveler' : role;
         await page.getByTestId(`${dashboard}-dashboard`).waitFor();
-        await inspect(page, `${prefix}-${role}`);
-        for (const tabName of ['profile', 'reception', 'finance', 'operations', 'hostels', 'rentals', 'articles']) {
+        const adminScreenshot = role === 'admin' && language === 'fa' && [390, 1366].includes(viewport.width);
+        await inspect(page, `${prefix}-${role}`, adminScreenshot);
+        if (role === 'admin') {
+          const reports = page.locator('.admin-report-menu');
+          await reports.locator('summary').click();
+          await inspect(page, `${prefix}-admin-reports`);
+          await reports.locator('summary').click();
+          const menu = page.locator('.dashboard-menu-toggle');
+          if (await menu.isVisible()) {
+            await menu.click();
+            await inspect(page, `${prefix}-admin-navigation`, adminScreenshot);
+            await menu.click();
+          }
+        }
+        for (const tabName of ['bookings', 'properties', 'managers', 'coupons', 'reviews', 'audit', 'profile', 'reception', 'finance', 'operations', 'hostels', 'rentals', 'articles']) {
           const tab = page.getByTestId('workspace-tab-' + tabName);
           if (await tab.count()) {
+            if (!await tab.isVisible()) await page.locator('.dashboard-menu-toggle').click();
             await tab.click();
             await inspect(page, `${prefix}-${role}-${tabName}`);
           }

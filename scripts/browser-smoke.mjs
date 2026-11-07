@@ -13,6 +13,12 @@ const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{cwd:proc
 let browser;let activePage;let serverOutput="";
 server.stderr.on("data",chunk=>serverOutput+=String(chunk));
 const errors=[];
+async function workspaceTab(page,id) {
+  const tab=page.getByTestId('workspace-tab-'+id);
+  await tab.waitFor({state:'attached'});
+  if(!await tab.isVisible())await page.locator('.dashboard-menu-toggle').click();
+  await tab.click();
+}
 const artifactDirectory=process.env.BROWSER_ARTIFACTS_DIR;if(artifactDirectory)await mkdir(artifactDirectory,{recursive:true});
 try {
   await new Promise((resolve,reject)=>{
@@ -32,6 +38,18 @@ try {
   await page.goto(origin+'/#/booking/invalid-token');await page.getByRole('alert').waitFor();
   await page.locator('main').getByText('Page not found or access unavailable.',{exact:true}).waitFor();
   await page.goto(origin+'/');
+  for(const [asset,mime] of [
+    ['/favicon.svg',/^image\/svg\+xml/],
+    ['/favicon.ico',/^image\/(x-icon|vnd\.microsoft\.icon)/],
+    ['/favicon-32x32.png',/^image\/png/],
+    ['/apple-touch-icon.png',/^image\/png/],
+  ]) {
+    const response=await context.request.get(origin+asset);
+    assert.equal(response.status(),200,asset);
+    assert.match(response.headers()['content-type'],mime,asset);
+  }
+  assert.equal(await page.locator('head link[rel="icon"][type="image/svg+xml"]').getAttribute('href'),'/favicon.svg');
+  assert.equal(await page.locator('head link[rel="apple-touch-icon"]').getAttribute('href'),'/apple-touch-icon.png');
   await page.getByRole('button',{name:'Details & Booking',exact:true}).first().click();
   await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.getByRole('button',{name:'Compare',exact:true}).click();
@@ -137,6 +155,15 @@ try {
   await otherPage.locator('button[type=submit]').click();const doubleBooking=(await (await doubleResponse).json()).booking;
   assert.equal(doubleBooking.quantity,1);assert.equal(doubleBooking.guestsCount,2);assert.equal(doubleBooking.finalAmountAMD,16200);assert.equal(doubleBooking.couponCode,'BROWSER10');
   await otherPage.waitForURL(/#\/booking\/yvn-trk-/);
+  const changeWorkflow=otherPage.getByTestId('booking-workflow');
+  await changeWorkflow.locator('summary').filter({hasText:'Request stay change'}).click();
+  await changeWorkflow.getByLabel('Guests',{exact:true}).fill('3');
+  await changeWorkflow.getByLabel('Units',{exact:true}).fill('2');
+  await changeWorkflow.getByLabel('Guests',{exact:true}).fill('2');
+  await changeWorkflow.getByLabel('Units',{exact:true}).evaluate(element=>element.blur());
+  assert.equal(await changeWorkflow.getByLabel('Units',{exact:true}).inputValue(),'1','Restoring the original guest count restores its agreed room quantity');
+  console.log('PASS stay-change guest count round trip restores the agreed quantity');
+
   console.log('PASS two guests reserve one private double room at the room price through an independent browser');
   console.log('PASS known coupon applies, removes and reapplies without exposing the promotion list');
   const propertyPanel=page.getByTestId('property-management');
@@ -144,6 +171,7 @@ try {
   await translations(editor,'Name');await translations(editor,'Description');
   await editor.getByLabel('Page slug',{exact:true}).fill('browser-apartment');await editor.getByLabel('City',{exact:true}).fill('Yerevan');
   await editor.getByLabel('Approximate public location',{exact:true}).fill('Kentron');await editor.getByLabel('Public address',{exact:true}).fill('Kentron area');
+  await editor.getByTestId('rental-public-lat').fill('40.1785');await editor.getByTestId('rental-public-lng').fill('44.5152');
   await editor.getByLabel('Internal exact address',{exact:true}).fill('PRIVATE-BROWSER-ADDRESS');
   await editor.getByRole('button',{name:'2. Details & policies',exact:true}).click();
   for(const [label,amount] of [['Area · m²','50'],['Floor','2'],['Total floors','4'],['Beds','2'],['Bedrooms','1'],['Bathrooms','1'],['Maximum residents','2'],['Nightly price / unit · AMD','22000'],['Minimum nights','2']])await editor.getByLabel(label,{exact:true}).fill(amount);
@@ -156,11 +184,36 @@ try {
   await editor.getByLabel('Save & publish',{exact:true}).selectOption('published');await editor.getByRole('button',{name:'Save & publish',exact:true}).click();
   await editor.getByRole('status').filter({hasText:'Saved.'}).waitFor();await editor.getByRole('button',{name:'Close editor',exact:true}).click();
   const publicState=await (await otherPage.request.get(origin+'/api/app')).json();assert.ok(!JSON.stringify(publicState).includes('PRIVATE-BROWSER-ADDRESS'));
-  console.log('PASS administrator creates an apartment through the complete editor and exact address stays private');
+  const savedRental=publicState.state.rentals.find(item=>item.slug==='browser-apartment');assert.deepEqual(savedRental.publicCoordinates,{lat:40.1785,lng:44.5152});
+  const mapPage=await other.newPage();await mapPage.goto(origin+'/en/rentals/browser-apartment');
+  const location=mapPage.getByTestId('property-location');await location.waitFor();
+  assert.ok((await location.locator('a[href*="yandex.com"]').getAttribute('href')).includes('pt=44.5152%2C40.1785'));
+  assert.ok((await location.locator('a[href*="google.com/maps/search"]').getAttribute('href')).includes('query=40.1785%2C44.5152'));
+  assert.ok(!(await location.innerHTML()).includes('PRIVATE-BROWSER-ADDRESS'));
+  // External frames are blocked in this deterministic suite. Assert the actual
+  // iframe provider, exact point, locale and responsive bounds, not its load event.
+  for(const language of ['fa','en','ru','hy']) {
+    for(const width of [320,768,1366]) {
+      await mapPage.setViewportSize({width,height:900});
+      for(const [segment,slug,point] of [['rentals','browser-apartment',{lat:40.1785,lng:44.5152}],['hostels','browser-hostel',managedHostel.coordinates]]) {
+        await mapPage.goto(`${origin}/${language}/${segment}/${slug}`);
+        const card=mapPage.getByTestId('property-location');await card.waitFor();
+        const frame=card.locator('iframe');await frame.scrollIntoViewIfNeeded();
+        const source=new URL(await frame.getAttribute('src'));
+        assert.equal(source.origin,'https://yandex.com');assert.equal(source.pathname,'/map-widget/v1/');
+        assert.equal(source.searchParams.get('pt'),`${point.lng},${point.lat},pm2rdm`);
+        assert.equal(source.searchParams.get('lang'),language==='ru'?'ru_RU':'en_RU');
+        const bounds=await frame.boundingBox();assert.ok(bounds.width>100&&bounds.x>=-1&&bounds.x+bounds.width<=width+1);
+        assert.ok(!(await card.innerHTML()).includes('openstreetmap.org'));
+      }
+    }
+  }
+  await mapPage.close();
+  console.log('PASS administrator creates an apartment with public map coordinates; provider links preserve the point and exact address stays private');
   const crawled=await context.request.get(origin+'/en/hostels/browser-hostel');assert.equal(crawled.status(),200);const html=await crawled.text();assert.ok(html.includes('<title>Name English · YEREVANHUB</title>'));assert.ok(html.includes('hreflang="fa"'));assert.ok(html.includes('Name English'));
   assert.equal((await context.request.get(origin+'/en/hostels/missing-property')).status(),404);
   await otherPage.getByText('Double Room Guest',{exact:true}).waitFor();assert.match(await otherPage.locator('meta[name=robots]').getAttribute('content'),/noindex/);assert.ok(!(await otherPage.title()).includes('Double Room Guest'));
-  await page.getByTestId('workspace-tab-reception').click();const reception=page.getByTestId('reception-panel');await reception.getByLabel('Reception & calendar',{exact:true}).selectOption(managedHostel.id);await reception.getByLabel('Room type',{exact:true}).selectOption(managedHostel.roomTypes.find(room=>room.type==='dorm_female').id);
+  await workspaceTab(page,'reception');const reception=page.getByTestId('reception-panel');await reception.getByLabel('Reception & calendar',{exact:true}).selectOption(managedHostel.id);await reception.getByLabel('Room type',{exact:true}).selectOption(managedHostel.roomTypes.find(room=>room.type==='dorm_female').id);
   const manual=reception.locator('details').filter({has:page.getByText('Record external booking',{exact:true})}).first();await manual.locator('summary').first().click();
   await manual.getByLabel('Guest name',{exact:true}).fill('Telephone Guest');await manual.getByLabel('Contact',{exact:true}).fill('telephone@example.test');await manual.getByLabel('Booking source',{exact:true}).selectOption('telephone');await manual.getByLabel('Reason / note',{exact:true}).fill('Guest accepted conditions by telephone');await manual.getByLabel('Accepted conditions',{exact:true}).check();
   const externalResponse=page.waitForResponse(response=>response.url().endsWith('/api/app')&&response.request().method()==='POST'&&response.request().postDataJSON()?.action==='recordExternalBooking');await manual.getByRole('button',{name:'Save',exact:true}).click();const externalBooking=(await(await externalResponse).json()).booking;assert.equal(externalBooking.status,'confirmed');assert.equal(externalBooking.source,'telephone');
@@ -169,18 +222,31 @@ try {
   await action('Assign beds / rooms','assignUnits');await action('Record check-in','recordStayEvent');await action('Record check-out','recordStayEvent');
   assert.equal((await(await context.request.get(origin+'/api/app')).json()).state.bookings.find(b=>b.id===externalBooking.id).status,'completed');
   console.log('PASS reception records a telephone booking, assigns a physical bed, and records actual check-in/check-out');
-  await page.getByTestId('workspace-tab-finance').click();const finance=page.getByTestId('finance-panel');await finance.getByLabel('Guest name',{exact:true}).selectOption(externalBooking.id);await finance.getByLabel('Amount · AMD',{exact:true}).fill('1000');await finance.getByLabel('Reason / note',{exact:true}).fill('Cash recorded at reception');await finance.getByRole('button',{name:'Save',exact:true}).click();await finance.getByText('Saved.',{exact:true}).waitFor();
+  await workspaceTab(page,'finance');const finance=page.getByTestId('finance-panel');await finance.getByLabel('Guest name',{exact:true}).selectOption(externalBooking.id);await finance.getByLabel('Amount · AMD',{exact:true}).fill('1000');await finance.getByLabel('Reason / note',{exact:true}).fill('Cash recorded at reception');await finance.getByRole('button',{name:'Save',exact:true}).click();await finance.getByText('Saved.',{exact:true}).waitFor();
   assert.equal((await(await context.request.get(origin+'/api/app')).json()).state.financeEntries.filter(e=>e.bookingId===externalBooking.id).length,1);
   console.log('PASS finance records actual property payment separately from reservation value');
   const accountContext=await browser.newContext();await accountContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});await accountContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const accountPassword=crypto.randomUUID();await accountContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'registerTraveler',args:['Browser Account','browser-account@example.test',null,accountPassword]}});
-  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await accountPage.getByTestId('workspace-tab-profile').click();const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
+  const accountPage=await accountContext.newPage();accountPage.on('pageerror',error=>errors.push(error.stack||error.message));await accountPage.goto(origin+'/#/account');await workspaceTab(accountPage,'profile');const profile=accountPage.getByTestId('account-settings');await profile.getByLabel('Full name',{exact:true}).fill('Updated Browser Account');await profile.getByRole('button',{name:'Save',exact:true}).click();await profile.getByText('Saved.',{exact:true}).waitFor();
   await accountPage.goto(origin+'/en/hostels/browser-hostel');await accountPage.getByRole('button',{name:'Save',exact:true}).click();
   const secondDevice=await browser.newContext();await secondDevice.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['browser-account@example.test',accountPassword]}});const accountState=(await(await secondDevice.request.get(origin+'/api/app')).json()).state;assert.equal(accountState.currentUser.name,'Updated Browser Account');assert.ok(accountState.savedPlaces.includes('hostel:'+managedHostel.id));await secondDevice.close();await accountContext.close();
   console.log('PASS profile edits and saved properties persist across independent authenticated browser contexts');
   const multiHostPassword=crypto.randomUUID();
   const managerCreated=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'createHostelManager',args:[{name:'Multi-property browser host',email:'multi-host@example.test',initialPassword:multiHostPassword,assignedHostelIds:publicHostels.slice(0,2).map(item=>item.id)}]}});assert.equal((await managerCreated.json()).success,true);
   const managerContext=await browser.newContext();const managerLogin=await managerContext.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'login',args:['multi-host@example.test',multiHostPassword]}});assert.equal((await managerLogin.json()).success,true);const managerCookies=await managerContext.cookies();
+  const receptionTarget=publicHostels[1];
+  const finishGuest='QA multi-property reception';
+  const external=await context.request.post(origin+'/api/app',{headers:{'X-Requested-With':'YerevanHub'},data:{action:'recordExternalBooking',args:[{hostelId:receptionTarget.id,roomTypeId:receptionTarget.roomTypes[0].id,guestName:finishGuest,guestContact:'qa@example.test',contactType:'email',checkIn:new Date(Date.now()+7*86400000).toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'}),checkOut:new Date(Date.now()+8*86400000).toLocaleDateString('en-CA',{timeZone:'Asia/Yerevan'}),quantity:1,guestsCount:1,source:'telephone',reason:'QA navigation check',acceptedTerms:true,idempotencyKey:crypto.randomUUID()}]}});
+  assert.equal((await external.json()).success,true);
+  await managerContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
+  await managerContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+  const managerPage=await managerContext.newPage();managerPage.on('pageerror',error=>errors.push(error.stack||error.message));
+  await managerPage.goto(origin+'/en/#/manager');await managerPage.getByTestId('manager-dashboard').waitFor();
+  await workspaceTab(managerPage,'bookings');
+  await managerPage.locator('article').filter({has:managerPage.getByRole('heading',{name:finishGuest,exact:true})}).getByRole('button',{name:'Complete stay',exact:true}).click();
+  assert.equal(await managerPage.getByTestId('workspace-property').inputValue(),receptionTarget.id);
+  assert.equal(await managerPage.getByTestId('reception-panel').getByLabel('Reception & calendar',{exact:true}).inputValue(),receptionTarget.id);
+  await managerPage.close();console.log('PASS manager finish action selects the booking property instead of the first assigned hostel');
   for(const language of ['fa','en','ru','hy']){
     const mobile=await browser.newContext({viewport:{width:390,height:844}});
     await mobile.addInitScript(lang=>{if(window===window.top)localStorage.setItem('yerevanhub_lang',lang);},language);
@@ -194,14 +260,14 @@ try {
       await screen.goto(origin+`/#/${role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();
       assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} mobile overflow`);
       if(role==='manager'){
-        await screen.getByTestId('workspace-tab-operations').click();
+        await workspaceTab(screen,'operations');
         await screen.getByTestId('workspace-property').selectOption(publicHostels[1].id);
         assert.equal(await screen.getByTestId('operations-property').inputValue(),publicHostels[1].id);
         await screen.getByTestId('operations-property').selectOption(publicHostels[0].id);
         assert.equal(await screen.getByTestId('workspace-property').inputValue(),publicHostels[0].id);
         assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: operations mobile overflow`);
       }
-      for(const tab of ['reception','finance','profile']){await screen.getByTestId('workspace-tab-'+tab).click();assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
+      for(const tab of ['reception','finance','profile']){await workspaceTab(screen,tab);assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} ${tab} mobile overflow`);}
       if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,`${role}-fa-mobile.png`),fullPage:true});
     }
     await mobile.close();

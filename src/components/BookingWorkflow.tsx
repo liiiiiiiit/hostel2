@@ -41,7 +41,7 @@ export function BookingWorkflow({
   const room = state.hostels
     .find((h) => h.id === booking.hostelId)
     ?.roomTypes.find((r) => r.id === booking.roomTypeId);
-  useEffect(()=>{if(room&&guests!==booking.guestsCount)setChangeQuantity(requiredUnits(room,guests)??booking.quantity);},[guests,room?.id]);
+  useEffect(()=>{if(room)setChangeQuantity(guests===booking.guestsCount?booking.quantity:requiredUnits(room,guests)??booking.quantity);},[guests,room?.id,room?.maxGuestsPerUnit,booking.guestsCount,booking.quantity]);
   return (
     <section className="surface p-5 space-y-5" data-testid="booking-workflow">
       <h2 className="font-semibold">{w(manager ? "operations" : "terms")}</h2>

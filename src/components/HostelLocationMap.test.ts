@@ -6,8 +6,8 @@ test('map links encode the exact stored coordinate in the embed and navigation d
   const point = { lat: 40.1785, lng: 44.5152 };
   const links = getMapLinks(point)!;
   const embed = new URL(links.embed!);
-  assert.equal(embed.origin, 'https://www.openstreetmap.org');
-  assert.equal(embed.searchParams.get('marker'), '40.1785,44.5152');
+  assert.equal(embed.origin, 'https://yandex.com');
+  assert.equal(embed.searchParams.get('pt'), '44.5152,40.1785,pm2rdm');
   assert.equal(new URL(links.directions).searchParams.get('destination'), '40.1785,44.5152');
   const [west, south, east, north] = getMapBounds(point)!;
   assert.ok(west < point.lng && east > point.lng && south < point.lat && north > point.lat);
@@ -24,4 +24,13 @@ test('valid polar coordinates do not get clamped into a false map position', () 
   const links = getMapLinks({lat:89,lng:0})!;
   assert.equal(links.embed, null);
   assert.equal(new URL(links.directions).searchParams.get('destination'), '89,0');
+});
+
+test('widget language uses supported Yandex locales while preserving the point', () => {
+  for (const lang of ['fa','en','ru','hy']) {
+    const embed = new URL(getMapLinks({lat:40.1785,lng:44.5152},lang)!.embed!);
+    assert.equal(embed.pathname,'/map-widget/v1/');
+    assert.equal(embed.searchParams.get('lang'),lang === 'ru' ? 'ru_RU' : 'en_RU');
+    assert.equal(embed.searchParams.get('ll'),'44.5152,40.1785');
+  }
 });

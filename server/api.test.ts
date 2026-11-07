@@ -514,12 +514,12 @@ test('administrator creates, edits, previews and publishes female beds, private 
   const published=(await visitor.get()).state.hostels.find(item=>item.id===hostel.id)!;
   assert.equal(published.name.en,'Updated hostel');assert.equal(published.roomTypes.length,2);
   assert.equal(published.roomTypes[1].maxGuestsPerUnit,2);assert.equal(published.roomTypes[1].physicalUnits,undefined);
-  const rental=completeRental();rental.status='published';
+  const rental=completeRental();rental.status='published';rental.publicCoordinates={lat:40.1785,lng:44.5152};
   assert.equal((await manager.action('saveRental',[rental])).response.status,403);
   assert.equal((await admin.action('saveRental',[rental])).data.success,true);
   const publicRental=(await visitor.get()).state.rentals.find(item=>item.id===rental.id)!;
-  assert.equal(publicRental.addressExactInternal,'');assert.equal(publicRental.landlordInternalNotes,'');
-  const inquiry=await visitor.action('createRentalInquiry',[{propertyId:rental.id,guestName:'Rental guest',contact:'guest@example.test',requestType:'visit',residentsCount:2}]);
+  assert.deepEqual(publicRental.publicCoordinates,rental.publicCoordinates);assert.equal(publicRental.addressExactInternal,'');assert.equal(publicRental.landlordInternalNotes,'');
+  const inquiry=await visitor.action('createRentalInquiry',[{propertyId:rental.id,guestName:'Rental guest',contact:'guest@example.test',requestType:'visit',proposedVisitDate:addCalendarDays(yerevanToday(),2)+'T15:00',residentsCount:2}]);
   assert.equal(inquiry.data.success,true);
   await admin.action('updateRentalInquiryStatus',[inquiry.data.inquiry.id,'agreed','PRIVATE-ADMIN-NOTE']);
   const tracked=await visitor.get('',inquiry.data.inquiry.privateToken);
@@ -811,4 +811,82 @@ test('booking response completes while the optional notification provider is sti
     if (previous.key === undefined) delete process.env.RESEND_API_KEY; else process.env.RESEND_API_KEY = previous.key;
     if (previous.from === undefined) delete process.env.NOTIFICATION_FROM; else process.env.NOTIFICATION_FROM = previous.from;
   }
+});
+
+test('pending private-room agreements prevent incompatible capacity changes but allow capacity increases and price edits', async t => {
+  const {admin,visitor,hostel}=await receptionFixture(t);
+  const room=hostel.roomTypes.find(r=>r.type==='private')!;
+  const b=(await visitor.action('createBooking',[{hostelId:hostel.id,roomTypeId:room.id,guestName:'Two guests',contactType:'email',guestContact:'guests@example.test',checkIn:addCalendarDays(yerevanToday(),2),checkOut:addCalendarDays(yerevanToday(),4),guestsCount:2,quantity:1}])).data.booking;
+  const edited=structuredClone((await admin.get()).state.hostels.find(h=>h.id===hostel.id)!);
+  edited.roomTypes.find(r=>r.id===room.id)!.maxGuestsPerUnit=1;
+  const bad=await admin.action('saveHostel',[edited]);
+  assert.equal(bad.data.success,false,'Pending two-person booking must protect its room capacity');
+  const safe=structuredClone((await admin.get()).state.hostels.find(h=>h.id===hostel.id)!);
+  safe.roomTypes.find(r=>r.id===room.id)!.pricePerNightAMD+=500;
+  safe.roomTypes.find(r=>r.id===room.id)!.maxGuestsPerUnit=3;
+  assert.equal((await admin.action('saveHostel',[safe])).data.success,true);
+  assert.equal((await admin.action('updateBookingStatus',[b.id,'confirmed'])).data.success,true);
+  assert.equal((await admin.get()).state.bookings.find(x=>x.id===b.id)!.finalAmountAMD,b.finalAmountAMD);
+});
+
+test('confirmation rejects legacy pending occupancy that no longer matches its room', async t => {
+  const {admin,visitor,hostel,database}=await receptionFixture(t);
+  const room=hostel.roomTypes.find(r=>r.type==='private')!;
+  const b=(await visitor.action('createBooking',[{hostelId:hostel.id,roomTypeId:room.id,guestName:'Two guests',contactType:'email',guestContact:'guests@example.test',checkIn:addCalendarDays(yerevanToday(),2),checkOut:addCalendarDays(yerevanToday(),4),guestsCount:2,quantity:1}])).data.booking;
+  await database.transaction(async state=>{state.hostels.find(h=>h.id===hostel.id)!.roomTypes.find(r=>r.id===room.id)!.maxGuestsPerUnit=1;});
+  assert.equal((await admin.action('updateBookingStatus',[b.id,'confirmed'])).data.success,false);
+  assert.equal((await admin.get()).state.bookings.find(x=>x.id===b.id)!.status,'pending');
+});
+
+test('rental requests validate conditional dates and duration before persisting an inquiry', async t => {
+  const {admin,visitor,database}=await receptionFixture(t);
+  const {completeRental}=await import('./property-fixtures.js');
+  const rental=completeRental();rental.status='published';
+  assert.equal((await admin.action('saveRental',[rental])).data.success,true);
+  const request={propertyId:rental.id,guestName:'Rental guest',contact:'guest@example.test',residentsCount:1};
+  for(const input of [
+    {requestType:'rent',desiredStartDate:addCalendarDays(yerevanToday(),-1),desiredDurationText:'2 months'},
+    {requestType:'rent',desiredStartDate:yerevanToday(),desiredDurationText:'  '},
+    {requestType:'visit',proposedVisitDate:'not-a-date'},
+    {requestType:'visit',proposedVisitDate:addCalendarDays(yerevanToday(),2)+'T25:70'},
+  ]) assert.equal((await visitor.action('createRentalInquiry',[{...request,...input}])).data.success,false);
+  await database.transaction(async state=>{assert.equal(state.rentalInquiries.length,0);});
+  assert.equal((await visitor.action('createRentalInquiry',[{...request,requestType:'visit',proposedVisitDate:addCalendarDays(yerevanToday(),2)+'T15:00'}])).data.success,true);
+});
+
+test('traveler and unrelated managers cannot mutate administrative or other-property data', async t => {
+  const {client,visitor,admin,hostel,room,request,database}=await receptionFixture(t);
+  const manager=client(),traveler=client();
+  await manager.action('login',['manager.kentron@yerevanhub.com','Hostel@2026']);
+  await traveler.action('login',['traveler@example.com','Traveler@2026']);
+  const b=(await admin.action('recordExternalBooking',[request])).data.booking;
+  const {completeRental}=await import('./property-fixtures.js');
+  const mutations:[string,unknown[]][]=[
+    ['saveHostel',[hostel]],['saveRental',[completeRental()]],
+    ['setVerification',['hostel',hostel.id,true,'Checked']],
+    ['setCapacity',[hostel.id,room.id,yerevanToday(),1]],
+    ['moderateReview',['missing-review','approved']],
+    ['updateRentalInquiryStatus',['missing-inquiry','agreed']],
+    ['saveArticle',[{id:'qa-article',slug:'qa-article',title:'QA',summary:'QA',category:'guide',content:'QA',featuredImage:'',author:'QA',language:'en',tags:[],sources:[],status:'draft',lastVerifiedDate:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}]],
+    ['deleteArticle',['missing-article']],['deleteCoupon',['WELCOME10']],
+    ['createHostelManager',[{name:'Forbidden host',email:'forbidden@example.test',initialPassword:'Forbidden-password-42',assignedHostelIds:[hostel.id]}]],
+    ['updatePlatformSettings',[{emergencyHotline:'WRONG',telegramSupport:'WRONG',supportHours:{fa:'x',en:'x',ru:'x',hy:'x'}}]],
+    ['recordStayEvent',[b.id,'check_in','Forbidden check-in']],
+    ['assignUnits',[b.id,[room.physicalUnits![0].id]]],
+    ['recordFinanceEntry',[b.id,'property_payment',100,'Forbidden payment',crypto.randomUUID()]],
+    ['requestBookingChange',[b.id,{checkIn:request.checkIn,checkOut:request.checkOut,guestsCount:1,quantity:1,reason:'Forbidden change'}]],
+  ];
+  for(const actor of [visitor,traveler,manager]) for(const [action,args] of mutations) {
+    const result=await actor.action(action,args);
+    assert.equal(result.response.status,403,`${action} must enforce its role/hostel boundary`);
+  }
+  const outsider=(await traveler.get()).state;
+  assert.ok(!outsider.bookings.some(x=>x.id===b.id));
+  assert.equal((await traveler.action('createSupportThread',[b.id,'question','Forbidden read'])).response.status,403);
+  await database.transaction(async state=>{
+    assert.ok(!state.users.some(u=>u.email==='forbidden@example.test'));
+    assert.equal(state.bookings.find(x=>x.id===b.id)!.checkedInAt,undefined);
+    assert.equal(state.financeEntries!.length,0);
+    assert.notEqual(state.settings.emergencyHotline,'WRONG');
+  });
 });

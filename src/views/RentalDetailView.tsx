@@ -5,8 +5,9 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BedDouble, Building2, Check, MapPi
 import { AppLanguage, RentalProperty } from '../types';
 import { UI_TRANSLATIONS } from '../i18n/translations';
 import { getLocalized, getCityName } from '../utils/i18n';
-import { yerevanToday } from '../utils/dates';
+import { yerevanToday, yerevanDateTime } from '../utils/dates';
 import { appStore } from '../services/store';
+import { RentalLocationMap } from '../components/HostelLocationMap';
 import { VerificationInfo } from '../components/VerificationInfo';
 import { PlaceActions } from '../components/PlaceActions';
 interface Props { currentLang: AppLanguage; rental: RentalProperty; onNavigate: (view: string, params?: any) => void }
@@ -60,6 +61,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
         </dl><details className="border-t border-slate-100 pt-4"><summary className="font-medium cursor-pointer py-1">{c.terms}</summary><p className="text-sm text-slate-600 leading-7 mt-3 whitespace-pre-line">{rental.depositTerms}</p></details></section>
         <details className="surface p-5 sm:p-7"><summary className="text-xl font-semibold cursor-pointer">{c.utilities}</summary><dl className="divide-y divide-slate-100 text-sm mt-4">{(Object.entries(rental.utilitiesBreakdown) as [keyof RentalProperty['utilitiesBreakdown'],string][]).map(([key,value])=><div className="flex justify-between gap-4 py-3" key={key}><dt className="text-slate-500">{({electricity:c.electricity,water:c.water,gas:c.gas,internet:c.internet,buildingMaintenance:c.maintenance})[key]}</dt><dd>{utilityValue(value)}</dd></div>)}</dl></details>
 </>}
+        <RentalLocationMap rental={rental} currentLang={currentLang} />
         <VerificationInfo verified={rental.verifiedBadge} checkedAt={rental.lastCheckedAt} note={rental.verifiedExplanation} />
       </div>
       {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>
@@ -69,7 +71,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           <fieldset className="grid grid-cols-2 gap-2"><legend className="sr-only">{c.request}</legend>{(['visit','rent'] as const).map(value=><button type="button" key={value} aria-pressed={requestType===value} disabled={isSubmitting} onClick={()=>setRequestType(value)} className={`rounded-xl py-3 text-sm font-medium border ${requestType===value?'bg-[#142f2a] border-[#142f2a] text-white':'border-slate-200 bg-white text-slate-600'}`}>{value==='visit'?c.visit:c.rent}</button>)}</fieldset>
           <div><label htmlFor="rental-name" className="block text-sm font-medium mb-1.5">{c.name}</label><input id="rental-name" name="name" autoComplete="name" required maxLength={200} value={guestName} onChange={e=>setGuestName(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
           <div><label htmlFor="rental-contact" className="block text-sm font-medium mb-1.5">{c.contact}</label><input id="rental-contact" name="contact" required maxLength={254} value={contact} onChange={e=>setContact(e.target.value)} className="field w-full ltr-isolate text-start" disabled={isSubmitting} /></div>
-          {requestType==='visit'?<div><label htmlFor="rental-visit-date" className="block text-sm font-medium mb-1.5">{c.visitDate}</label><input id="rental-visit-date" type="datetime-local" required min={`${yerevanToday()}T00:00`} value={proposedVisitDate} onChange={e=>setProposedVisitDate(e.target.value)} className="field w-full min-w-0" disabled={isSubmitting} /></div>:<>
+          {requestType==='visit'?<div><label htmlFor="rental-visit-date" className="block text-sm font-medium mb-1.5">{c.visitDate}</label><input id="rental-visit-date" type="datetime-local" required min={yerevanDateTime()} value={proposedVisitDate} onChange={e=>setProposedVisitDate(e.target.value)} className="field w-full min-w-0" disabled={isSubmitting} /></div>:<>
             <div><label htmlFor="rental-start-date" className="block text-sm font-medium mb-1.5">{c.startDate}</label><input id="rental-start-date" type="date" required min={yerevanToday()} value={desiredStartDate} onChange={e=>setDesiredStartDate(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
             <div><label htmlFor="rental-duration" className="block text-sm font-medium mb-1.5">{c.duration}</label><input id="rental-duration" required value={desiredDurationText} maxLength={200} placeholder={c.durationHint} onChange={e=>setDesiredDurationText(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
           </>}

@@ -32,6 +32,7 @@ export const hostelSchema = z.object({
 });
 export const rentalSchema = z.object({
   ...base, title: localizedPropertyText, propertyType: z.enum(['apartment','house','studio','villa']), rentalType: z.enum(['both','short_term','long_term']),
+  publicCoordinates: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).optional(),
   neighborhood: short, approximateLocationLabel: short, addressPublic: short, addressExactInternal: long,
   areaSqm: z.number().min(0).max(100000), floor: z.number().int().min(-5).max(200), totalFloors: count,
   hasElevator: z.boolean(), bedroomsCount: count, bedsCount: count, bathroomsCount: count, maxResidents: count, isFurnished: z.boolean(),

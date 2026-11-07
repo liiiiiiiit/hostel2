@@ -20,7 +20,8 @@
     "db:status": "node --import tsx scripts/database.ts status",
     "db:check": "node --import tsx scripts/database.ts check",
     "db:rollback": "node --import tsx scripts/database.ts rollback",
-    "test:responsive": "npm run build && node scripts/responsive-smoke.mjs"
+    "test:responsive": "npm run build && node scripts/responsive-smoke.mjs",
+    "test:ipad": "npm run build && node scripts/ipad-search-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -49,5 +50,10 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@vercel/oidc": {
+      "@vercel/cli-config": "0.3.7"
+    }
   }
 }

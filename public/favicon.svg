@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="forest" x2="1" y2="1">
+      <stop stop-color="#365f49"/>
+      <stop offset="1" stop-color="#17392e"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="16" fill="url(#forest)" stroke="#b9975b" stroke-width="1.5"/>
+  <g transform="translate(4 4) scale(.78)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M5 50 27 16l11 18 8-13 21 29H5Z" stroke="#fffdf7" stroke-width="4"/>
+    <path d="m20 27 7 4 6-5M40 31l6 4 5-7M14 57h44" stroke="#d8b777" stroke-width="3.5"/>
+  </g>
+</svg>

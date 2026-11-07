@@ -12,15 +12,15 @@ test('Gyumri bounds and marker preserve its real saved coordinate rather than cl
   const bounds = getMapBounds(gyumri)!;
   assert.ok(bounds[0] < gyumri.lng && bounds[2] > gyumri.lng);
   assert.ok(bounds[1] < gyumri.lat && bounds[3] > gyumri.lat);
-  assert.equal(new URL(getMapLinks(gyumri)!.embed!).searchParams.get('marker'), '40.7891,43.8473');
+  assert.equal(new URL(getMapLinks(gyumri)!.embed!).searchParams.get('pt'), '43.8473,40.7891,pm2rdm');
 });
 
 test('selected-hostel map renders the corresponding stored point on an actual basemap', () => {
   const hostels = structuredClone(INITIAL_HOSTELS);
   const selected = hostels[hostels.length - 1];
   const markup = renderToStaticMarkup(createElement(LanguageProvider, { children: createElement(InteractiveHostelMap, { hostels, selectedHostelId: selected.id, onNavigate: () => {} }) }));
-  assert.ok(markup.includes('https://www.openstreetmap.org/export/embed.html?'));
-  assert.ok(markup.includes(`marker=${selected.coordinates.lat}%2C${selected.coordinates.lng}`));
+  assert.ok(markup.includes('https://yandex.com/map-widget/v1/?'));
+  assert.ok(markup.includes(`pt=${selected.coordinates.lng}%2C${selected.coordinates.lat}%2Cpm2rdm`));
   assert.ok(!markup.includes('nearest metro') && !markup.includes('walking distances'));
 });
 
@@ -28,5 +28,11 @@ test('map bounds remain valid near longitude edges without moving the marker', (
   const point = { lat: 40, lng: 179.999 };
   const [west, south, east, north] = getMapBounds(point)!;
   assert.ok(west >= -180 && east <= 180 && east > west && north > south);
-  assert.equal(new URL(getMapLinks(point)!.embed!).searchParams.get('marker'), '40,179.999');
+  assert.equal(new URL(getMapLinks(point)!.embed!).searchParams.get('pt'), '179.999,40,pm2rdm');
+});
+
+test('listing map does not show a default point when coordinates were explicitly removed', () => {
+  const hostels = [{...INITIAL_HOSTELS[0],coordinatesProvided:false}];
+  const markup = renderToStaticMarkup(createElement(LanguageProvider,{children:createElement(InteractiveHostelMap,{hostels,onNavigate:()=>{}})}));
+  assert.ok(!markup.includes('<iframe'));
 });

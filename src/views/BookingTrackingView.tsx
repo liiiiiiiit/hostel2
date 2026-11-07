@@ -313,7 +313,6 @@ export const BookingTrackingView: React.FC<Props> = ({
       case 'confirmed':
         return (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs sm:text-sm">
-      <BookingWorkflow booking={booking}/>{['rejected','expired'].includes(booking.status)&&<RecommendationsView onNavigate={onNavigate} initial={{...booking.searchContext,arrivalTime:booking.estimatedArrivalTime,actualArrivalDate:booking.actualArrivalDate,arrivalMode:booking.arrivalMode,checkIn:booking.checkIn,checkOut:booking.checkOut,guests:booking.guestsCount,type:hostel?.roomTypes.find(room=>room.id===booking.roomTypeId)?.type}}/>}
             <CheckCircle2 className="w-4 h-4 text-emerald-700" />
             <span>{tr.confirmedBadge}</span>
           </div>
@@ -592,6 +591,9 @@ export const BookingTrackingView: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      <BookingWorkflow key={booking.id} booking={booking}/>
+      {['rejected','expired'].includes(booking.status) && <div data-testid="booking-alternatives"><RecommendationsView onNavigate={onNavigate} initial={{...booking.searchContext,arrivalTime:booking.estimatedArrivalTime,actualArrivalDate:booking.actualArrivalDate,arrivalMode:booking.arrivalMode,checkIn:booking.checkIn,checkOut:booking.checkOut,guests:booking.guestsCount,type:hostel?.roomTypes.find(room=>room.id===booking.roomTypeId)?.type}}/></div>}
 
       {/* Cancel Modal */}
       {showCancelModal && (

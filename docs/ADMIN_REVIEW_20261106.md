@@ -1,0 +1,65 @@
+# Admin workspace review — 6 November 2026
+
+## Source and scope
+
+Based on `codex/hostel-ux-redesign-20261105` at `c9ec7a4`, which includes the recent discovery, header, preloader, carousel, responsive and booking-security changes. The repository default branch was behind this branch. This change targets the existing React/Vite, Express and relational SQLite application; it does not replace its stack or database.
+
+## Changes
+
+- Responsive sidebar, mobile section picker, active section badges, keyboard focus management, readable status badges and a shared dark/light workspace palette. Persian RTL and English/Russian/Armenian copy remain supported.
+- Overview puts operational sections first. Attention, arrival, review and property cards open their corresponding work. Arrival issues reset unrelated filters and show only confirmed affected bookings.
+- Booking search includes dates, status and arrival-date filtering, newest-first results, a count and pages of ten. Reports include all matching results rather than only the visible page.
+- Booking cards distinguish guest count from room/bed quantity. Confirmed stays expose the existing booking-scoped reception workflow instead of a “complete” button that sent staff to an unrelated reception selection. Server-side assignment and stay-event rules remain authoritative.
+- Guide editing is isolated in `AdminArticles`. Creating a guide from the overview starts with a fresh form, repeated titles receive distinct slugs, existing slugs and authors survive edits, translation inputs use their language's direction, and edit buttons say “Edit”.
+- JSON output is a booking report with an explicit allowlist. It omits bearer tracking tokens, nested arrival/access instructions and other application state. It still contains guest contact details. Full encrypted database backup remains the separate `npm run backup` operation.
+- Synchronous action locks prevent rapid duplicate mutations in the admin and guide forms; manager/coupon/guide form fields are disabled during submission. Review rejection saves the entered reply too. Password and coupon input limits match the API.
+- Extracted reusable fields, booking cards, pagination, guide editor and pure booking/report/slug helpers. Expanded previously compressed admin source for maintainability.
+- Scoped dependency override upgrades `@vercel/oidc`'s pinned `@vercel/cli-config` to 0.3.7, removing the outdated nested Zod dependency without upgrading the OIDC major version. The pre-change dependency audit reported four high findings along this dependency chain.
+
+## Verification
+
+- Baseline: 125 tests, both TypeScript projects and production build passed.
+- Added four regression tests for combined filters, immutable sorting, arrival-vs-departure filtering, JSON secret exclusion and unique multilingual guide slugs.
+- Final verification commands: `npm run lint`, `npm test`, `npm run build`, `npm audit`, and syntax checks for the two browser audit scripts.
+- Browser scripts now open the mobile section picker before selecting a section. Responsive coverage includes additional administrative sections.
+- Local visual/browser verification is blocked: the managed preview exits before app startup with `listen EPERM` on the tsx IPC socket. No screenshots or browser pass are claimed. The repository's browser/responsive GitHub Actions remain the acceptance checks for actual layout and interactions.
+
+## Deployment
+
+No schema migration or new environment variable is introduced. Review and merge into the latest redesign branch, then deploy that branch using the existing VPS process (`npm ci`, checks/build, and restart `hostel2.service`). The dependency override is recorded in both package files and is applied by `npm ci`.
+
+This review fixes the issues listed above; it does not establish that every possible defect or production configuration issue has been eliminated. Live provider credentials, VPS configuration and real-device visual acceptance were not available in this workspace.
+
+
+## Follow-up: organized admin interface
+
+- Grouped sidebar into daily operations, properties/hosts, content/requests and administration. Existing navigation identifiers and workflows remain intact.
+- Added an admin-specific page heading and administrator identity; shared traveler and manager dashboards retain their existing presentation.
+- Extracted `AdminOverview`: dated welcome banner, four summary cards, compact recent bookings, quick-action tiles, attention queue, property publication counts and recent activity. All figures come from the current API state; draft counts use `listingStatus` with legacy fallback.
+- Replaced competing export buttons with a native, keyboard-accessible report menu. Booking filters now use an aligned responsive grid.
+- Added admin overview/navigation screenshots at mobile and desktop widths to the responsive CI job, plus open-menu overflow coverage in every language.
+
+- Browser QA exposed a startup/lazy-loading race in the responsive harness: waiting for the first loader to disappear could measure a subsequent Suspense fallback rather than the final page. Navigation now waits for a real page heading before inspecting layout; the loading skeleton also explicitly constrains its grid tracks and wraps long localized text.
+
+- CI screenshots also identified an unbreakable Armenian heading protruding beyond a 320px screen even though its block fit. Main content now allows long localized words to wrap without hiding horizontal overflow or clipping content.
+
+
+## Follow-up: stable header layout
+
+Replaced overlapping generations of header CSS and responsive flex/order utilities with a dedicated `header.css` and explicit grid areas. The desktop layout reserves independent tracks for branding, service navigation and account controls. Mobile keeps the grouped controls at the reading-direction start; Persian desktop keeps the mark to the right of the English wordmark. Typography, button heights and spacing are consistent, and service links use restrained active/hover states instead of nested framed groups.
+
+Responsive CI now includes 1280px and 1440px in addition to the previous widths, and checks the three header regions for overlap on every inspected page, theme, account role and open-menu state.
+
+
+Current brand placement: below 640px Persian places the mark on the physical left of the wordmark, while English, Russian and Armenian place it on the right. At 640px and above, Persian keeps the mark on the right, while English, Russian and Armenian put it on the left. This also covers the 980px layout used by a phone requesting the desktop site. The responsive matrix explicitly checks this rule in all four languages, including the additional 980px viewport.
+
+The language selector and theme toggle exchange positions in every layout. Responsive CI also asserts their physical order for RTL and LTR headers.
+
+
+## iPad search form overlap
+
+The arrival/departure controls in the supplied iPad photo extend into adjacent grid cells. The homepage form now uses explicit zero-minimum grid tracks, 16px gaps and border-box sizing with bounded inline widths. The iOS date-value pseudo-elements are normalized while retaining the native date picker. Tablet widths use a two-column form; the full five-column hostel search row starts at 1280px. The rental form keeps its destination and submit action aligned separately.
+
+A dedicated WebKit CI job exercises iPad device emulation at ten portrait/landscape sizes in four languages, both themes and enlarged text. It checks actual control border rectangles against their labels/form and each other, captures form screenshots, and verifies date correction and guest/date query propagation on submit. This is automated WebKit emulation, not a claim of a physical iPad test.
+
+Date values use an isolated LTR direction even in Persian, preventing the native date fragments from visually reversing. Explicit vertical padding normalizes their alignment after removing native appearance.

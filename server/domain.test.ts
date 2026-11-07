@@ -186,3 +186,14 @@ test('rental publication toggle affects public listings and hidden listings reje
   store.toggleRentalAvailability(rental.id);
   assert.equal(store.getRentals().some(item => item.id === rental.id), true);
 });
+
+test('two reviews submitted in the same millisecond keep distinct persistent IDs', t => {
+  const {store,data}=fixture();
+  const one=store.createBooking(data).booking!;
+  const two=store.createBooking({...data,guestName:'Second guest'}).booking!;
+  one.status='completed';two.status='completed';
+  t.mock.method(Date,'now',()=>1900000000000);
+  assert.equal(store.submitReview(one.privateToken,5,'First stay').success,true);
+  assert.equal(store.submitReview(two.privateToken,4,'Second stay').success,true);
+  assert.notEqual(one.reviewId,two.reviewId);
+});
