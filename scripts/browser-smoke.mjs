@@ -241,7 +241,7 @@ try {
   await managerContext.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');});
   await managerContext.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const managerPage=await managerContext.newPage();managerPage.on('pageerror',error=>errors.push(error.stack||error.message));
-  await managerPage.goto(origin+'/en/manager');await managerPage.getByTestId('manager-dashboard').waitFor();
+  await managerPage.goto(origin+'/en/#/manager');await managerPage.getByTestId('manager-dashboard').waitFor();
   await workspaceTab(managerPage,'bookings');
   await managerPage.locator('article').filter({has:managerPage.getByRole('heading',{name:finishGuest,exact:true})}).getByRole('button',{name:'Complete stay',exact:true}).click();
   assert.equal(await managerPage.getByTestId('workspace-property').inputValue(),receptionTarget.id);
