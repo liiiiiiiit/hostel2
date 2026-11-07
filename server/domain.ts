@@ -605,7 +605,7 @@ export class Store {
 
     if (status === 'confirmed' && !roomType) return { success: false, error: 'نوع اتاق معتبر نیست.' };
     if (status === 'confirmed' && roomType) {
-      if (!occupancyIsValid(roomType, booking.guestsCount, booking.quantity) || (booking.agreement && (booking.agreement.bookingUnit !== (roomType.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit !== guestsPerUnit(roomType)))) return { success: false, error: 'تعداد مهمان با ظرفیت تخت یا اتاق سازگار نیست.' };
+      if (!occupancyIsValid(roomType, booking.guestsCount, booking.quantity) || (booking.agreement && (booking.agreement.bookingUnit !== (roomType.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit > (guestsPerUnit(roomType) ?? 0)))) return { success: false, error: 'تعداد مهمان با ظرفیت تخت یا اتاق سازگار نیست.' };
       // Re-verify peak capacity before confirming
       const activeConfirmed = this.state.bookings.filter(
         b =>
@@ -844,7 +844,7 @@ export class Store {
         throw new Error('این نوع اتاق دارای سابقهٔ رزرو یا مسدودی است و قابل حذف نیست.');
       }
       const protectedBookings = commitments.filter(booking => booking.roomTypeId === oldRoom.id);
-      if (protectedBookings.some(booking => !room || room.type !== oldRoom.type || !occupancyIsValid(room, booking.guestsCount, booking.quantity) || booking.agreement && (booking.agreement.bookingUnit !== (room.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit !== guestsPerUnit(room)))) throw new Error('نوع یا ظرفیت مهمان اتاق با درخواست‌های فعال سازگار نیست.');
+      if (protectedBookings.some(booking => !room || room.type !== oldRoom.type || !occupancyIsValid(room, booking.guestsCount, booking.quantity) || booking.agreement && (booking.agreement.bookingUnit !== (room.type === 'private' ? 'room' : 'bed') || booking.agreement.guestsPerUnit > (guestsPerUnit(room) ?? 0)))) throw new Error('نوع یا ظرفیت مهمان اتاق با درخواست‌های فعال سازگار نیست.');
       const active = protectedBookings.filter(booking => booking.status === 'confirmed');
       if (active.length && (!room || room.type !== oldRoom.type || (room.bookingUnit??(room.type==='private'?'room':'bed')) !== (oldRoom.bookingUnit??(oldRoom.type==='private'?'room':'bed')) || active.some(booking=>!occupancyIsValid(room,booking.guestsCount,booking.quantity)) || peakBookedQuantity('0000-01-01','9999-12-31',active) > room.totalBedsOrRooms)) throw new Error('ظرفیت یا نوع اتاق با رزروهای تأییدشده سازگار نیست.');
       const blocked = (this.state.unitBlocks ?? [])

@@ -813,7 +813,7 @@ test('booking response completes while the optional notification provider is sti
   }
 });
 
-test('pending private-room agreements prevent incompatible capacity changes but allow harmless price edits', async t => {
+test('pending private-room agreements prevent incompatible capacity changes but allow capacity increases and price edits', async t => {
   const {admin,visitor,hostel}=await receptionFixture(t);
   const room=hostel.roomTypes.find(r=>r.type==='private')!;
   const b=(await visitor.action('createBooking',[{hostelId:hostel.id,roomTypeId:room.id,guestName:'Two guests',contactType:'email',guestContact:'guests@example.test',checkIn:addCalendarDays(yerevanToday(),2),checkOut:addCalendarDays(yerevanToday(),4),guestsCount:2,quantity:1}])).data.booking;
@@ -823,6 +823,7 @@ test('pending private-room agreements prevent incompatible capacity changes but 
   assert.equal(bad.data.success,false,'Pending two-person booking must protect its room capacity');
   const safe=structuredClone((await admin.get()).state.hostels.find(h=>h.id===hostel.id)!);
   safe.roomTypes.find(r=>r.id===room.id)!.pricePerNightAMD+=500;
+  safe.roomTypes.find(r=>r.id===room.id)!.maxGuestsPerUnit=3;
   assert.equal((await admin.action('saveHostel',[safe])).data.success,true);
   assert.equal((await admin.action('updateBookingStatus',[b.id,'confirmed'])).data.success,true);
   assert.equal((await admin.get()).state.bookings.find(x=>x.id===b.id)!.finalAmountAMD,b.finalAmountAMD);
