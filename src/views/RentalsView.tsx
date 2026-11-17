@@ -1,3 +1,4 @@
+import { StayCarousel } from '../components/StayCarousel';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useMemo, useState } from 'react';
 import { Building2, BedDouble, MapPin, SlidersHorizontal, ArrowUpRight, ShieldCheck } from 'lucide-react';
@@ -45,7 +46,7 @@ export const RentalsView: React.FC<Props> = ({ currentLang, rentals, onNavigate,
     </section>
     <p className="text-sm text-slate-500" aria-live="polite">{filtered.length.toLocaleString(currentLang)} {c.results}</p>
     {!filtered.length && <div className="surface p-12 text-center space-y-4"><Building2 className="w-9 h-9 mx-auto text-slate-300" /><p className="text-lg">{c.empty}</p><button className="button-secondary" onClick={clear}>{c.reset}</button></div>}
-    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">{filtered.map(rental=>{
+    <StayCarousel lang={currentLang} label={t.navRentals}>{filtered.map(rental=>{
       const title=getLocalized(rental.title,currentLang);
       const monthly = rentalType !== 'short_term' && Boolean(rental.pricePerMonthAMD);
       const price = monthly ? rental.pricePerMonthAMD : rental.pricePerNightAMD ?? rental.pricePerMonthAMD;
@@ -62,6 +63,6 @@ export const RentalsView: React.FC<Props> = ({ currentLang, rentals, onNavigate,
           <button className="button-primary w-full flex items-center justify-between" onClick={()=>onNavigate('rental-detail',{id:rental.id})}>{c.details}<ArrowUpRight className="w-4 h-4" /></button>
         </div>
       </article>;
-    })}</div>
+    })}</StayCarousel>
   </div>;
 };
