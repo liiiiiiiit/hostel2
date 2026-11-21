@@ -890,3 +890,31 @@ test('traveler and unrelated managers cannot mutate administrative or other-prop
     assert.notEqual(state.settings.emergencyHotline,'WRONG');
   });
 });
+
+test('employer and admin listings persist, enforce ownership and close independently of other jobs', async t => {
+  const { visitor, client, databaseUrl } = await fixture(t);
+  const owner = client(), second = client(), admin = client();
+  await owner.action('registerTraveler', ['Employer One', 'one@job.test', null, 'EmployerOne123']);
+  await second.action('registerTraveler', ['Employer Two', 'two@job.test', null, 'EmployerTwo123']);
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const job = { id: crypto.randomUUID(), version: 0, title: 'Dishwasher', company: 'Restaurant',
+    location: 'Kentron', schedule: 'Evenings', description: 'Dinner service', contact: 'jobs@example.test',
+    salary: 9000, period: 'day', status: 'open' };
+  assert.equal((await visitor.action('saveJob', [job])).data.success, false);
+  assert.equal((await owner.action('saveJob', [job])).data.success, true);
+  const listing = (await visitor.get()).state.jobs![0];
+  assert.equal(listing.manageable, false);
+  assert.equal(listing.salary, 9000);
+  assert.equal((await second.action('saveJob', [{...listing, title:'Changed'}])).data.success, false);
+  assert.equal((await owner.action('saveJob', [{...listing, status:'closed'}])).data.success, true);
+  assert.equal((await admin.action('saveJob', [{...listing, title:'Stale edit'}])).data.success, false);
+  assert.equal((await visitor.get()).state.jobs!.length, 0);
+  assert.equal((await second.get()).state.jobs!.length, 0);
+  const closed = (await admin.get()).state.jobs![0];
+  assert.equal(closed.manageable, true);
+  assert.equal((await admin.action('saveJob', [{...closed, status:'open'}])).data.success, true);
+  assert.equal((await admin.action('saveJob', [{...job, id:crypto.randomUUID(), salary:null}])).data.success, true);
+  const reopened = new Database({url:databaseUrl});
+  try { assert.equal((await reopened.publicState()).jobs.length, 2); }
+  finally { await reopened.close(); }
+});

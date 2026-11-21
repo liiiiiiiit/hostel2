@@ -7,6 +7,7 @@ import {
   UserRound,
   LogOut,
   LayoutDashboard,
+  BriefcaseBusiness,
   BedDouble,
   House,
   BookOpen,
@@ -16,6 +17,7 @@ import type { AppLanguage, User } from "../types";
 import { LanguageSelector } from "./LanguageSelector";
 import { ThemeToggle } from "./ThemeToggle";
 import { useSavedPlaces } from "../context/SavedPlacesContext";
+import { jobsText } from "../i18n/jobs";
 import { publicSiteText } from "../i18n/publicSite";
 
 interface Props {
@@ -47,12 +49,14 @@ export const Header: React.FC<Props> = ({
   const nav = [
     ["hostels", text.hostels],
     ["rentals", text.rentals],
+    ["jobs", jobsText[currentLang].jobs],
     ["guide", text.guide],
     ["translator", text.translator],
   ];
   const navIcons: Record<string, typeof BedDouble> = {
     hostels: BedDouble,
     rentals: House,
+    jobs: BriefcaseBusiness,
     guide: BookOpen,
     translator: Languages,
   };

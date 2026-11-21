@@ -24,6 +24,7 @@ const RentalDetailView = lazy(() => import('./views/RentalDetailView').then(modu
 const RentalTrackingView = lazy(() => import('./views/RentalTrackingView').then(module => ({ default: module.RentalTrackingView })));
 const GuideView = lazy(() => import('./views/GuideView').then(module => ({ default: module.GuideView })));
 const ArticleDetailView = lazy(() => import('./views/ArticleDetailView').then(module => ({ default: module.ArticleDetailView })));
+const JobsView = lazy(() => import('./views/JobsView').then(m => ({ default: m.JobsView })));
 const AdminPanelView = lazy(() => import('./views/AdminPanelView').then(module => ({ default: module.AdminPanelView })));
 const ManagerPanelView = lazy(() => import('./views/ManagerPanelView').then(module => ({ default: module.ManagerPanelView })));
 const TravelerAccountView = lazy(() => import('./views/TravelerAccountView').then(module => ({ default: module.TravelerAccountView })));
@@ -129,6 +130,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     if (trackingLoading) return <ContentLoading lang={currentLang} />;
     if (trackingError) return <div role="alert" className="p-8 text-center space-y-4"><p>{trackingError}</p><button type="button" className="button-secondary mx-auto" onClick={() => window.dispatchEvent(new PopStateEvent('popstate'))}>{loadingText(currentLang).retry}</button></div>;
     switch (activeView) {
+      case 'jobs': return <JobsView key="public-jobs" mode="public" onEmployer={() => handleNavigate('employer')} />;
+      case 'employer': return <JobsView key={currentUser?.id ?? 'guest'} mode="employer" onLogin={() => setShowAuthModal(true)} />;
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
       case 'recommendations':return <RecommendationsView onNavigate={handleNavigate} initial={{...viewParams,amenities:typeof viewParams.amenities==='string'?viewParams.amenities.split(',').filter(Boolean):viewParams.amenities}}/>;
       case 'saved': return <SavedPlacesView onNavigate={handleNavigate} />;
@@ -335,6 +338,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
           currentLang={currentLang}
           onClose={() => setShowAuthModal(false)}
           onSuccess={user => {
+            if (activeView === 'employer') return;
             if (user.role === 'admin') handleNavigate('admin');
             else if (user.role === 'hostel_manager') handleNavigate('manager');
             else handleNavigate('account');

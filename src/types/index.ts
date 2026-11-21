@@ -365,7 +365,14 @@ export interface AuditLog {
   details: string;
 }
 
+export interface JobPosting {
+  id: string; version: number; manageable: boolean;
+  title: string; company: string; location: string; schedule: string; description: string; contact: string;
+  salary: number | null; period: 'month' | 'day' | 'hour'; status: 'open' | 'closed';
+}
+
 export interface ClientState {
+  jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
   users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];
   coupons: Coupon[]; bookings: Booking[]; rentalInquiries: RentalInquiry[]; reviews: Review[];
