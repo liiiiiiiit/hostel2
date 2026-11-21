@@ -377,6 +377,11 @@ export interface Tour {
   duration: string; description: string; contact: string; price: number | null;
 }
 
+export interface JobApplication {
+  reference: string; jobId: string; name: string; contact: string; message: string; submittedAt: string;
+  status: 'received' | 'reviewing' | 'accepted' | 'declined';
+}
+
 export interface JobPosting {
   id: string; version: number; manageable: boolean;
   title: string; company: string; location: string; schedule: string; description: string; contact: string;
@@ -386,6 +391,7 @@ export interface JobPosting {
 export interface ClientState {
   tourBookings?: TourBooking[];
   tours?: Tour[];
+  jobApplications?: JobApplication[];
   jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
   users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];
@@ -395,4 +401,4 @@ export interface ClientState {
   availability: AvailabilityDay[]; demoMode: boolean;
   settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
-export interface ActionResult { tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }
+export interface ActionResult { applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

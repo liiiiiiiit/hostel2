@@ -17,6 +17,7 @@ import { Store } from './domain.js';
 import { verifyPassword } from './passwords.js';
 import { bookingInput, bookTour, trackTour, changeTourBooking, tourBookingStatus } from './tour-bookings.js';
 import { saveTour, deleteTour, tourInput } from './tours.js';
+import { applyForJob, applicationInput, applicationProgress, applicationStatus, reviewApplication } from './job-applications.js';
 import { saveJob, jobInput } from './job-postings.js';
 import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
 import { enqueueBookingNotification, deliverNotifications } from './notifications.js';
@@ -38,6 +39,9 @@ const schemas = {
   changeTourBooking: z.tuple([z.uuid(),tourBookingStatus,tourBookingStatus]),
   saveTour: z.tuple([tourInput]),
   deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
+  applyForJob: z.tuple([applicationInput]),
+  trackApplication: z.tuple([z.uuid()]),
+  reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
   saveJob: z.tuple([jobInput]),
   ...operationSchemas,...accountSchemas,
   translateText:z.tuple([z.string().trim().min(1).max(2000),z.enum(['auto','fa','en','ru','hy']),z.enum(['fa','en','ru','hy'])]),
@@ -156,7 +160,7 @@ export function createApi(database: Database) {
         const rate = (await tx.execute({ sql: 'SELECT count,expires_at FROM rate_limits WHERE key=?', args: [bucket] })).rows[0];
         return { count: Number(rate.count), retryAfter: Math.max(1, Math.ceil((Number(rate.expires_at) - now) / 1000)) };
       });
-      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['bookTour','createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['applyForJob','bookTour','createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
       if (limit.count > max) {
         res.set('Retry-After', String(limit.retryAfter)).status(429).json({ success: false, error: localizeError('تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', req.headers['x-app-language']) });
         return;
@@ -192,6 +196,12 @@ export function createApi(database: Database) {
           await saveTour(tx, actor, args[0] as z.infer<typeof tourInput>);
         } else if (envelope.action === 'deleteTour') {
           await deleteTour(tx, actor, args[0] as string, args[1] as number);
+        } else if (envelope.action === 'applyForJob') {
+          actionResult.applicationReference = await applyForJob(tx, args[0] as z.infer<typeof applicationInput>);
+        } else if (envelope.action === 'trackApplication') {
+          actionResult.applicationStatus = await applicationProgress(tx, String(args[0]));
+        } else if (envelope.action === 'reviewApplication') {
+          await reviewApplication(tx, actor, String(args[0]), applicationStatus.parse(args[1]), applicationStatus.parse(args[2]));
         } else if (envelope.action === 'saveJob') {
           await saveJob(tx, actor, args[0] as z.infer<typeof jobInput>);
         } else if(envelope.action in accountSchemas){

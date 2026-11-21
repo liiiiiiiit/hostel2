@@ -1,4 +1,5 @@
-import { AdminTourBookings, TourBookingForm, TourBookingTracker } from '../components/TourBookings';
+import { ReferenceTracker } from '../components/ReferenceTracker';
+import { AdminTourBookings, TourBookingForm } from '../components/TourBookings';
 import React, { useState, useSyncExternalStore } from 'react';
 import { CalendarDays, Clock, Compass, MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -56,7 +57,7 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
       {!managing ? <button className="button-secondary" onClick={onOrganizer}><Compass size={18}/>{t.panel}</button>
         : state.currentUser && !draft && <button className="button-primary" disabled={busy} onClick={() => edit()}>{t.add}</button>}
     </header>
-    {!managing && <TourBookingTracker />}
+    {!managing && <ReferenceTracker kind="tour" />}
     {admin && !draft && <AdminTourBookings bookings={state.tourBookings ?? []} />}
     {message && <p role="status">{message}</p>}
     {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button>

@@ -989,3 +989,37 @@ test('guest tour requests persist once, protect passenger details and retain pri
     assert.equal(state.tourBookings[0].guests,2);
   } finally { await reopened.close(); }
 });
+
+test('job applications persist once and only the posting owner and administrators can review them', async t => {
+  const {visitor,client,databaseUrl} = await fixture(t);
+  const owner = client(), other = client(), admin = client();
+  await owner.action('registerTraveler',['Hiring team','team@jobs.test',null,'HiringTeam123']);
+  await other.action('registerTraveler',['Other team','other@jobs.test',null,'OtherTeam123']);
+  await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const job = {id:crypto.randomUUID(),version:0,title:'Receptionist',company:'City hostel',location:'Kentron',
+    schedule:'Evenings',description:'Welcome guests',contact:'team@jobs.test',salary:null,period:'month',status:'open'};
+  assert.equal((await owner.action('saveJob',[job])).data.success,true);
+  const input = {requestId:crypto.randomUUID(),jobId:job.id,version:1,name:'Applicant',contact:'+۳۷۴ ۹۹ ۱۲۳۴۵۶',message:'Evening shifts work for me.'};
+  const sent = (await visitor.action('applyForJob',[input])).data;
+  assert.equal(sent.success,true);
+  assert.equal((await visitor.action('applyForJob',[input])).data.applicationReference,sent.applicationReference);
+  assert.equal((await visitor.action('applyForJob',[{...input,message:'Changed'}])).data.success,false);
+  const reference = sent.applicationReference;
+  assert.deepEqual(sent.state.jobApplications,[]);
+  assert.deepEqual((await other.get()).state.jobApplications,[]);
+  const applications = (await owner.get()).state.jobApplications!;
+  assert.equal(applications.length,1);
+  assert.equal(applications[0].contact,input.contact);
+  assert.equal((await other.action('reviewApplication',[reference,'received','declined'])).data.success,false);
+  assert.equal((await owner.action('reviewApplication',[reference,'received','reviewing'])).data.success,true);
+  assert.equal((await admin.action('reviewApplication',[reference,'reviewing','accepted'])).data.success,true);
+  assert.equal((await owner.action('reviewApplication',[reference,'reviewing','declined'])).data.success,false);
+  const tracked = (await visitor.action('trackApplication',[reference])).data;
+  assert.equal(tracked.applicationStatus,'accepted');
+  assert.ok(!JSON.stringify(tracked).includes(input.contact));
+  assert.equal((await owner.action('saveJob',[{...job,version:1,status:'closed'}])).data.success,true);
+  assert.equal((await visitor.action('applyForJob',[{...input,version:2,requestId:crypto.randomUUID()}])).data.success,false);
+  const restarted = new Database({url:databaseUrl});
+  try { assert.equal((await restarted.publicState((await admin.get()).state.currentUser)).jobApplications[0].status,'accepted'); }
+  finally { await restarted.close(); }
+});

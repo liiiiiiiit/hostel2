@@ -56,29 +56,6 @@ export function TourBookingForm({ tour }: { tour: Tour }) {
   </form>;
 }
 
-export function TourBookingTracker() {
-  const { currentLang } = useLanguage();
-  const t = tourBookingText[currentLang];
-  const [reference,setReference] = useState('');
-  const [status,setStatus] = useState<TourBooking['status']>();
-  const [error,setError] = useState('');
-  const [busy,setBusy] = useState(false);
-  async function lookup(event: React.FormEvent) {
-    event.preventDefault(); if (busy) return;
-    setBusy(true); setError(''); setStatus(undefined);
-    try {
-      const result = await appStore.action('trackTour',[reference.trim().toLowerCase()]);
-      if (result.success) setStatus(result.tourStatus);
-      else setError(result.error ?? '');
-    } finally { setBusy(false); }
-  }
-  return <details className="surface p-4"><summary className="cursor-pointer font-semibold">{t.tracking}</summary>
-    <form onSubmit={lookup} className="mt-3 space-y-3"><label>{t.reference}<input required maxLength={40} dir="ltr" disabled={busy} value={reference} onChange={e=>{setReference(e.target.value);setStatus(undefined);setError('');}} className="field w-full"/></label>
-      <button className="button-secondary" disabled={busy}>{t.check}</button>
-      {status && <p role="status">{t[status]}</p>}{error && <p role="alert">{error}</p>}
-    </form></details>;
-}
-
 export function AdminTourBookings({ bookings }: { bookings: TourBooking[] }) {
   const { currentLang } = useLanguage();
   const t = tourBookingText[currentLang], tour = toursText[currentLang];

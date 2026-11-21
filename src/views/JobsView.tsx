@@ -1,3 +1,5 @@
+import { ReferenceTracker } from '../components/ReferenceTracker';
+import { ApplyForJob, JobApplicants } from '../components/JobApplications';
 import React, { useState, useSyncExternalStore } from 'react';
 import { BriefcaseBusiness, MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -44,6 +46,7 @@ export function JobsView({ mode, onEmployer, onLogin }: {
       {mode === 'public' ? <button className="button-secondary" onClick={onEmployer}><BriefcaseBusiness size={18}/>{t.employer}</button>
         : state.currentUser && !draft && <button className="button-primary" onClick={() => edit()}>{t.add}</button>}
     </header>
+    {!managing && <ReferenceTracker kind="job" />}
     {message && <p role="status">{message}</p>}
     {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button> :
       draft && managing ? <form className="surface p-5 space-y-4" onSubmit={submit}>
@@ -67,6 +70,8 @@ export function JobsView({ mode, onEmployer, onLogin }: {
           <p>{t.salary} · <strong>{job.salary === null ? t.negotiable : job.salary.toLocaleString(currentLang) + ' / ' + t[job.period]}</strong></p>
           <p dir="auto">{job.schedule}</p><p className="whitespace-pre-line" dir="auto">{job.description}</p>
           <p><strong>{t.contact}</strong> · <bdi>{job.contact}</bdi></p>
+          {!managing && <ApplyForJob job={job} />}
+          {managing && <JobApplicants applications={(state.jobApplications ?? []).filter(item => item.jobId === job.id)} />}
           {managing && <button className="button-secondary" onClick={() => edit(job)}>{t.edit}</button>}
         </article>)}
       </div>}
