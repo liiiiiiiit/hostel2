@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Database } from './database.js';
 import { Store } from './domain.js';
 import { verifyPassword } from './passwords.js';
+import { bookingInput, bookTour, trackTour, changeTourBooking, tourBookingStatus } from './tour-bookings.js';
 import { saveTour, deleteTour, tourInput } from './tours.js';
 import { saveJob, jobInput } from './job-postings.js';
 import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
@@ -32,6 +33,9 @@ const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
+  bookTour: z.tuple([bookingInput]),
+  trackTour: z.tuple([z.uuid()]),
+  changeTourBooking: z.tuple([z.uuid(),tourBookingStatus,tourBookingStatus]),
   saveTour: z.tuple([tourInput]),
   deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
   saveJob: z.tuple([jobInput]),
@@ -152,7 +156,7 @@ export function createApi(database: Database) {
         const rate = (await tx.execute({ sql: 'SELECT count,expires_at FROM rate_limits WHERE key=?', args: [bucket] })).rows[0];
         return { count: Number(rate.count), retryAfter: Math.max(1, Math.ceil((Number(rate.expires_at) - now) / 1000)) };
       });
-      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['bookTour','createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
       if (limit.count > max) {
         res.set('Retry-After', String(limit.retryAfter)).status(429).json({ success: false, error: localizeError('تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', req.headers['x-app-language']) });
         return;
@@ -178,6 +182,12 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if (envelope.action === 'bookTour') {
+          actionResult.tourReference = await bookTour(tx, args[0] as z.infer<typeof bookingInput>);
+        } else if (envelope.action === 'trackTour') {
+          actionResult.tourStatus = await trackTour(tx, String(args[0]));
+        } else if (envelope.action === 'changeTourBooking') {
+          await changeTourBooking(tx, actor, String(args[0]), tourBookingStatus.parse(args[1]), tourBookingStatus.parse(args[2]));
         } else if (envelope.action === 'saveTour') {
           await saveTour(tx, actor, args[0] as z.infer<typeof tourInput>);
         } else if (envelope.action === 'deleteTour') {

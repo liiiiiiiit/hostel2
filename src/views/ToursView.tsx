@@ -1,3 +1,4 @@
+import { AdminTourBookings, TourBookingForm, TourBookingTracker } from '../components/TourBookings';
 import React, { useState, useSyncExternalStore } from 'react';
 import { CalendarDays, Clock, Compass, MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,6 +56,8 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
       {!managing ? <button className="button-secondary" onClick={onOrganizer}><Compass size={18}/>{t.panel}</button>
         : state.currentUser && !draft && <button className="button-primary" disabled={busy} onClick={() => edit()}>{t.add}</button>}
     </header>
+    {!managing && <TourBookingTracker />}
+    {admin && !draft && <AdminTourBookings bookings={state.tourBookings ?? []} />}
     {message && <p role="status">{message}</p>}
     {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button>
       : managing && draft ? <form className="surface space-y-5 p-5" onSubmit={save}>
@@ -86,6 +89,7 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
           <p dir="auto" className="whitespace-pre-line">{tour.description}</p>
           <p>{t.price} · <strong>{tour.price === null ? t.ask : tour.price.toLocaleString(currentLang)}</strong></p>
           <p>{t.contact} · <bdi>{tour.contact}</bdi></p>
+          {!managing && <TourBookingForm tour={tour} />}
           {managing && <div className="flex flex-wrap gap-3"><button disabled={busy} className="button-secondary" onClick={() => edit(tour)}>{t.edit}</button>
             {admin && <button disabled={busy} className="button-secondary" onClick={() => void remove(tour)}>{t.remove}</button>}</div>}
         </article>)}

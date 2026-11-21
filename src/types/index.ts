@@ -365,6 +365,12 @@ export interface AuditLog {
   details: string;
 }
 
+export interface TourBooking {
+  reference: string; status: 'pending' | 'confirmed' | 'cancelled'; tourId: string; title: string;
+  organizer: string; price: number | null; name: string; contact: string; travelDate: string;
+  guests: number; notes: string; createdAt: string;
+}
+
 export interface Tour {
   id: string; version: number; owned: boolean; published: boolean; hidden: boolean;
   title: string; organizer: string; destination: string; departure: string; schedule: string;
@@ -378,6 +384,7 @@ export interface JobPosting {
 }
 
 export interface ClientState {
+  tourBookings?: TourBooking[];
   tours?: Tour[];
   jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
@@ -388,4 +395,4 @@ export interface ClientState {
   availability: AvailabilityDay[]; demoMode: boolean;
   settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
-export interface ActionResult { state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }
+export interface ActionResult { tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

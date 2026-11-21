@@ -953,3 +953,39 @@ test('tour organizers manage their own listings and only admins control moderati
   assert.equal((await admin.action('deleteTour', [tour.id, latest.version])).data.success, true);
   assert.deepEqual((await admin.get()).state.tours, []);
 });
+
+test('guest tour requests persist once, protect passenger details and retain pricing after listing deletion', async t => {
+  const { visitor, client, databaseUrl } = await fixture(t);
+  const admin = client(), organizer = client();
+  await organizer.action('registerTraveler',['Guide','guide@example.test',null,'TestGuide123']);
+  await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const tour = { id:crypto.randomUUID(),version:0,title:'Lake Sevan',organizer:'Lake Guide',destination:'Sevan',departure:'Yerevan',
+    schedule:'Weekends',duration:'One day',description:'Guided walk',contact:'guide@example.test',price:9000,published:true,hidden:false };
+  assert.equal((await organizer.action('saveTour',[tour])).data.success,true);
+  const data = {requestId:crypto.randomUUID(),tourId:tour.id,tourVersion:1,name:'Guest One',contact:'+۳۷۴ ۹۹ ۱۲۳۴۵۶',travelDate:addCalendarDays(yerevanToday(),8),guests:2,notes:'Two adults'};
+  const booked = await visitor.action('bookTour',[data]);
+  assert.equal(booked.data.success,true);
+  const reference = booked.data.tourReference;
+  assert.equal((await visitor.action('bookTour',[data])).data.tourReference,reference);
+  assert.equal((await visitor.action('bookTour',[{...data,guests:3}])).data.success,false);
+  assert.deepEqual(booked.data.state.tourBookings,[]);
+  const all = (await admin.get()).state.tourBookings!;
+  assert.equal(all.length,1);
+  assert.equal(all[0].price,9000);
+  assert.equal(all[0].contact,data.contact);
+  assert.deepEqual((await organizer.get()).state.tourBookings,[]);
+  assert.equal((await organizer.action('changeTourBooking',[reference,'pending','confirmed'])).data.success,false);
+  assert.equal((await admin.action('changeTourBooking',[reference,'pending','confirmed'])).data.success,true);
+  assert.equal((await admin.action('changeTourBooking',[reference,'pending','cancelled'])).data.success,false);
+  assert.equal((await visitor.action('trackTour',[reference])).data.tourStatus,'confirmed');
+  assert.equal((await admin.action('saveTour',[{...tour,version:1,hidden:true}])).data.success,true);
+  assert.equal((await visitor.action('bookTour',[{...data,requestId:crypto.randomUUID(),tourVersion:2}])).data.success,false);
+  assert.equal((await admin.action('deleteTour',[tour.id,2])).data.success,true);
+  const reopened = new Database({url:databaseUrl});
+  try {
+    const state = await reopened.publicState((await admin.get()).state.currentUser);
+    assert.equal(state.tourBookings[0].title,tour.title);
+    assert.equal(state.tourBookings[0].status,'confirmed');
+    assert.equal(state.tourBookings[0].guests,2);
+  } finally { await reopened.close(); }
+});
