@@ -1,3 +1,4 @@
+import { createRequestId } from '../utils/request-id.js';
 import React, { useState, useRef } from "react";
 import { appStore } from "../services/store";
 import { useLanguage } from "../context/LanguageContext";
@@ -15,7 +16,7 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
     [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
-  const key = useRef({ body: "", id: crypto.randomUUID() });
+  const key = useRef({ body: "", id: "" });
   const hostels = state.hostels.filter(
     (h) =>
       state.currentUser?.role === "admin" ||
@@ -33,10 +34,10 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
   );
   const report = financeSummary(bookings, entries);
   const submit = async () => {
-    if (busy) return;
+    if (busy || !ids.has(bookingId)) return;
     const body = JSON.stringify([bookingId, kind, amount, reason]);
     if (key.current.body !== body)
-      key.current = { body, id: crypto.randomUUID() };
+      key.current = { body, id: createRequestId() };
     setBusy(true);
     try {
       const result = await appStore.action("recordFinanceEntry", [
@@ -46,6 +47,11 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
         reason,
         key.current.id,
       ]);
+      if (result.success) {
+        key.current = { body: "", id: "" };
+        setAmount("");
+        setReason("");
+      }
       setNotice(result.success ? w("saved") : (result.error ?? w("error")));
     } finally {
       setBusy(false);
@@ -84,7 +90,11 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
         className="field"
         value={scoped}
         disabled={!!hostelId}
-        onChange={(e) => setSelection(e.target.value)}
+        onChange={(e) => {
+          setSelection(e.target.value);
+          setBookingId("");
+          setNotice("");
+        }}
       >
         <option value="all">{w("all")}</option>
         {hostels.map((h) => (
@@ -118,7 +128,7 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
         <select
           className="field"
           aria-label={w("name")}
-          value={bookingId}
+          value={ids.has(bookingId) ? bookingId : ""}
           onChange={(e) => setBookingId(e.target.value)}
         >
           <option value="">—</option>
@@ -168,7 +178,7 @@ export function FinancePanel({ hostelId }: { hostelId?: string }) {
         </label>
         <button
           className="button-primary"
-          disabled={busy || !bookingId || !reason || !Number(amount)}
+          disabled={busy || !ids.has(bookingId) || !reason || !Number(amount)}
           onClick={() => void submit()}
         >
           {w("save")}

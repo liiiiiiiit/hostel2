@@ -5,6 +5,7 @@ import { StayPhoto } from '../components/StayPhoto';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import {workflowText} from '../i18n/workflows';
 import { calculateBookingPrice } from '../utils/pricing';
+import { compareHostel } from '../utils/comparison';
 import { requiredUnits } from '../utils/occupancy';
 import React, { useMemo, useState } from 'react';
 import { Building2, MapPin, SlidersHorizontal, Star, Wifi, Lock, ArrowUpRight, X, BedDouble, DoorOpen, Users } from 'lucide-react';
@@ -43,17 +44,27 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
   const [filtersOpen, setFiltersOpen] = useState(false);
   const nights = calculateNights(checkIn, checkOut);
   const quote=(room:Hostel['roomTypes'][number])=>calculateBookingPrice({pricePerNight:room.pricePerNightAMD,checkIn,checkOut,quantity:requiredUnits(room,quantity)??0,rules:room.pricingRules});
-  const rooms=(hostel:Hostel)=>hostel.roomTypes.filter(room=>(roomType==='all'||room.type===roomType)&&quote(room).isValidDates&&(maxPrice===null||quote(room).finalAmountToPayOnArrival/nights<=maxPrice)&&appStore.remainingCapacity(hostel,room.id,checkIn,checkOut)>=(requiredUnits(room,quantity)??Infinity));
-  const bestRoom=(hostel:Hostel)=>rooms(hostel).sort((a,b)=>quote(a).finalAmountToPayOnArrival-quote(b).finalAmountToPayOnArrival)[0];
-  const nightly=(hostel:Hostel)=>{const room=bestRoom(hostel);return room?quote(room).finalAmountToPayOnArrival/nights:Infinity;};
+  const today = yerevanToday();
+  const tomorrow = addCalendarDays(today, 1);
+  const offers = useMemo(() => new Map(hostels.map(hostel => {
+    const offer = compareHostel(hostel, { checkIn, checkOut, guests: quantity, type: roomType }, room => {
+      const available = appStore.remainingCapacity(hostel, room.id, checkIn, checkOut);
+      return amenities.includes('tonight')
+        ? Math.min(available, appStore.remainingCapacity(hostel, room.id, today, tomorrow))
+        : available;
+    });
+    return [hostel.id, offer];
+  })), [hostels, checkIn, checkOut, quantity, roomType, amenities, today, tomorrow]);
+  const nightly = (hostel: Hostel) => offers.get(hostel.id)?.nightly ?? Infinity;
   const filtered = useMemo(() => hostels.filter(h => {
-    if (nights < 1 || quantity < 1 || !Number.isInteger(quantity) || (!h.publicPreview && !rooms(h).length)) return false;
+    if (nights < 1 || quantity < 1 || !Number.isInteger(quantity)) return false;
+    if (!h.publicPreview && (!offers.get(h.id) || (maxPrice !== null && nightly(h) > maxPrice))) return false;
     if (city !== 'all' && h.city.toLowerCase() !== city.toLowerCase()) return false;
     if (district !== 'all' && h.district !== district) return false;
     if (h.publicPreview) return roomType === 'all' && maxPrice === null && amenities.length === 0;
-    return amenities.every(key => key === 'kitchen' ? h.amenities.kitchen : key === 'metro' ? h.nearMetro : key === 'monthly' ? h.monthlyStayAvailable : key === '24h' ? h.reception24h : key === 'elevator' ? h.amenities.elevator : key === 'coworking' ? h.amenities.coworking : h.roomTypes.some(room => appStore.remainingCapacity(h, room.id, yerevanToday(), addCalendarDays(yerevanToday(),1)) >= quantity));
+    return amenities.every(key => key === 'kitchen' ? h.amenities.kitchen : key === 'metro' ? h.nearMetro : key === 'monthly' ? h.monthlyStayAvailable : key === '24h' ? h.reception24h : key === 'elevator' ? h.amenities.elevator : key === 'coworking' ? h.amenities.coworking : key === 'tonight');
   }).sort((a,b) => sort === 'price_asc' ? nightly(a)-nightly(b) : sort === 'price_desc' ? nightly(b)-nightly(a) : sort === 'rating' ? getHostelRating(b.id).avg-getHostelRating(a.id).avg : 0),
-  [hostels, checkIn, checkOut, quantity, city, district, roomType, maxPrice, amenities, sort, getHostelRating]);
+  [hostels, offers, nights, quantity, city, district, roomType, maxPrice, amenities, sort, getHostelRating]);
   const budgetMax=Math.ceil(Math.max(30000,...hostels.flatMap(hostel=>hostel.roomTypes.map(room=>{const amount=quote(room).finalAmountToPayOnArrival/Math.max(1,nights);return Number.isFinite(amount)?amount:0;})))/1000)*1000;
   const clear = () => { setCity('all'); setDistrict('all'); setRoomType('all'); setMaxPrice(null); setAmenities([]); };
   const filterCount = amenities.length + Number(city !== 'all') + Number(district !== 'all') + Number(roomType !== 'all') + Number(maxPrice !== null);
@@ -66,7 +77,7 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
     ...(maxPrice !== null ? [{ key: 'budget', label: `${copy.maxNightly}: ${maxPrice.toLocaleString(currentLang)} AMD`, remove: () => setMaxPrice(null) }] : []),
     ...amenities.map(key => ({ key, label: options.find(option => option[0] === key)?.[1] || key, remove: () => toggle(key) })),
   ];
-  const openStay = (hostel: Hostel) => onNavigate('hostel-detail', {id:hostel.id,checkIn,checkOut,guests:quantity,city,district,type:roomType,budget:maxPrice??undefined,amenities:amenities.join(','),roomTypeId:bestRoom(hostel)?.id});
+  const openStay = (hostel: Hostel) => onNavigate('hostel-detail', {id:hostel.id,checkIn,checkOut,guests:quantity,city,district,type:roomType,budget:maxPrice??undefined,amenities:amenities.join(','),roomTypeId:offers.get(hostel.id)?.room.id});
   return <div className="page-shell py-8 sm:py-12 space-y-7">
     <header className="max-w-2xl space-y-3"><p className="eyebrow">{t.navHostels}</p><h1 className="text-3xl sm:text-4xl font-bold tracking-tight">{copy.title}</h1><p className="text-slate-500 text-base leading-relaxed">{copy.subtitle}</p></header>
     <div className="flex flex-wrap gap-2" role="group" aria-label={copy.room}>
@@ -104,7 +115,7 @@ export const HostelsView: React.FC<Props> = ({ currentLang, hostels, onNavigate,
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="eyebrow">{getCityName(hostel.city,currentLang)} · {hostel.district}</p><span className="inline-flex items-center gap-1 text-sm text-slate-500">{rating.count>0 ? <><Star size={15} className="text-amber-600 fill-amber-500"/><strong className="text-slate-900">{rating.avg}</strong> ({rating.count})</> : copy.noReviews}</span></div>
           <div><h2><button type="button" className="text-start text-xl sm:text-2xl font-semibold hover:text-emerald-800" onClick={()=>openStay(hostel)}>{name}</button></h2><p className="mt-2 text-sm text-slate-500 flex gap-1.5"><MapPin size={16} className="shrink-0 mt-0.5"/>{getLocalized(hostel.address,currentLang)}</p></div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">{hostel.amenities.wifi&&<span className="inline-flex gap-1.5 items-center"><Wifi size={16}/>{getAmenityLabel('wifi',currentLang)}</span>}{hostel.amenities.lockers&&<span className="inline-flex gap-1.5 items-center"><Lock size={16}/>{getAmenityLabel('lockers',currentLang)}</span>}{hostel.reception24h&&<span>{t.reception24hBadge}</span>}</div>
-          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end">{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{(price*nights).toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div>}<div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>openStay(hostel)}>{hostel.publicPreview ? ({fa: 'مشاهدهٔ اطلاعات', en: 'View information', ru: 'Информация', hy: 'Տեղեկություններ'}[currentLang]) : t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
+          <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap gap-4 justify-between items-end">{hostel.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <div><div className="text-2xl font-semibold tracking-tight ltr-isolate">{offers.get(hostel.id)?.total.toLocaleString()} <span className="text-sm font-normal text-slate-500">AMD</span></div><p className="text-sm text-slate-500 mt-1">{ft.total} · {nights} {copy.nights}</p><p className="text-xs text-slate-400 mt-1 ltr-isolate">{price.toLocaleString()} AMD / {copy.perNight}</p></div>}<div className="flex flex-wrap items-center gap-3"><PlaceActions kind="hostel" id={hostel.id}/><button type="button" className="button-primary" onClick={()=>openStay(hostel)}>{hostel.publicPreview ? ({fa: 'مشاهدهٔ اطلاعات', en: 'View information', ru: 'Информация', hy: 'Տեղեկություններ'}[currentLang]) : t.detailsButton}<ArrowUpRight size={17}/></button></div></div>
         </div>
       </article>;
     })}</StayCarousel>}

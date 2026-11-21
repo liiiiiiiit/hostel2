@@ -44,6 +44,7 @@ export function compareRental(
   if (input.type && input.type !== "all" && input.type !== "private")
     return undefined;
   if (
+    !Number.isInteger(input.guests) || input.guests < 1 ||
     !rental.pricePerNightAMD ||
     rental.rentalType === "long_term" ||
     input.guests > rental.maxResidents ||

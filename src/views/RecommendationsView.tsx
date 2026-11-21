@@ -19,7 +19,7 @@ export function RecommendationsView({
 }) {
   const { currentLang, getLocalized } = useLanguage(),
     w = workflowText(currentLang);
-  const [from,setFrom]=useState(initial?.checkIn||yerevanToday()),[to,setTo]=useState(initial?.checkOut||addCalendarDays(from,1)),
+  const [from,setFrom]=useState(initial?.checkIn||yerevanToday()),[to,setTo]=useState(() => initial?.checkOut || addCalendarDays(from, 1)),
     [guests, setGuests] = useState(initial?.guests ?? 1),
     [type, setType] = useState(initial?.type ?? "all"),
     [budget, setBudget] = useState<number|"">(initial?.budget??""),

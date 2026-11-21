@@ -1,3 +1,4 @@
+import { createRequestId } from '../utils/request-id.js';
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { workflowText, workflowValue } from "../i18n/workflows";
@@ -26,10 +27,10 @@ export function ReceptionPanel({ hostelId }: { hostelId?: string }) {
     [selected, setSelected] = useState<string[]>([]),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
-  const manualKey = useRef(crypto.randomUUID());
+  const manualKey = useRef(createRequestId());
   const [termsAccepted, setTermsAccepted] = useState(false);
   useEffect(() => {
-    manualKey.current = crypto.randomUUID();
+    manualKey.current = createRequestId();
   }, [
     selection,
     roomId,

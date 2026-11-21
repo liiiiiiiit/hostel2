@@ -137,10 +137,11 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
     noindex = true;
     content = "<h1>404</h1>";
   }
+  const localizedPath = url.pathname === "/" ? "/fa/" : url.pathname;
   const canonical =
-    base + url.pathname.replace(/\/$/, "") + (parts.length === 1 ? "/" : "");
+    base + localizedPath.replace(/\/$/, "") + (parts.length === 1 ? "/" : "");
   const alternate = (language: AppLanguage) =>
-    base + url.pathname.replace(/^\/(fa|en|ru|hy)/, "/" + language);
+    base + localizedPath.replace(/^\/(fa|en|ru|hy)/, "/" + language);
   const head = `<title>${escape(title)}</title><meta name="description" content="${escape(description.slice(0, 300))}"><link rel="canonical" href="${escape(canonical)}"><meta name="robots" content="${noindex ? "noindex,nofollow" : "index,follow"}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description.slice(0, 300))}"><meta property="og:url" content="${escape(canonical)}"><meta property="og:locale" content="${lang}">${image ? `<meta property="og:image" content="${escape(new URL(image, base || "https://local.invalid").href)}">` : ""}${status === 200 ? available.map((language) => `<link rel="alternate" hreflang="${language}" href="${escape(alternate(language))}">`).join("") : ""}`;
   return { status, lang, title, description, head, content, noindex, image };
 }
@@ -164,10 +165,10 @@ export function renderPublicHtml(
         /<html[^>]*>/,
         `<html lang="${page.lang ?? "fa"}" dir="${page.lang === "fa" ? "rtl" : "ltr"}">`,
       )
-      .replace("</head>", page.head + "</head>")
+      .replace("</head>", () => page.head + "</head>")
       .replace(
         '<div id="root"></div>',
-        `<div id="root"><main>${page.content}</main></div>`,
+        () => `<div id="root"><main>${page.content}</main></div>`,
       ),
   };
 }

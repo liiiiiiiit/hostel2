@@ -28,6 +28,8 @@ try {
   });
   browser=await chromium.launch({executablePath:process.env.BROWSER_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const context=await browser.newContext();
+  // Exercise the HTTP VPS environment where Web Crypto lacks randomUUID.
+  await context.addInitScript(() => { Object.defineProperty(crypto, 'randomUUID', { value: undefined }); });
   await context.addInitScript(()=>{if(window===window.top)localStorage.setItem('yerevanhub_lang','en');window.__socketAttempts=0;const NativeSocket=window.WebSocket;window.WebSocket=class extends NativeSocket{constructor(...args){super(...args);window.__socketAttempts++;}};});
   await context.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
   const page=await context.newPage();activePage=page;page.setDefaultTimeout(15000);page.on('pageerror',error=>errors.push(error.stack || error.message));
@@ -126,9 +128,14 @@ try {
   console.log('PASS administrator creates and publishes female beds and a double private room through the complete editor');
   const publicHostels=(await (await otherPage.request.get(origin+'/api/app')).json()).state.hostels;
   const managedHostel=publicHostels.find(item=>item.slug==='browser-hostel');const privateRoom=managedHostel.roomTypes.find(item=>item.type==='private');
+  await otherPage.goto(origin+'/en/recommendations');
+  const recommendationDates = otherPage.locator('main input[type=date]');
+  await recommendationDates.first().fill('');
+  await recommendationDates.first().fill(today);
   await otherPage.goto(origin+'/#/hostels?guests=2');
   await otherPage.getByLabel('Check-out',{exact:true}).fill(new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10));
   await otherPage.getByRole('button',{name:'More filters',exact:true}).click();await otherPage.locator('#stay-room-type').selectOption('private');
+  await otherPage.getByLabel('Available tonight', { exact: true }).check();
   await otherPage.getByRole('button',{name:'Details & Booking',exact:true}).first().click();
   assert.ok(otherPage.url().includes(privateRoom.id));
   await otherPage.getByLabel('Number of Guests',{exact:true}).waitFor();
@@ -257,7 +264,10 @@ try {
     if(artifactDirectory&&language==='fa')await screen.screenshot({path:path.join(artifactDirectory,'home-fa-mobile.png'),fullPage:true});
     for(const [role,address,password] of [['admin','admin@yerevanhub.com','Admin@2026'],['manager','multi-host@example.test',multiHostPassword]]){
       await mobile.addCookies(role==='admin'?await context.cookies():managerCookies);
-      await screen.goto(origin+`/#/${role}`);await screen.getByTestId(`${role}-dashboard`).waitFor();
+      await screen.goto(origin+`/#/${role}`);
+      // A hash change reuses the previous session state after the test switches cookies.
+      await screen.reload({ waitUntil: 'domcontentloaded' });
+      await screen.getByTestId(`${role}-dashboard`).waitFor();
       assert.ok(await screen.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`${language}: ${role} mobile overflow`);
       if(role==='manager'){
         await workspaceTab(screen,'operations');

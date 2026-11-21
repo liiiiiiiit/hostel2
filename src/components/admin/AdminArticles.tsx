@@ -1,3 +1,4 @@
+import { createRequestId } from '../../utils/request-id.js';
 import React, { useState, useRef } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext";
@@ -70,7 +71,7 @@ export function AdminArticles({
     const existing = state.articles.find((a) => a.id === articleForm.id);
     const article: Article = {
       translations: articleTranslations,
-      id: articleForm.id || `article-${crypto.randomUUID()}`,
+      id: articleForm.id || `article-${createRequestId()}`,
       slug:
         existing?.slug || uniqueArticleSlug(articleForm.title, state.articles),
       title: articleForm.title.trim(),

@@ -1,5 +1,5 @@
 /** Booking request IDs also work on an HTTP preview or a VPS accessed by IP. */
-export function createRequestId(source: Pick<Crypto, 'getRandomValues'> & Partial<Pick<Crypto, 'randomUUID'>> = globalThis.crypto): string {
+export function createRequestId(source: Pick<typeof globalThis.crypto, 'getRandomValues'> & Partial<Pick<typeof globalThis.crypto, 'randomUUID'>> = globalThis.crypto): string {
   if (source.randomUUID) return source.randomUUID();
   const bytes = source.getRandomValues(new Uint8Array(16));
   bytes[6] = (bytes[6] & 0x0f) | 0x40;

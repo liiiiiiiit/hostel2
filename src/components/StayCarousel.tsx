@@ -1,7 +1,6 @@
 import React, { Children, useEffect, useId, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AppLanguage } from '../types';
-import './StayCarousel.css';
 
 const COPY = {
   fa: { previous: 'اقامتگاه قبلی', next: 'اقامتگاه بعدی', hint: 'برای دیدن موارد بیشتر، افقی ورق بزنید', carousel: 'نمایش کشویی اقامتگاه‌ها' },
