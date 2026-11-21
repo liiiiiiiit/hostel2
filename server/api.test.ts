@@ -918,3 +918,38 @@ test('employer and admin listings persist, enforce ownership and close independe
   try { assert.equal((await reopened.publicState()).jobs.length, 2); }
   finally { await reopened.close(); }
 });
+
+test('tour organizers manage their own listings and only admins control moderation and deletion', async t => {
+  const { visitor, client, databaseUrl } = await fixture(t);
+  const organizer = client(), other = client(), admin = client();
+  await organizer.action('registerTraveler', ['Guide', 'guide@tour.test', null, 'TourOrganizer123']);
+  await other.action('registerTraveler', ['Other guide', 'other@tour.test', null, 'TourOrganizer234']);
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const tour = { id: crypto.randomUUID(), version: 0, organizer: 'Local guide', title: 'Garni day tour',
+    destination: 'Garni and Geghard', departure: 'Yerevan', schedule: 'Every Friday', duration: '7 hours',
+    description: 'Guided visit and transport', contact: 'guide@example.test', price: 12000, published: false, hidden: false };
+  assert.equal((await visitor.action('saveTour', [tour])).data.success, false);
+  assert.equal((await organizer.action('saveTour', [tour])).data.success, true);
+  assert.deepEqual((await visitor.get()).state.tours, []);
+  assert.deepEqual((await other.get()).state.tours, []);
+  const draft = (await organizer.get()).state.tours![0];
+  assert.equal((await other.action('saveTour', [{...draft, published:true}])).data.success, false);
+  assert.equal((await organizer.action('saveTour', [{...draft, published:true}])).data.success, true);
+  const live = (await visitor.get()).state.tours![0];
+  assert.equal(live.price, 12000);
+  assert.equal((await admin.action('saveTour', [{...live, hidden:true}])).data.success, true);
+  const hidden = (await organizer.get()).state.tours![0];
+  assert.equal((await organizer.action('saveTour', [{...hidden, hidden:false}])).data.success, true);
+  assert.deepEqual((await visitor.get()).state.tours, []);
+  const moderated = (await admin.get()).state.tours![0];
+  assert.equal(moderated.hidden, true);
+  assert.equal((await organizer.action('deleteTour', [tour.id, moderated.version])).data.success, false);
+  assert.equal((await admin.action('saveTour', [{...moderated, hidden:false}])).data.success, true);
+  assert.equal((await admin.action('deleteTour', [tour.id, moderated.version])).data.success, false);
+  const reopened = new Database({url: databaseUrl});
+  try { assert.equal((await reopened.publicState()).tours[0].id, tour.id); }
+  finally { await reopened.close(); }
+  const latest = (await admin.get()).state.tours![0];
+  assert.equal((await admin.action('deleteTour', [tour.id, latest.version])).data.success, true);
+  assert.deepEqual((await admin.get()).state.tours, []);
+});

@@ -1,3 +1,5 @@
+import { toursText } from "../i18n/tours";
+import { ToursView } from "./ToursView";
 import { JobsView } from "./JobsView";
 import { jobsText } from "../i18n/jobs";
 import { AdminOverview } from "../components/admin/AdminOverview";
@@ -15,6 +17,7 @@ import { workflowText } from "../i18n/workflows";
 import React, { useState, useRef, useSyncExternalStore } from "react";
 import { PropertyManagementPanel } from "../components/PropertyManagementPanel";
 import {
+  Compass,
   BriefcaseBusiness,
   LayoutDashboard,
   CalendarDays,
@@ -63,6 +66,7 @@ type Section =
   | "coupons"
   | "reviews"
   | "rentals"
+  | "tours"
   | "jobs"
   | "articles"
   | "audit"
@@ -182,6 +186,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       icon: <House size={17} />,
       count: inquiries.length,
     },
+    { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
     { id: "jobs", label: jobsText[currentLang].jobs, icon: <BriefcaseBusiness size={17} /> },
     { id: "articles", label: t.articles, icon: <BookOpen size={17} /> },
     { id: "audit", label: t.audit, icon: <Activity size={17} /> },
@@ -212,7 +217,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.contentGroup,
-      ids: ["rentals", "reviews", "articles", "jobs", "coupons"],
+      ids: ["rentals", "reviews", "articles", "tours", "jobs", "coupons"],
     },
     { label: admin.system, ids: ["audit", "profile"] },
   ];
@@ -918,6 +923,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </>
         )}
+        {section === "tours" && <ToursView mode="admin" />}
         {section === "jobs" && <JobsView mode="admin" />}
         {section === "articles" && (
           <AdminArticles onNavigate={onNavigate} initiallyOpen={showForm} />

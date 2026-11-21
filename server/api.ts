@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Database } from './database.js';
 import { Store } from './domain.js';
 import { verifyPassword } from './passwords.js';
+import { saveTour, deleteTour, tourInput } from './tours.js';
 import { saveJob, jobInput } from './job-postings.js';
 import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
 import { enqueueBookingNotification, deliverNotifications } from './notifications.js';
@@ -31,6 +32,8 @@ const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
+  saveTour: z.tuple([tourInput]),
+  deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
   saveJob: z.tuple([jobInput]),
   ...operationSchemas,...accountSchemas,
   translateText:z.tuple([z.string().trim().min(1).max(2000),z.enum(['auto','fa','en','ru','hy']),z.enum(['fa','en','ru','hy'])]),
@@ -175,6 +178,10 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if (envelope.action === 'saveTour') {
+          await saveTour(tx, actor, args[0] as z.infer<typeof tourInput>);
+        } else if (envelope.action === 'deleteTour') {
+          await deleteTour(tx, actor, args[0] as string, args[1] as number);
         } else if (envelope.action === 'saveJob') {
           await saveJob(tx, actor, args[0] as z.infer<typeof jobInput>);
         } else if(envelope.action in accountSchemas){

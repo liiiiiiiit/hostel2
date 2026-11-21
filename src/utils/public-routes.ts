@@ -7,6 +7,7 @@ import type {
 import { parseRoute, routeHash, type Route } from "./navigation.js";
 export const publicLanguages: AppLanguage[] = ["fa", "en", "ru", "hy"];
 const list: Record<string, string> = {
+  tours: "tours",
   jobs: "jobs",
   recommendations: "recommendations",
   home: "",

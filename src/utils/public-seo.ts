@@ -1,3 +1,4 @@
+import { toursText } from '../i18n/tours.js';
 import { jobsText } from '../i18n/jobs.js';
 import { previewText } from '../i18n/publicPreview.js';
 import { articleInLanguage } from "./article-language.js";
@@ -64,6 +65,12 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
     status = 404;
   else if (parts.length === 1)
     content = `<h1>${escape(intro[lang])}</h1>${list()}`;
+  else if (parts.length === 2 && section === "tours") {
+    description = toursText[lang].tours;
+    title = description + " · YEREVANHUB";
+    content = `<h1>${escape(description)}</h1>` + (state.tours ?? []).filter(tour => tour.published && !tour.hidden)
+      .map(tour => `<article><h2>${escape(tour.title)}</h2><p>${escape(tour.destination)} · ${escape(tour.schedule)}</p></article>`).join("");
+  }
   else if (parts.length === 2 && section === "jobs") {
     title = jobsText[lang].jobs + " · YEREVANHUB";
     description = jobsText[lang].jobs;
@@ -189,6 +196,7 @@ export function sitemap(state: ClientState, base: string) {
       `/${lang}/rentals`,
       `/${lang}/guides`,
       `/${lang}/jobs`,
+      `/${lang}/tours`,
       ...state.hostels
         .filter((h) => h.isPublished && !h.sampleContent)
         .map((h) => `/${lang}/hostels/${encodeURIComponent(h.slug)}`),

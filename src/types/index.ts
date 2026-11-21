@@ -365,6 +365,12 @@ export interface AuditLog {
   details: string;
 }
 
+export interface Tour {
+  id: string; version: number; owned: boolean; published: boolean; hidden: boolean;
+  title: string; organizer: string; destination: string; departure: string; schedule: string;
+  duration: string; description: string; contact: string; price: number | null;
+}
+
 export interface JobPosting {
   id: string; version: number; manageable: boolean;
   title: string; company: string; location: string; schedule: string; description: string; contact: string;
@@ -372,6 +378,7 @@ export interface JobPosting {
 }
 
 export interface ClientState {
+  tours?: Tour[];
   jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
   users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];

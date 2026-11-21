@@ -1,3 +1,4 @@
+import { tourTable } from './tours.js';
 import { jobTable } from './job-postings.js';
 import { migrateDatabase } from './migrations.js';
 import { migrateRelational } from './relational-migration.js';
@@ -25,7 +26,7 @@ export class Database {
     if (process.env.VERCEL && url?.startsWith('file:')) throw new Error('Vercel requires a remote DATABASE_URL; local files are ephemeral.');
     this.demo = process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
-    this.ready = this.initialize(options).then(async () => { await this.client.execute(jobTable); });
+    this.ready = this.initialize(options).then(async () => { await this.client.batch([jobTable, tourTable], 'write'); });
   }
   async waitUntilReady(): Promise<void> { await this.ready; }
   private async initialize(options: DatabaseOptions) {

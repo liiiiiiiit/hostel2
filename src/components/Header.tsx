@@ -7,6 +7,7 @@ import {
   UserRound,
   LogOut,
   LayoutDashboard,
+  Compass,
   BriefcaseBusiness,
   BedDouble,
   House,
@@ -17,6 +18,7 @@ import type { AppLanguage, User } from "../types";
 import { LanguageSelector } from "./LanguageSelector";
 import { ThemeToggle } from "./ThemeToggle";
 import { useSavedPlaces } from "../context/SavedPlacesContext";
+import { toursText } from "../i18n/tours";
 import { jobsText } from "../i18n/jobs";
 import { publicSiteText } from "../i18n/publicSite";
 
@@ -49,6 +51,7 @@ export const Header: React.FC<Props> = ({
   const nav = [
     ["hostels", text.hostels],
     ["rentals", text.rentals],
+    ["tours", toursText[currentLang].nav],
     ["jobs", jobsText[currentLang].jobs],
     ["guide", text.guide],
     ["translator", text.translator],
@@ -56,6 +59,7 @@ export const Header: React.FC<Props> = ({
   const navIcons: Record<string, typeof BedDouble> = {
     hostels: BedDouble,
     rentals: House,
+    tours: Compass,
     jobs: BriefcaseBusiness,
     guide: BookOpen,
     translator: Languages,

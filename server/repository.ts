@@ -1,3 +1,4 @@
+import { readTours } from './tours.js';
 import { readJobs } from './job-postings.js';
 import type { Transaction, InValue } from '@libsql/client';
 import { createHash } from 'node:crypto';
@@ -28,7 +29,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     const base = emptyScope();
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
-    const accountActions = ['saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
+    const accountActions = ['saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
     if (accountActions.includes(action)) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
@@ -226,7 +227,7 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         for (const row of rows)
             availability.push({ hostelId: String(row.hostel_id), roomTypeId: String(row.room_type_id), date: String(row.date), capacity: Number(row.capacity), booked: Number(row.booked), available: Math.max(0, Number(row.capacity) - Number(row.booked) - Number(row.blocked)) });
     }
-    return { ...publicState(state, actor, demo, bookingToken, inquiryToken, availability), jobs: await readJobs(tx, actor) };
+    return { ...publicState(state, actor, demo, bookingToken, inquiryToken, availability), jobs: await readJobs(tx, actor), tours: await readTours(tx, actor) };
 }
 export async function imageIsReferenced(tx: Transaction, url: string) {
     return !!(await tx.execute({ sql: `SELECT 1 FROM property_photos WHERE url=? UNION ALL SELECT 1 FROM property_images WHERE url=? UNION ALL SELECT 1 FROM articles WHERE featured_image=? UNION ALL SELECT 1 FROM properties WHERE json_extract(extras_json,'$.entrancePhoto')=? LIMIT 1`, args: [url, url, url, url] })).rows.length;
