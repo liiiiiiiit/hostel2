@@ -17,6 +17,14 @@ test -f "$app_dir/.env"
 command -v python3 >/dev/null
 command -v curl >/dev/null
 run_app node -e 'require("dotenv").config({quiet:true});if(process.env.DATABASE_URL!=="file:/var/lib/hostel2/hostel.db")throw Error("DATABASE_URL differs from the verified VPS path");'
+port="${HOSTEL2_HEALTH_PORT:-}"
+if [ -z "$port" ]; then
+  port=$(run_app node -e 'require("dotenv").config({quiet:true});const p=Number(process.env.PORT||3000);if(!Number.isInteger(p)||p<1||p>65535)throw Error("Invalid PORT");console.log(p)')
+fi
+if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+  echo "Invalid health-check port."
+  false
+fi
 old_commit=$(run_app git rev-parse HEAD)
 install -d -m 700 "$backup_dir"
 printf '%s\n' "$old_commit" > "$backup_dir/previous-commit"
@@ -55,7 +63,7 @@ run_app npm test
 run_app npm run build
 run_app node --import tsx scripts/provider-upgrade.ts --offline
 run_app npm run db:check
-port=$(run_app node -e 'require("dotenv").config({quiet:true});const p=Number(process.env.PORT||3000);if(!Number.isInteger(p)||p<1||p>65535)throw Error("Invalid PORT");console.log(p)')
+
 systemctl start hostel2
 healthy=false
 for attempt in $(seq 1 30); do

@@ -26,7 +26,7 @@ The deployment script is specifically configured for the verified installation:
 - file:/var/lib/hostel2/hostel.db
 - hostel2.service running as hostel2
 
-Run ops/deploy-provider-sqlite.sh as root after fetching this branch. The script takes the site offline, creates a consistent SQLite backup and an application archive, preserves local code edits in git stash, installs and tests the new code, and upgrades the same database. No admin password reset or fresh database is needed.
+Run HOSTEL2_HEALTH_PORT=3001 bash ops/deploy-provider-sqlite.sh as root after fetching this branch for this VPS, whose service listens on port 3001. The explicit health-check port takes precedence over .env, since systemd may supply a different PORT. The script takes the site offline, creates a consistent SQLite backup and an application archive, preserves local code edits in git stash, installs and tests the new code, and upgrades the same database. No admin password reset or fresh database is needed.
 
 scripts/provider-upgrade.ts requires --offline. It holds a write transaction while recording hashes of all existing rows, applying the additive schema changes, comparing original rows and checking SQLite integrity and foreign keys. It commits only after verification. Existing scheduled writers wait on SQLite's transaction lock.
 
