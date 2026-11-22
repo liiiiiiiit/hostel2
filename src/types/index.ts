@@ -1,6 +1,6 @@
 export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 
-export type UserRole = 'admin' | 'hostel_manager' | 'traveler';
+export type UserRole = 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
 
 export interface User {
   id: string;

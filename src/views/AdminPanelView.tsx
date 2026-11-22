@@ -1,3 +1,4 @@
+import { ProvidersView } from './ProvidersView';
 import React, { useState } from 'react';
 import {
   AppLanguage,
@@ -104,7 +105,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tAdmin, getLocalized } = useLanguage();
   const store = appStore.getState();
   const [activeTab, setActiveTab] = useState<
-    'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
+    'providers' | 'jobs' | 'tours' | 'kpi' | 'bookings' | 'hostels' | 'managers' | 'coupons' | 'reviews' | 'rentals' | 'articles' | 'audit'
   >('kpi');
 
   // Booking filtering & search
@@ -226,6 +227,8 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         ru: newHostelNameFa.trim(),
         hy: newHostelNameFa.trim(),
       },
+      addressArmenianForTaxi: '', phone: '', email: '', directionsFa: '', directionsHy: '',
+      floorAndDoorCode: '', earlyCheckInAvailable: false, earlyCheckInFeeAMD: 0, lateArrivalFeeAMD: 0, immediateStayEnabled: false, waitingLoungeAvailable: false,
       city: 'Yerevan',
       district: newHostelDistrict,
       address: {
@@ -254,7 +257,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         }
       ],
       minPricePerNightAMD: Number(newHostelMinPrice) || 4800,
-      amenities: {
+      amenities: { requiresPersonalPadlock:false,kitchen:false,hotWater24h:true,linenIncluded:true,airConditioning:false,breakfastAvailable:false,laundry:false,
         wifi: true,
         lockers: true,
         elevator: true,
@@ -264,7 +267,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       freeLuggageStorage: true,
       lateArrivalAvailable: true,
       languagesSpoken: ['fa', 'en', 'ru', 'hy'],
-      rules: {
+      rules: { smokingAllowed:false,petsAllowed:false,
         quietHours: '23:00 - 08:00',
         cancellationPolicy: 'لغو رایگان تا ۲۴ ساعت قبل از ورود',
         acceptedPaymentMethodsOnArrival: ['Cash AMD', 'Cash USD', 'Card'],
@@ -373,6 +376,9 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   };
 
   const tabsConfig = [
+    {id:'providers',label:({fa:'ارائه‌دهندگان',en:'Providers',ru:'Поставщики',hy:'Մատակարարներ'})[currentLang],icon:Users},
+    {id:'jobs',label:({fa:'کاریابی',en:'Jobs',ru:'Работа',hy:'Աշխատանք'})[currentLang],icon:Users},
+    {id:'tours',label:({fa:'تورها',en:'Tours',ru:'Туры',hy:'Տուրեր'})[currentLang],icon:Users},
     { id: 'kpi', label: tAdmin.tabKpi, icon: Shield, badge: urgentUnanswered.length + entranceIssues.length },
     { id: 'bookings', label: tAdmin.tabBookings, icon: Clock, badge: pendingBookings.length },
     { id: 'hostels', label: tAdmin.tabHostels, icon: Building2 },
@@ -460,6 +466,9 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       {/* TAB 1: EXECUTIVE FINANCIAL & OPERATIONAL DASHBOARD */}
+      {activeTab === 'providers' && <ProvidersView manage accounts />}
+      {activeTab === 'jobs' && <ProvidersView kind="job_provider" manage />}
+      {activeTab === 'tours' && <ProvidersView kind="tour_provider" manage />}
       {activeTab === 'kpi' && (
         <div className="space-y-6">
           {/* Top 4 Executive Financial & Growth Cards */}

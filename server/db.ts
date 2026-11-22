@@ -8,7 +8,8 @@ export interface User {
   passwordHash: string;
   salt: string;
   name: string;
-  role: 'admin' | 'hostel_manager' | 'traveler';
+  role: 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
+  organization?: string;
   phone?: string;
   assignedHostelIds?: string[];
   createdAt: string;
@@ -19,7 +20,7 @@ export interface User {
 export interface Session {
   token: string;
   userId: string;
-  role: 'admin' | 'hostel_manager' | 'traveler';
+  role: 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
   expiresAt: string;
 }
 
@@ -285,6 +286,8 @@ export interface AuditLog {
 }
 
 export interface AppDatabase {
+  listings?: import("../src/types/providers").Listing[];
+  requests?: import("../src/types/providers").ProviderRequest[];
   users: User[];
   sessions: Session[];
   hostels: Hostel[];
@@ -336,11 +339,22 @@ export function getDb(): AppDatabase {
       inMemoryDb = JSON.parse(data);
       return inMemoryDb!;
     } catch (e) {
-      console.error('Error reading db file, falling back to seed data:', e);
+      throw new Error('Cannot read existing database', { cause: e });
     }
   }
 
+  if (process.env.NODE_ENV === 'production' &&
+      (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 12))
+    throw new Error('First production startup requires ADMIN_EMAIL and ADMIN_PASSWORD (12+ characters)');
   inMemoryDb = createSeedDatabase();
+  if (process.env.NODE_ENV === 'production') {
+    const admin = inMemoryDb.users.find(user => user.role === 'admin')!;
+    admin.email = process.env.ADMIN_EMAIL.trim().toLowerCase();
+    admin.salt = crypto.randomBytes(32).toString('hex');
+    admin.passwordHash = hashPassword(process.env.ADMIN_PASSWORD, admin.salt);
+    inMemoryDb.users = [admin];
+    inMemoryDb.sessions = [];
+  }
   saveDb(inMemoryDb);
   return inMemoryDb;
 }

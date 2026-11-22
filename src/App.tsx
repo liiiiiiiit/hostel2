@@ -1,3 +1,4 @@
+import { ProvidersView } from './views/ProvidersView';
 import React, { useState, useEffect } from 'react';
 import { AppLanguage, User } from './types';
 import { appStore } from './services/store';
@@ -28,6 +29,8 @@ export default function App() {
   const [viewParams, setViewParams] = useState<any>({});
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  useEffect(()=>{void appStore.refreshSession().catch(()=>{});},[]);
+
   // Subscribe to store updates
   useEffect(() => {
     const unsubscribe = appStore.subscribe(() => {
@@ -40,7 +43,7 @@ export default function App() {
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash.startsWith('/booking/')) {
+      if (['/jobs','/tours','/job-panel','/tour-panel','/admin'].includes(hash)) { setActiveView(hash.slice(1)); } else if (hash.startsWith('/booking/')) {
         const token = hash.replace('/booking/', '');
         setActiveView('booking-track');
         setViewParams({ token });
@@ -66,6 +69,8 @@ export default function App() {
       window.location.hash = `/booking/${params.token}`;
     } else if (view === 'rental-track' && params?.token) {
       window.location.hash = `/rental-request/${params.token}`;
+    } else if (['jobs','tours','job-panel','tour-panel','admin'].includes(view)) {
+      window.location.hash='/'+view;
     } else if (view === 'home') {
       window.location.hash = '';
     }
@@ -83,6 +88,10 @@ export default function App() {
   // Render current view
   const renderView = () => {
     switch (activeView) {
+      case 'jobs': return <ProvidersView kind="job_provider" />;
+      case 'tours': return <ProvidersView kind="tour_provider" />;
+      case 'job-panel': return <ProvidersView kind="job_provider" manage onLogin={()=>setShowAuthModal(true)} />;
+      case 'tour-panel': return <ProvidersView kind="tour_provider" manage onLogin={()=>setShowAuthModal(true)} />;
       case 'home':
         return (
           <HomeView
@@ -204,10 +213,10 @@ export default function App() {
         );
 
       case 'admin':
-        return <AdminPanelView currentLang={currentLang} onNavigate={handleNavigate} />;
+        return currentUser?.role==='admin' ? <AdminPanelView currentLang={currentLang} onNavigate={handleNavigate} /> : null;
 
       case 'manager':
-        return <ManagerPanelView currentLang={currentLang} onNavigate={handleNavigate} />;
+        return currentUser?.role==='hostel_manager' ? <ManagerPanelView currentLang={currentLang} onNavigate={handleNavigate} /> : null;
 
       case 'account':
         return currentUser ? (
@@ -276,7 +285,9 @@ export default function App() {
           currentLang={currentLang}
           onClose={() => setShowAuthModal(false)}
           onSuccess={user => {
-            if (user.role === 'admin') handleNavigate('admin');
+            if(user.role==='job_provider')handleNavigate('job-panel');
+            else if(user.role==='tour_provider')handleNavigate('tour-panel');
+            else if (user.role === 'admin') handleNavigate('admin');
             else if (user.role === 'hostel_manager') handleNavigate('manager');
             else handleNavigate('account');
           }}

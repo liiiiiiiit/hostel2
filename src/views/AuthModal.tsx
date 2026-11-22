@@ -91,10 +91,10 @@ export const AuthModal: React.FC<Props> = ({ currentLang, onClose, onSuccess }) 
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const res = appStore.login(email, password);
+    const res = await appStore.login(email, password);
     if (res.success && res.user) {
       onSuccess(res.user);
       onClose();

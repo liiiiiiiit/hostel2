@@ -71,6 +71,11 @@ export const Header: React.FC<Props> = ({
               </div>
             </button>
 
+            <div className="flex flex-wrap gap-2 text-xs">
+              <button onClick={()=>handleNav('jobs')}>{({fa:'کاریابی',en:'Jobs',ru:'Работа',hy:'Աշխատանք'})[currentLang]}</button>
+              <button onClick={()=>handleNav('tours')}>{({fa:'تورها',en:'Tours',ru:'Туры',hy:'Տուրեր'})[currentLang]}</button>
+              {['job_provider','tour_provider'].includes(currentUser?.role)&&<button onClick={()=>handleNav(currentUser?.role==='job_provider'?'job-panel':'tour-panel')}>{currentUser.name}</button>}
+            </div>
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-1.5 text-sm font-medium">
               <button

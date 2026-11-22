@@ -66,7 +66,7 @@ class Store {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        return {...JSON.parse(stored),currentUser:null};
       }
     } catch (e) {
       console.warn('Could not parse local store, using default seed:', e);
@@ -202,28 +202,17 @@ class Store {
   }
 
   // Auth
-  public login(email: string, password?: string): { success: boolean; user?: User; error?: string } {
-    const cleanEmail = email.trim().toLowerCase();
-    const user = this.state.users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!user) {
-      return { success: false, error: 'کاربری با این مشخصات یافت نشد.' };
-    }
-    if (!user.isActive) {
-      return { success: false, error: 'این حساب کاربری غیرفعال شده است.' };
-    }
-
-    this.state.currentUser = user;
-    this.logAudit('LOGIN', 'USER', user.id, `ورود موفق کاربر با نقش ${user.role}`);
-    this.persist();
-    return { success: true, user };
+  public async refreshSession() {
+    const {providerCall}=await import('./providers');
+    const data=await providerCall('providers');this.state.currentUser=data.user;this.notify();
   }
-
-  public logout() {
-    if (this.state.currentUser) {
-      this.logAudit('LOGOUT', 'USER', this.state.currentUser.id, 'خروج کاربر');
-    }
-    this.state.currentUser = null;
-    this.persist();
+  public async login(email: string, password?: string): Promise<{success:boolean;user?:User;error?:string}> {
+    try{const {providerCall}=await import('./providers');const data=await providerCall('login',{email,password});this.state.currentUser=data.user;this.notify();return data;}
+    catch(e){return {success:false,error:e.message};}
+  }
+  public async logout() {
+    const {providerCall}=await import('./providers');await providerCall('logout',{});
+    this.state.currentUser=null;this.notify();
   }
 
   public registerTraveler(name: string, email: string, phone?: string): { success: boolean; user?: User; error?: string } {
@@ -613,9 +602,9 @@ class Store {
   public toggleRentalAvailability(id: string) {
     const r = this.state.rentals.find(item => item.id === id);
     if (!r) return;
-    r.isAvailable = !r.isAvailable;
+    r.status = r.status === 'published' ? 'hidden' : 'published';
     r.updatedAt = new Date().toISOString();
-    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.isAvailable ? 'موجود' : 'رزروشده'}`);
+    this.logAudit('TOGGLE_RENTAL', 'RENTAL', id, `تغییر وضعیت دسترسی ملک به ${r.status === 'published' ? 'موجود' : 'رزروشده'}`);
     this.persist();
   }
 
