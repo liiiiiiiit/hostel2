@@ -37,7 +37,7 @@ export function ThemeToggle({ language }: { language: AppLanguage }) {
   };
   return <button type="button" data-testid="theme-toggle" onClick={toggle}
     aria-label={labels[language][dark ? 'light' : 'dark']} title={labels[language][dark ? 'light' : 'dark']}
-    className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-700 hover:bg-white focus-visible:outline-2">
+    className="header-control header-icon-button header-theme-toggle">
     {dark ? <Sun aria-hidden="true" className="size-5" /> : <Moon aria-hidden="true" className="size-5" />}
   </button>;
 }

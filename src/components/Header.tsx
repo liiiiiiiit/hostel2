@@ -131,7 +131,7 @@ export const Header: React.FC<Props> = ({
             aria-expanded={menuOpen}
             aria-controls="mobile-navigation"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="header-icon-button header-menu-toggle"
+            className="header-control header-icon-button header-menu-toggle"
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
@@ -140,7 +140,7 @@ export const Header: React.FC<Props> = ({
             onClick={() => navigate("saved")}
             aria-label={`${text.saved} (${saved.length} / ${compared.length})`}
             title={text.saved}
-            className="header-icon-button header-saved-button"
+            className="header-control header-icon-button header-saved-button"
           >
             <Heart className="size-5" strokeWidth={1.6} />
             {saved.length > 0 && (
@@ -162,7 +162,7 @@ export const Header: React.FC<Props> = ({
                 aria-haspopup="true"
                 aria-expanded={accountOpen}
                 aria-controls="account-popover"
-                className="header-account-button"
+                className="header-control header-account-button"
               >
                 <UserRound className="size-4" />
                 <span className="max-w-28 truncate">
@@ -206,7 +206,7 @@ export const Header: React.FC<Props> = ({
             <button
               type="button"
               onClick={onOpenAuth}
-              className="header-sign-in-button"
+              className="header-control header-sign-in-button"
             >
               <UserRound className="size-4" />
               {text.signIn}
@@ -221,17 +221,17 @@ export const Header: React.FC<Props> = ({
           aria-label="YEREVANHUB Home"
         >
           <span className="header-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 72 64" fill="none" focusable="false">
+            <svg viewBox="0 0 48 40" fill="none" focusable="false">
               <path
-                d="M5 50 27 16l11 18 8-13 21 29H5Z"
+                d="M4 31 18 8l9 14 6-10 11 19H4Z"
                 stroke="currentColor"
-                strokeWidth="2.5"
+                strokeWidth="1.6"
                 strokeLinejoin="round"
               />
               <path
-                d="m20 27 7 4 6-5M40 31l6 4 5-7M14 57h44"
-                stroke="#d8b777"
-                strokeWidth="2.5"
+                d="m14 15 4 3 4-3m8 2 3 3 3-3M11 36h26"
+                stroke="var(--header-gold)"
+                strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -264,24 +264,12 @@ export const Header: React.FC<Props> = ({
           })}
         </nav>
       </div>
-      <nav aria-label={text.browse} className="tablet-navigation">
-        {nav.map(([view, label]) => (
-          <button
-            type="button"
-            key={view}
-            onClick={() => navigate(view)}
-            aria-current={isActive(view) ? "page" : undefined}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
       {menuOpen && (
         <nav
           ref={mobileNavigationRef}
           id="mobile-navigation"
           aria-label={text.menu}
-          className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3 sm:hidden"
+          className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#142f2a]/8 bg-[#f8faf7] px-4 pb-5 pt-3"
         >
           <div className="mx-auto grid max-w-7xl gap-1">
             {nav.map(([view, label]) => (
