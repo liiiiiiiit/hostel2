@@ -1,9 +1,10 @@
 import type {CancellationRule,CommissionRule,OptionalService,UnitBlock,BookingChange,BookingEvent,SupportThread,FinanceEntry} from './operations.js';
 export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 
-export type UserRole = 'admin' | 'hostel_manager' | 'traveler';
+export type UserRole = 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
 
 export interface User {
+  organization?:string;
   emailVerifiedAt?:string;
   language?:AppLanguage;
   emailNotifications?:boolean;
@@ -372,6 +373,7 @@ export interface TourBooking {
 }
 
 export interface Tour {
+  approved?:boolean; capacity?:number;
   id: string; version: number; owned: boolean; published: boolean; hidden: boolean;
   title: string; organizer: string; destination: string; departure: string; schedule: string;
   duration: string; description: string; contact: string; price: number | null;
@@ -383,6 +385,7 @@ export interface JobApplication {
 }
 
 export interface JobPosting {
+  approved?:boolean;
   id: string; version: number; manageable: boolean;
   title: string; company: string; location: string; schedule: string; description: string; contact: string;
   salary: number | null; period: 'month' | 'day' | 'hour'; status: 'open' | 'closed';
@@ -392,6 +395,7 @@ export interface ClientState {
   tourBookings?: TourBooking[];
   tours?: Tour[];
   jobApplications?: JobApplication[];
+  providerAccounts?: {id:string;name:string;email:string;phone:string;organization:string;role:'job_provider'|'tour_provider';isActive:boolean}[];
   jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
   users: User[]; currentUser: User | null; hostels: Hostel[]; rentals: RentalProperty[];

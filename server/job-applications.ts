@@ -1,3 +1,4 @@
+import { requireProvider } from './provider-accounts.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Transaction } from '@libsql/client';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ export async function applyForJob(tx: Transaction, input: z.infer<typeof applica
   const reference = randomUUID();
   const result = await tx.execute({
     sql: `INSERT INTO job_applications(reference,request_id,fingerprint,name,contact,message,submitted_at,job_id)
-          SELECT ?,?,?,?,?,?,?,id FROM job_postings WHERE id=? AND version=? AND status='open'`,
+          SELECT ?,?,?,?,?,?,?,id FROM job_postings WHERE id=? AND version=? AND status='open' AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)`,
     args:[reference,input.requestId,fingerprint,input.name,input.contact,input.message,new Date().toISOString(),input.jobId,input.version],
   });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
@@ -42,6 +43,7 @@ export async function applicationProgress(tx: Transaction, reference: string) {
 }
 
 export async function reviewApplication(tx: Transaction, actor: User | null, reference: string, previous: JobApplication['status'], next: JobApplication['status']) {
+  await requireProvider(tx,actor,'job_provider');
   if (!actor) throw new Error('دسترسی مجاز نیست.');
   const result = await tx.execute({
     sql: `UPDATE job_applications SET status=? WHERE reference=? AND status=?
@@ -53,6 +55,7 @@ export async function reviewApplication(tx: Transaction, actor: User | null, ref
 
 export async function readApplications(tx: Transaction, actor: User | null): Promise<JobApplication[]> {
   if (!actor) return [];
+  if(actor.role==='tour_provider')return [];
   const {rows} = await tx.execute({
     sql: `SELECT a.reference,a.job_id,a.name,a.contact,a.message,a.status,a.submitted_at
           FROM job_postings j JOIN job_applications a ON a.job_id=j.id

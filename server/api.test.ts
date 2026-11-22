@@ -892,7 +892,7 @@ test('traveler and unrelated managers cannot mutate administrative or other-prop
 });
 
 test('employer and admin listings persist, enforce ownership and close independently of other jobs', async t => {
-  const { visitor, client, databaseUrl } = await fixture(t);
+  const { visitor, client, databaseUrl, database } = await fixture(t);
   const owner = client(), second = client(), admin = client();
   await owner.action('registerTraveler', ['Employer One', 'one@job.test', null, 'EmployerOne123']);
   await second.action('registerTraveler', ['Employer Two', 'two@job.test', null, 'EmployerTwo123']);
@@ -901,7 +901,7 @@ test('employer and admin listings persist, enforce ownership and close independe
     location: 'Kentron', schedule: 'Evenings', description: 'Dinner service', contact: 'jobs@example.test',
     salary: 9000, period: 'day', status: 'open' };
   assert.equal((await visitor.action('saveJob', [job])).data.success, false);
-  assert.equal((await owner.action('saveJob', [job])).data.success, true);
+  await seedLegacyListing(database, (await owner.get()).state.currentUser!.id, 'job', job);
   const listing = (await visitor.get()).state.jobs![0];
   assert.equal(listing.manageable, false);
   assert.equal(listing.salary, 9000);
@@ -912,7 +912,7 @@ test('employer and admin listings persist, enforce ownership and close independe
   assert.equal((await second.get()).state.jobs!.length, 0);
   const closed = (await admin.get()).state.jobs![0];
   assert.equal(closed.manageable, true);
-  assert.equal((await admin.action('saveJob', [{...closed, status:'open'}])).data.success, true);
+  assert.equal((await admin.action('saveJob', [{...closed, status:'open',approved:true}])).data.success, true);
   assert.equal((await admin.action('saveJob', [{...job, id:crypto.randomUUID(), salary:null}])).data.success, true);
   const reopened = new Database({url:databaseUrl});
   try { assert.equal((await reopened.publicState()).jobs.length, 2); }
@@ -920,7 +920,7 @@ test('employer and admin listings persist, enforce ownership and close independe
 });
 
 test('tour organizers manage their own listings and only admins control moderation and deletion', async t => {
-  const { visitor, client, databaseUrl } = await fixture(t);
+  const { visitor, client, databaseUrl, database } = await fixture(t);
   const organizer = client(), other = client(), admin = client();
   await organizer.action('registerTraveler', ['Guide', 'guide@tour.test', null, 'TourOrganizer123']);
   await other.action('registerTraveler', ['Other guide', 'other@tour.test', null, 'TourOrganizer234']);
@@ -929,12 +929,13 @@ test('tour organizers manage their own listings and only admins control moderati
     destination: 'Garni and Geghard', departure: 'Yerevan', schedule: 'Every Friday', duration: '7 hours',
     description: 'Guided visit and transport', contact: 'guide@example.test', price: 12000, published: false, hidden: false };
   assert.equal((await visitor.action('saveTour', [tour])).data.success, false);
-  assert.equal((await organizer.action('saveTour', [tour])).data.success, true);
+  await seedLegacyListing(database, (await organizer.get()).state.currentUser!.id, 'tour', tour);
   assert.deepEqual((await visitor.get()).state.tours, []);
   assert.deepEqual((await other.get()).state.tours, []);
   const draft = (await organizer.get()).state.tours![0];
   assert.equal((await other.action('saveTour', [{...draft, published:true}])).data.success, false);
   assert.equal((await organizer.action('saveTour', [{...draft, published:true}])).data.success, true);
+  await database.sqlTransaction(tx=>tx.execute({sql:'UPDATE tour_listings SET approved=1 WHERE id=?',args:[tour.id]}));
   const live = (await visitor.get()).state.tours![0];
   assert.equal(live.price, 12000);
   assert.equal((await admin.action('saveTour', [{...live, hidden:true}])).data.success, true);
@@ -943,8 +944,8 @@ test('tour organizers manage their own listings and only admins control moderati
   assert.deepEqual((await visitor.get()).state.tours, []);
   const moderated = (await admin.get()).state.tours![0];
   assert.equal(moderated.hidden, true);
-  assert.equal((await organizer.action('deleteTour', [tour.id, moderated.version])).data.success, false);
-  assert.equal((await admin.action('saveTour', [{...moderated, hidden:false}])).data.success, true);
+  assert.equal((await organizer.action('deleteTour', [tour.id, moderated.version-1])).data.success, false);
+  assert.equal((await admin.action('saveTour', [{...moderated, hidden:false,approved:true}])).data.success, true);
   assert.equal((await admin.action('deleteTour', [tour.id, moderated.version])).data.success, false);
   const reopened = new Database({url: databaseUrl});
   try { assert.equal((await reopened.publicState()).tours[0].id, tour.id); }
@@ -955,13 +956,13 @@ test('tour organizers manage their own listings and only admins control moderati
 });
 
 test('guest tour requests persist once, protect passenger details and retain pricing after listing deletion', async t => {
-  const { visitor, client, databaseUrl } = await fixture(t);
+  const { visitor, client, databaseUrl, database } = await fixture(t);
   const admin = client(), organizer = client();
   await organizer.action('registerTraveler',['Guide','guide@example.test',null,'TestGuide123']);
   await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
   const tour = { id:crypto.randomUUID(),version:0,title:'Lake Sevan',organizer:'Lake Guide',destination:'Sevan',departure:'Yerevan',
     schedule:'Weekends',duration:'One day',description:'Guided walk',contact:'guide@example.test',price:9000,published:true,hidden:false };
-  assert.equal((await organizer.action('saveTour',[tour])).data.success,true);
+  await seedLegacyListing(database, (await organizer.get()).state.currentUser!.id, 'tour', tour);
   const data = {requestId:crypto.randomUUID(),tourId:tour.id,tourVersion:1,name:'Guest One',contact:'+۳۷۴ ۹۹ ۱۲۳۴۵۶',travelDate:addCalendarDays(yerevanToday(),8),guests:2,notes:'Two adults'};
   const booked = await visitor.action('bookTour',[data]);
   assert.equal(booked.data.success,true);
@@ -973,14 +974,14 @@ test('guest tour requests persist once, protect passenger details and retain pri
   assert.equal(all.length,1);
   assert.equal(all[0].price,9000);
   assert.equal(all[0].contact,data.contact);
-  assert.deepEqual((await organizer.get()).state.tourBookings,[]);
-  assert.equal((await organizer.action('changeTourBooking',[reference,'pending','confirmed'])).data.success,false);
-  assert.equal((await admin.action('changeTourBooking',[reference,'pending','confirmed'])).data.success,true);
+  assert.equal((await organizer.get()).state.tourBookings!.length,1);
+  assert.equal((await organizer.action('changeTourBooking',[reference,'pending','confirmed'])).data.success,true);
+  assert.equal((await admin.action('changeTourBooking',[reference,'confirmed','confirmed'])).data.success,true);
   assert.equal((await admin.action('changeTourBooking',[reference,'pending','cancelled'])).data.success,false);
   assert.equal((await visitor.action('trackTour',[reference])).data.tourStatus,'confirmed');
   assert.equal((await admin.action('saveTour',[{...tour,version:1,hidden:true}])).data.success,true);
   assert.equal((await visitor.action('bookTour',[{...data,requestId:crypto.randomUUID(),tourVersion:2}])).data.success,false);
-  assert.equal((await admin.action('deleteTour',[tour.id,2])).data.success,true);
+  assert.equal((await admin.action('deleteTour',[tour.id,2])).data.success,false);
   const reopened = new Database({url:databaseUrl});
   try {
     const state = await reopened.publicState((await admin.get()).state.currentUser);
@@ -991,14 +992,14 @@ test('guest tour requests persist once, protect passenger details and retain pri
 });
 
 test('job applications persist once and only the posting owner and administrators can review them', async t => {
-  const {visitor,client,databaseUrl} = await fixture(t);
+  const {visitor,client,databaseUrl,database} = await fixture(t);
   const owner = client(), other = client(), admin = client();
   await owner.action('registerTraveler',['Hiring team','team@jobs.test',null,'HiringTeam123']);
   await other.action('registerTraveler',['Other team','other@jobs.test',null,'OtherTeam123']);
   await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
   const job = {id:crypto.randomUUID(),version:0,title:'Receptionist',company:'City hostel',location:'Kentron',
     schedule:'Evenings',description:'Welcome guests',contact:'team@jobs.test',salary:null,period:'month',status:'open'};
-  assert.equal((await owner.action('saveJob',[job])).data.success,true);
+  await seedLegacyListing(database, (await owner.get()).state.currentUser!.id, 'job', job);
   const input = {requestId:crypto.randomUUID(),jobId:job.id,version:1,name:'Applicant',contact:'+۳۷۴ ۹۹ ۱۲۳۴۵۶',message:'Evening shifts work for me.'};
   const sent = (await visitor.action('applyForJob',[input])).data;
   assert.equal(sent.success,true);
@@ -1022,4 +1023,64 @@ test('job applications persist once and only the posting owner and administrator
   const restarted = new Database({url:databaseUrl});
   try { assert.equal((await restarted.publicState((await admin.get()).state.currentUser)).jobApplications[0].status,'accepted'); }
   finally { await restarted.close(); }
+});
+
+
+async function seedLegacyListing(database:Database,owner:string,kind:'job'|'tour',input:any) {
+  await database.sqlTransaction(tx=>tx.execute(kind==='job'?{
+    sql:'INSERT INTO job_postings(id,owner_id,title,company,location,schedule,description,contact,salary,period,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+    args:[input.id,owner,input.title,input.company,input.location,input.schedule,input.description,input.contact,input.salary,input.period,input.status,new Date().toISOString()],
+  }:{
+    sql:'INSERT INTO tour_listings(id,owner_id,title,organizer,destination,departure,schedule,duration,description,contact,price,published,hidden,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    args:[input.id,owner,input.title,input.organizer,input.destination,input.departure,input.schedule,input.duration,input.description,input.contact,input.price,Number(input.published),Number(input.hidden),new Date().toISOString()],
+  }));
+}
+
+test('admin-created providers use existing SQLite credentials, isolate roles and preserve requests across activation changes',async t=>{
+  const {client,visitor,database}=await fixture(t),admin=client(),job=client(),tour=client(),outsider=client();
+  await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  for(const [email,role] of [['job@provider.test','job_provider'],['tour@provider.test','tour_provider'],['other@provider.test','job_provider']]){
+    const result=await admin.action('saveProvider',[{name:email,email,phone:'',organization:'Team',role,isActive:true,password:'ProviderPassword123!'}]);
+    assert.equal(result.data.success,true,JSON.stringify(result.data));
+  }
+  assert.equal((await visitor.action('saveProvider',[{name:'No',email:'no@provider.test',phone:'',organization:'',role:'job_provider',isActive:true,password:'Password123!'}])).response.status,403);
+  assert.equal((await job.action('login',['job@provider.test','ProviderPassword123!'])).data.user.role,'job_provider');
+  assert.equal((await tour.action('login',['tour@provider.test','ProviderPassword123!'])).data.user.role,'tour_provider');
+  await outsider.action('login',['other@provider.test','ProviderPassword123!']);
+  const listing={id:crypto.randomUUID(),version:0,title:'Job',company:'Company',location:'Yerevan',schedule:'Daily',description:'Work',contact:'team@test.am',salary:10000,period:'day',status:'open'};
+  assert.equal((await tour.action('saveJob',[listing])).response.status,403);
+  assert.equal((await job.action('saveJob',[listing])).data.success,true);
+  assert.equal((await visitor.get()).state.jobs!.length,0);
+  let owned=(await job.get()).state.jobs![0];
+  assert.equal((await outsider.action('saveJob',[{...owned,title:'Forbidden'}])).data.success,false);
+  assert.equal((await admin.action('saveJob',[{...owned,approved:true}])).data.success,true);
+  owned=(await visitor.get()).state.jobs![0];
+  const application=await visitor.action('applyForJob',[{requestId:crypto.randomUUID(),jobId:owned.id,version:owned.version,name:'Applicant',contact:'guest@test.am',message:'Experience'}]);
+  assert.equal(application.data.success,true);
+  assert.equal((await job.get()).state.jobApplications!.length,1);
+  assert.deepEqual((await tour.get()).state.jobApplications,[]);
+  const tourInput={id:crypto.randomUUID(),version:0,title:'Sevan',organizer:'Guide',destination:'Sevan',departure:'Yerevan',schedule:'Weekends',duration:'Day',description:'Walk',contact:'guide@test.am',price:12000,published:true,hidden:false,capacity:2};
+  assert.equal((await job.action('saveTour',[tourInput])).response.status,403);
+  assert.equal((await tour.action('saveTour',[tourInput])).data.success,true);
+  assert.equal((await visitor.get()).state.tours!.length,0);
+  const pending=(await tour.get()).state.tours![0];
+  assert.equal((await admin.action('saveTour',[{...pending,approved:true}])).data.success,true);
+  const live=(await visitor.get()).state.tours![0];
+  const booking={requestId:crypto.randomUUID(),tourId:live.id,tourVersion:live.version,name:'Guest',contact:'guest@test.am',travelDate:addCalendarDays(yerevanToday(),3),guests:2,notes:''};
+  assert.equal((await visitor.action('bookTour',[booking])).data.success,true);
+  assert.equal((await visitor.action('bookTour',[{...booking,requestId:crypto.randomUUID()}])).data.success,false);
+  const requests=(await tour.get()).state.tourBookings!;
+  assert.equal(requests.length,1);
+  assert.equal((await job.action('changeTourBooking',[requests[0].reference,'pending','confirmed'])).response.status,403);
+  assert.equal((await tour.action('changeTourBooking',[requests[0].reference,'pending','confirmed'])).data.success,true);
+  const provider=(await admin.get()).state.providerAccounts!.find(p=>p.email==='tour@provider.test')!;
+  await admin.action('saveProvider',[{...provider,isActive:false,password:''}]);
+  assert.equal((await tour.get()).state.currentUser,null);
+  await admin.action('saveProvider',[{...provider,isActive:true,password:'ReplacementPassword123!'}]);
+  assert.equal((await tour.action('login',['tour@provider.test','ProviderPassword123!'])).data.success,false);
+  assert.equal((await tour.action('login',['tour@provider.test','ReplacementPassword123!'])).data.success,true);
+  assert.equal((await tour.get()).state.tourBookings![0].status,'confirmed');
+  assert.equal((await admin.get()).state.jobApplications!.length,1);
+  const constraints=await database.sqlTransaction(tx=>tx.execute('PRAGMA foreign_key_check'),'read');
+  assert.equal(constraints.rows.length,0);
 });

@@ -1,3 +1,4 @@
+import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { AdminTourBookings, TourBookingForm } from '../components/TourBookings';
 import React, { useState, useSyncExternalStore } from 'react';
@@ -20,14 +21,14 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
   mode: 'public' | 'organizer' | 'admin'; onOrganizer?: () => void; onLogin?: () => void;
 }) {
   const { currentLang } = useLanguage();
-  const t = toursText[currentLang];
+  const t = toursText[currentLang], p = providerWords[currentLang];
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const admin = mode === 'admin' && state.currentUser?.role === 'admin';
   const managing = mode !== 'public';
-  const tours = (state.tours ?? []).filter(tour => admin || (managing ? tour.owned : tour.published && !tour.hidden));
+  const tours = (state.tours ?? []).filter(tour => admin || (managing ? tour.owned : tour.published && !tour.hidden && tour.approved!==false));
   function edit(tour?: Tour) {
     setMessage('');
     setDraft(tour ? { ...tour } : newTour());
@@ -43,13 +44,15 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
     } finally { setBusy(false); }
   }
   async function remove(tour: Tour) {
-    if (!admin || busy || !window.confirm(t.confirm + '\n' + tour.title)) return;
+    if (busy || !window.confirm(t.confirm + '\n' + tour.title)) return;
     setBusy(true);
     try {
       const result = await appStore.action('deleteTour', [tour.id, tour.version]);
       setMessage(result.success ? t.deleted : result.error ?? '');
     } finally { setBusy(false); }
   }
+  const authorized = admin||state.currentUser?.role==='tour_provider'||tours.some(tour=>tour.owned);
+  if(managing&&!authorized)return <section className="page-shell py-8"><button className="button-primary" onClick={onLogin}>{t.login}</button></section>;
   const Heading = admin ? 'h2' : 'h1';
   return <section className={admin ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
@@ -58,7 +61,7 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
         : state.currentUser && !draft && <button className="button-primary" disabled={busy} onClick={() => edit()}>{t.add}</button>}
     </header>
     {!managing && <ReferenceTracker kind="tour" />}
-    {admin && !draft && <AdminTourBookings bookings={state.tourBookings ?? []} />}
+    {managing && !draft && <AdminTourBookings bookings={state.tourBookings ?? []} />}
     {message && <p role="status">{message}</p>}
     {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button>
       : managing && draft ? <form className="surface space-y-5 p-5" onSubmit={save}>
@@ -71,6 +74,8 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
           <label className="sm:col-span-2">{t.description}
             <textarea className="field mt-1 w-full" required rows={5} maxLength={4000} value={draft.description} onChange={e => setDraft({...draft,description:e.target.value})}/>
           </label>
+          <label>{p.capacity}<input type="number" required min={1} max={100000} className="field w-full" value={draft.capacity??100000} onChange={e=>setDraft({...draft,capacity:Number(e.target.value)})}/></label>
+          {admin&&<label><input type="checkbox" checked={draft.approved!==false} onChange={e=>setDraft({...draft,approved:e.target.checked})}/> {p.approved}</label>}
           <label><input type="checkbox" checked={draft.published} onChange={e => setDraft({...draft,published:e.target.checked})}/> {t.publish}</label>
           {admin && <label><input type="checkbox" checked={draft.hidden} onChange={e => setDraft({...draft,hidden:e.target.checked})}/> {t.hide}</label>}
         </fieldset>
@@ -91,8 +96,9 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
           <p>{t.price} · <strong>{tour.price === null ? t.ask : tour.price.toLocaleString(currentLang)}</strong></p>
           <p>{t.contact} · <bdi>{tour.contact}</bdi></p>
           {!managing && <TourBookingForm tour={tour} />}
+          {managing && tour.approved===false && <p>{p.waiting}</p>}
           {managing && <div className="flex flex-wrap gap-3"><button disabled={busy} className="button-secondary" onClick={() => edit(tour)}>{t.edit}</button>
-            {admin && <button disabled={busy} className="button-secondary" onClick={() => void remove(tour)}>{t.remove}</button>}</div>}
+            {<button disabled={busy} className="button-secondary" onClick={() => void remove(tour)}>{t.remove}</button>}</div>}
         </article>)}
       </div>}
   </section>;

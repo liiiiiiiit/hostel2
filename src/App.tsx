@@ -341,6 +341,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
           currentLang={currentLang}
           onClose={() => setShowAuthModal(false)}
           onSuccess={user => {
+            if (user.role === 'job_provider') { handleNavigate('employer'); return; }
+            if (user.role === 'tour_provider') { handleNavigate('tour-organizer'); return; }
             if (activeView === 'employer' || activeView === 'tour-organizer') return;
             if (user.role === 'admin') handleNavigate('admin');
             else if (user.role === 'hostel_manager') handleNavigate('manager');

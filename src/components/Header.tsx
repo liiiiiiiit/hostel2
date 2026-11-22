@@ -69,7 +69,7 @@ export const Header: React.FC<Props> = ({
     (view === "hostels" && activeView === "hostel-detail") ||
     (view === "rentals" && activeView === "rental-detail") ||
     (view === "guide" && activeView === "article-detail");
-  const accountView =
+  const accountView = currentUser?.role === "job_provider" ? "employer" : currentUser?.role === "tour_provider" ? "tour-organizer" :
     currentUser?.role === "admin"
       ? "admin"
       : currentUser?.role === "hostel_manager"

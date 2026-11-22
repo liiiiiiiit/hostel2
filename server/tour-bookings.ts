@@ -1,3 +1,4 @@
+import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
 import { randomUUID, createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -30,8 +31,8 @@ export async function bookTour(tx: Transaction, input: z.infer<typeof bookingInp
   const result = await tx.execute({
     sql: `INSERT INTO tour_bookings(reference,request_id,fingerprint,name,contact,travel_date,guests,notes,created_at,status,tour_id,title,organizer,price)
           SELECT ?,?,?,?,?,?,?,?,?,'pending',id,title,organizer,price FROM tour_listings
-          WHERE id=? AND version=? AND published=1 AND hidden=0`,
-    args:[reference,input.requestId,fingerprint,input.name,input.contact,input.travelDate,input.guests,input.notes,new Date().toISOString(),input.tourId,input.tourVersion],
+          WHERE id=? AND version=? AND published=1 AND hidden=0 AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1) AND capacity >= ? + (SELECT COALESCE(SUM(guests),0) FROM tour_bookings WHERE tour_id=? AND travel_date=? AND status IN ('pending','confirmed'))`,
+    args:[reference,input.requestId,fingerprint,input.name,input.contact,input.travelDate,input.guests,input.notes,new Date().toISOString(),input.tourId,input.tourVersion,input.guests,input.tourId,input.travelDate],
   });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
   return reference;
@@ -44,14 +45,15 @@ export async function trackTour(tx: Transaction, reference: string) {
 }
 
 export async function changeTourBooking(tx: Transaction, actor: User | null, reference: string, previous: TourBooking['status'], next: TourBooking['status']) {
-  if (actor?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
-  const result = await tx.execute({sql:'UPDATE tour_bookings SET status=? WHERE reference=? AND status=?',args:[next,reference,previous]});
+  await requireProvider(tx,actor,'tour_provider');
+  if(next!=='cancelled'&&(await tx.execute({sql:"SELECT 1 FROM tour_bookings b JOIN tour_listings t ON b.tour_id=t.id WHERE b.reference=? AND t.capacity < b.guests + (SELECT COALESCE(SUM(guests),0) FROM tour_bookings o WHERE o.tour_id=b.tour_id AND o.travel_date=b.travel_date AND o.reference<>b.reference AND o.status IN ('pending','confirmed'))",args:[reference]})).rows.length)throw new Error('ظرفیت کافی نیست.');
+  const result = await tx.execute({sql:'UPDATE tour_bookings SET status=? WHERE reference=? AND status=? AND tour_id IN (SELECT id FROM tour_listings WHERE owner_id=? OR ?=1)',args:[next,reference,previous,actor!.id,Number(actor!.role==='admin')]});
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
 }
 
 export async function adminTourBookings(tx: Transaction, actor: User | null): Promise<TourBooking[]> {
-  if (actor?.role !== 'admin') return [];
-  const {rows} = await tx.execute('SELECT reference,status,tour_id,title,organizer,price,name,contact,travel_date,guests,notes,created_at FROM tour_bookings ORDER BY created_at DESC,reference');
+  if (!actor||actor.role==='job_provider') return [];
+  const {rows} = await tx.execute({sql:'SELECT reference,status,tour_id,title,organizer,price,name,contact,travel_date,guests,notes,created_at FROM tour_bookings WHERE tour_id IN (SELECT id FROM tour_listings WHERE owner_id=? OR ?=1) ORDER BY created_at DESC,reference',args:[actor.id,Number(actor.role==='admin')]});
   return rows.map(row => ({
     reference:String(row.reference),status:tourBookingStatus.parse(row.status),tourId:String(row.tour_id),title:String(row.title),
     organizer:String(row.organizer),price:row.price===null?null:Number(row.price),name:String(row.name),contact:String(row.contact),

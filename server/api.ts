@@ -18,7 +18,8 @@ import { verifyPassword } from './passwords.js';
 import { bookingInput, bookTour, trackTour, changeTourBooking, tourBookingStatus } from './tour-bookings.js';
 import { saveTour, deleteTour, tourInput } from './tours.js';
 import { applyForJob, applicationInput, applicationProgress, applicationStatus, reviewApplication } from './job-applications.js';
-import { saveJob, jobInput } from './job-postings.js';
+import { saveProvider, providerInput, providerUser } from './provider-accounts.js';
+import { deleteJob, saveJob, jobInput } from './job-postings.js';
 import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
 import { enqueueBookingNotification, deliverNotifications } from './notifications.js';
 import type { ActionResult, User } from '../src/types/index.js';
@@ -42,6 +43,8 @@ const schemas = {
   applyForJob: z.tuple([applicationInput]),
   trackApplication: z.tuple([z.uuid()]),
   reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
+  saveProvider: z.tuple([providerInput]),
+  deleteJob: z.tuple([z.uuid(),z.number().int().positive()]),
   saveJob: z.tuple([jobInput]),
   ...operationSchemas,...accountSchemas,
   translateText:z.tuple([z.string().trim().min(1).max(2000),z.enum(['auto','fa','en','ru','hy']),z.enum(['fa','en','ru','hy'])]),
@@ -180,7 +183,7 @@ export function createApi(database: Database) {
           const credential = user && state.credentials[user.id];
           const valid = await verifyPassword(passwordValue, credential || { salt: 'unregistered-account', hash: '0'.repeat(64) });
           if (!user || !valid) actionResult = { success: false, error: 'ایمیل یا رمز عبور نادرست است.' };
-          else { actor = user; store.getState().currentUser = user; actionResult = { success: true, user }; }
+          else { actor = await providerUser(tx,user); store.getState().currentUser = actor; actionResult = { success: true, user:actor! }; }
         } else if (envelope.action === 'logout') {
           actor = null; store.getState().currentUser = null;
           const token = parseCookies(req.headers.cookie)[cookieName];
@@ -202,10 +205,14 @@ export function createApi(database: Database) {
           actionResult.applicationStatus = await applicationProgress(tx, String(args[0]));
         } else if (envelope.action === 'reviewApplication') {
           await reviewApplication(tx, actor, String(args[0]), applicationStatus.parse(args[1]), applicationStatus.parse(args[2]));
+        } else if (envelope.action === 'saveProvider') {
+          await saveProvider(tx,actor,args[0] as z.infer<typeof providerInput>);
+        } else if (envelope.action === 'deleteJob') {
+          await deleteJob(tx,actor,String(args[0]),Number(args[1]));
         } else if (envelope.action === 'saveJob') {
           await saveJob(tx, actor, args[0] as z.infer<typeof jobInput>);
         } else if(envelope.action in accountSchemas){
-          actionResult=await accountAction(store.getState(),tx,envelope.action as keyof typeof accountSchemas,args);actor=store.getState().currentUser;
+          actionResult=await accountAction(store.getState(),tx,envelope.action as keyof typeof accountSchemas,args);actor=await providerUser(tx,store.getState().currentUser);
           if(!actor)res.cookie(cookieName,'',{httpOnly:true,secure:secureCookie,sameSite:'lax',path:'/',maxAge:0});
         } else if(envelope.action in operationSchemas){
           actionResult=await operate(store,envelope.action as keyof typeof operationSchemas,args);

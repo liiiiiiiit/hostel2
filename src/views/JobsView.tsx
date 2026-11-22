@@ -1,3 +1,4 @@
+import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { ApplyForJob, JobApplicants } from '../components/JobApplications';
 import React, { useState, useSyncExternalStore } from 'react';
@@ -18,13 +19,13 @@ export function JobsView({ mode, onEmployer, onLogin }: {
   mode: 'public' | 'employer' | 'admin'; onEmployer?: () => void; onLogin?: () => void;
 }) {
   const { currentLang } = useLanguage();
-  const t = jobsText[currentLang];
+  const t = jobsText[currentLang], p = providerWords[currentLang];
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const managing = mode !== 'public';
-  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open');
+  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open' && job.approved!==false);
   function edit(job?: JobPosting) {
     setMessage('');
     setDraft(job ? { ...job } : fresh());
@@ -39,6 +40,8 @@ export function JobsView({ mode, onEmployer, onLogin }: {
       if (result.success) setDraft(null);
     } finally { setBusy(false); }
   }
+  const authorized = state.currentUser?.role==='admin'||state.currentUser?.role==='job_provider'||postings.some(job=>job.manageable);
+  if(managing&&!authorized)return <section className="page-shell py-8"><button className="button-primary" onClick={onLogin}>{t.login}</button></section>;
   const Heading = mode === 'admin' ? 'h2' : 'h1';
   return <section className={mode === 'admin' ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
@@ -60,6 +63,7 @@ export function JobsView({ mode, onEmployer, onLogin }: {
           <label>{t.salary}<input className="field mt-1 w-full" type="number" min="1" max="1000000000" step="1" value={draft.salary ?? ''} onChange={e => setDraft({...draft,salary:e.target.value ? Number(e.target.value) : null})}/><small>{t.optional}</small></label>
           <label>{t.period}<select className="field mt-1 w-full" value={draft.period} onChange={e => setDraft({...draft,period:e.target.value as Draft['period']})}>{(['month','day','hour'] as const).map(key => <option key={key} value={key}>{t[key]}</option>)}</select></label>
           <label>{t.status}<select className="field mt-1 w-full" value={draft.status} onChange={e => setDraft({...draft,status:e.target.value as Draft['status']})}>{(['open','closed'] as const).map(key => <option key={key} value={key}>{t[key]}</option>)}</select></label>
+          {state.currentUser?.role==='admin'&&<label><input type="checkbox" checked={draft.approved!==false} onChange={e=>setDraft({...draft,approved:e.target.checked})}/> {p.approved}</label>}
         </fieldset>
         <div className="flex gap-3"><button disabled={busy} className="button-primary">{t.save}</button><button disabled={busy} className="button-secondary" type="button" onClick={() => setDraft(null)}>{t.cancel}</button></div>
       </form> : <div className="grid gap-4 md:grid-cols-2">
@@ -72,7 +76,9 @@ export function JobsView({ mode, onEmployer, onLogin }: {
           <p><strong>{t.contact}</strong> · <bdi>{job.contact}</bdi></p>
           {!managing && <ApplyForJob job={job} />}
           {managing && <JobApplicants applications={(state.jobApplications ?? []).filter(item => item.jobId === job.id)} />}
+          {managing && job.approved===false && <p>{p.waiting}</p>}
           {managing && <button className="button-secondary" onClick={() => edit(job)}>{t.edit}</button>}
+          {managing && <button className="button-secondary" disabled={busy} onClick={async()=>{if(!window.confirm(p.remove+' · '+job.title))return;setBusy(true);try{const r=await appStore.action('deleteJob',[job.id,job.version]);setMessage(r.error??t.saved);}finally{setBusy(false);}}}>{p.remove}</button>}
         </article>)}
       </div>}
   </section>;

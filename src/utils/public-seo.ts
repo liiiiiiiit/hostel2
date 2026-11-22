@@ -68,13 +68,13 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
   else if (parts.length === 2 && section === "tours") {
     description = toursText[lang].tours;
     title = description + " · YEREVANHUB";
-    content = `<h1>${escape(description)}</h1>` + (state.tours ?? []).filter(tour => tour.published && !tour.hidden)
+    content = `<h1>${escape(description)}</h1>` + (state.tours ?? []).filter(tour => tour.published && !tour.hidden && tour.approved !== false)
       .map(tour => `<article><h2>${escape(tour.title)}</h2><p>${escape(tour.destination)} · ${escape(tour.schedule)}</p></article>`).join("");
   }
   else if (parts.length === 2 && section === "jobs") {
     title = jobsText[lang].jobs + " · YEREVANHUB";
     description = jobsText[lang].jobs;
-    const postings = (state.jobs ?? []).filter(job => job.status === "open");
+    const postings = (state.jobs ?? []).filter(job => job.status === "open" && job.approved !== false);
     content = `<h1>${escape(description)}</h1>` + postings.map(job =>
       `<article><h2>${escape(job.title)}</h2><p>${escape(job.company)} · ${escape(job.location)}</p></article>`
     ).join("");

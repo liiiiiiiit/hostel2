@@ -1,3 +1,4 @@
+import { ProviderAccounts, providerWords } from '../components/ProviderAccounts';
 import { toursText } from "../i18n/tours";
 import { ToursView } from "./ToursView";
 import { JobsView } from "./JobsView";
@@ -67,6 +68,7 @@ type Section =
   | "reviews"
   | "rentals"
   | "tours"
+  | "providers"
   | "jobs"
   | "articles"
   | "audit"
@@ -187,6 +189,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       count: inquiries.length,
     },
     { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
+    { id: "providers", label: providerWords[currentLang].title, icon: <Users size={17} /> },
     { id: "jobs", label: jobsText[currentLang].jobs, icon: <BriefcaseBusiness size={17} /> },
     { id: "articles", label: t.articles, icon: <BookOpen size={17} /> },
     { id: "audit", label: t.audit, icon: <Activity size={17} /> },
@@ -217,7 +220,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.contentGroup,
-      ids: ["rentals", "reviews", "articles", "tours", "jobs", "coupons"],
+      ids: ["rentals", "reviews", "articles", "providers", "tours", "jobs", "coupons"],
     },
     { label: admin.system, ids: ["audit", "profile"] },
   ];
@@ -924,6 +927,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
           </>
         )}
         {section === "tours" && <ToursView mode="admin" />}
+        {section === "providers" && <ProviderAccounts />}
         {section === "jobs" && <JobsView mode="admin" />}
         {section === "articles" && (
           <AdminArticles onNavigate={onNavigate} initiallyOpen={showForm} />

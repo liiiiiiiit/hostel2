@@ -1,3 +1,4 @@
+import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
 import { z } from 'zod';
 import type { JobPosting, User } from '../src/types/index.js';
@@ -14,22 +15,23 @@ export const jobInput = z.object({
   id: z.uuid(), version: z.number().int().nonnegative(),
   title: field(120), company: field(120), location: field(160), schedule: field(160),
   description: field(4000), contact: field(250), salary: z.number().int().positive().max(1_000_000_000).nullable(),
-  period: z.enum(['month', 'day', 'hour']), status: z.enum(['open', 'closed']),
+  period: z.enum(['month', 'day', 'hour']), status: z.enum(['open', 'closed']), approved:z.boolean().optional(),
 });
 
 export async function saveJob(tx: Transaction, actor: User | null, job: z.infer<typeof jobInput>) {
+  await requireProvider(tx,actor,'job_provider');
   if (!actor) throw new Error('دسترسی مجاز نیست.');
   const fields = [job.title, job.company, job.location, job.schedule, job.description, job.contact, job.salary, job.period, job.status];
   if (job.version === 0) {
     const result = await tx.execute({
-      sql: 'INSERT INTO job_postings(title,company,location,schedule,description,contact,salary,period,status,id,owner_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
-      args: [...fields, job.id, actor.id, new Date().toISOString()],
+      sql: 'INSERT INTO job_postings(title,company,location,schedule,description,contact,salary,period,status,approved,id,owner_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
+      args: [...fields, Number(actor.role==='admin'&&job.approved!==false), job.id, actor.id, new Date().toISOString()],
     });
     if (result.rowsAffected) return;
   } else {
     const result = await tx.execute({
-      sql: 'UPDATE job_postings SET title=?, company=?, location=?, schedule=?, description=?, contact=?, salary=?, period=?, status=?, version=version+1 WHERE id=? AND version=? AND (owner_id=? OR ?=1)',
-      args: [...fields, job.id, job.version, actor.id, Number(actor.role === 'admin')],
+      sql: 'UPDATE job_postings SET title=?, company=?, location=?, schedule=?, description=?, contact=?, salary=?, period=?, status=?, approved=?, version=version+1 WHERE id=? AND version=? AND (owner_id=? OR ?=1)',
+      args: [...fields, Number(actor.role==='admin'&&job.approved!==false), job.id, job.version, actor.id, Number(actor.role === 'admin')],
     });
     if (result.rowsAffected) return;
   }
@@ -40,15 +42,21 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
   const owner = actor?.id ?? '';
   const admin = Number(actor?.role === 'admin');
   const { rows } = await tx.execute({
-    sql: `SELECT id,title,company,location,schedule,description,contact,salary,period,status,version,
+    sql: `SELECT id,title,company,location,schedule,description,contact,salary,period,status,version,approved,
       (owner_id=? OR ?=1) AS manageable FROM job_postings
-      WHERE status='open' OR owner_id=? OR ?=1 ORDER BY created_at DESC,id`,
+      WHERE (status='open' AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)) OR owner_id=? OR ?=1 ORDER BY created_at DESC,id`,
     args: [owner, admin, owner, admin],
   });
   return rows.map(row => ({
     id: String(row.id), title: String(row.title), company: String(row.company), location: String(row.location),
     schedule: String(row.schedule), description: String(row.description), contact: String(row.contact),
     salary: row.salary === null ? null : Number(row.salary), period: row.period as JobPosting['period'],
-    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable),
+    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable), approved:Boolean(row.approved),
   }));
+}
+
+export async function deleteJob(tx:Transaction,actor:User|null,id:string,version:number){
+  await requireProvider(tx,actor,'job_provider');
+  const result=await tx.execute({sql:'DELETE FROM job_postings WHERE id=? AND version=? AND (owner_id=? OR ?=1) AND NOT EXISTS(SELECT 1 FROM job_applications WHERE job_id=?)',args:[id,version,actor!.id,Number(actor!.role==='admin'),id]});
+  if(!result.rowsAffected)throw new Error('برای حفظ درخواست‌ها، آگهی دارای درخواست را ببندید.');
 }
