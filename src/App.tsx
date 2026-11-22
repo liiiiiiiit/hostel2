@@ -131,10 +131,10 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     if (trackingLoading) return <ContentLoading lang={currentLang} />;
     if (trackingError) return <div role="alert" className="p-8 text-center space-y-4"><p>{trackingError}</p><button type="button" className="button-secondary mx-auto" onClick={() => window.dispatchEvent(new PopStateEvent('popstate'))}>{loadingText(currentLang).retry}</button></div>;
     switch (activeView) {
-      case 'tours': return <ToursView key="public-tours" mode="public" onOrganizer={() => handleNavigate('tour-organizer')} />;
-      case 'tour-organizer': return <ToursView key={currentUser?.id ?? 'guest'} mode="organizer" onLogin={() => setShowAuthModal(true)} />;
-      case 'jobs': return <JobsView key="public-jobs" mode="public" onEmployer={() => handleNavigate('employer')} />;
-      case 'employer': return <JobsView key={currentUser?.id ?? 'guest'} mode="employer" onLogin={() => setShowAuthModal(true)} />;
+      case 'tours': return <ToursView key="public-tours" mode="public" />;
+      case 'tour-organizer': return <ToursView key={currentUser?.id ?? 'guest'} mode="organizer" />;
+      case 'jobs': return <JobsView key="public-jobs" mode="public" />;
+      case 'employer': return <JobsView key={currentUser?.id ?? 'guest'} mode="employer" />;
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
       case 'recommendations':return <RecommendationsView onNavigate={handleNavigate} initial={{...viewParams,amenities:typeof viewParams.amenities==='string'?viewParams.amenities.split(',').filter(Boolean):viewParams.amenities}}/>;
       case 'saved': return <SavedPlacesView onNavigate={handleNavigate} />;
@@ -343,7 +343,6 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
           onSuccess={user => {
             if (user.role === 'job_provider') { handleNavigate('employer'); return; }
             if (user.role === 'tour_provider') { handleNavigate('tour-organizer'); return; }
-            if (activeView === 'employer' || activeView === 'tour-organizer') return;
             if (user.role === 'admin') handleNavigate('admin');
             else if (user.role === 'hostel_manager') handleNavigate('manager');
             else handleNavigate('account');

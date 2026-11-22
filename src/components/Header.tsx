@@ -75,7 +75,7 @@ export const Header: React.FC<Props> = ({
       : currentUser?.role === "hostel_manager"
         ? "manager"
         : "account";
-  const accountLabel =
+  const accountLabel = currentUser?.role === "job_provider" ? jobsText[currentLang].employer : currentUser?.role === "tour_provider" ? toursText[currentLang].panel :
     currentUser?.role === "admin"
       ? text.admin
       : currentUser?.role === "hostel_manager"

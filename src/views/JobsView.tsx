@@ -2,7 +2,7 @@ import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { ApplyForJob, JobApplicants } from '../components/JobApplications';
 import React, { useState, useSyncExternalStore } from 'react';
-import { BriefcaseBusiness, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { jobsText } from '../i18n/jobs';
 import { appStore } from '../services/store';
@@ -15,8 +15,8 @@ const fresh = (): Draft => ({
   description: '', contact: '', salary: null, period: 'month', status: 'open',
 });
 
-export function JobsView({ mode, onEmployer, onLogin }: {
-  mode: 'public' | 'employer' | 'admin'; onEmployer?: () => void; onLogin?: () => void;
+export function JobsView({ mode }: {
+  mode: 'public' | 'employer' | 'admin';
 }) {
   const { currentLang } = useLanguage();
   const t = jobsText[currentLang], p = providerWords[currentLang];
@@ -41,18 +41,16 @@ export function JobsView({ mode, onEmployer, onLogin }: {
     } finally { setBusy(false); }
   }
   const authorized = state.currentUser?.role==='admin'||state.currentUser?.role==='job_provider'||postings.some(job=>job.manageable);
-  if(managing&&!authorized)return <section className="page-shell py-8"><button className="button-primary" onClick={onLogin}>{t.login}</button></section>;
+  if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = mode === 'admin' ? 'h2' : 'h1';
   return <section className={mode === 'admin' ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <Heading className="text-2xl font-bold">{mode === 'public' ? t.jobs : mode === 'admin' ? t.manage : t.employer}</Heading>
-      {mode === 'public' ? <button className="button-secondary" onClick={onEmployer}><BriefcaseBusiness size={18}/>{t.employer}</button>
-        : state.currentUser && !draft && <button className="button-primary" onClick={() => edit()}>{t.add}</button>}
+      {managing && state.currentUser && !draft && <button className="button-primary" onClick={() => edit()}>{t.add}</button>}
     </header>
     {!managing && <ReferenceTracker kind="job" />}
     {message && <p role="status">{message}</p>}
-    {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button> :
-      draft && managing ? <form className="surface p-5 space-y-4" onSubmit={submit}>
+    {draft && managing ? <form className="surface p-5 space-y-4" onSubmit={submit}>
         <h3 className="text-xl font-semibold">{draft.version ? t.edit : t.add}</h3>
         <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
           {(['title','company','location','schedule','contact','description'] as const).map(key =>

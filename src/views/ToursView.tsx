@@ -17,8 +17,8 @@ const newTour = (): Draft => ({
   duration: '', description: '', contact: '', price: null, published: true, hidden: false,
 });
 
-export function ToursView({ mode, onOrganizer, onLogin }: {
-  mode: 'public' | 'organizer' | 'admin'; onOrganizer?: () => void; onLogin?: () => void;
+export function ToursView({ mode }: {
+  mode: 'public' | 'organizer' | 'admin';
 }) {
   const { currentLang } = useLanguage();
   const t = toursText[currentLang], p = providerWords[currentLang];
@@ -52,19 +52,17 @@ export function ToursView({ mode, onOrganizer, onLogin }: {
     } finally { setBusy(false); }
   }
   const authorized = admin||state.currentUser?.role==='tour_provider'||tours.some(tour=>tour.owned);
-  if(managing&&!authorized)return <section className="page-shell py-8"><button className="button-primary" onClick={onLogin}>{t.login}</button></section>;
+  if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = admin ? 'h2' : 'h1';
   return <section className={admin ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
       <Heading className="text-2xl font-bold">{admin ? t.manage : managing ? t.panel : t.tours}</Heading>
-      {!managing ? <button className="button-secondary" onClick={onOrganizer}><Compass size={18}/>{t.panel}</button>
-        : state.currentUser && !draft && <button className="button-primary" disabled={busy} onClick={() => edit()}>{t.add}</button>}
+      {managing && state.currentUser && !draft && <button className="button-primary" disabled={busy} onClick={() => edit()}>{t.add}</button>}
     </header>
     {!managing && <ReferenceTracker kind="tour" />}
     {managing && !draft && <AdminTourBookings bookings={state.tourBookings ?? []} />}
     {message && <p role="status">{message}</p>}
-    {managing && !state.currentUser ? <button className="button-primary" onClick={onLogin}>{t.login}</button>
-      : managing && draft ? <form className="surface space-y-5 p-5" onSubmit={save}>
+    {managing && draft ? <form className="surface space-y-5 p-5" onSubmit={save}>
         <h3 className="text-xl font-semibold">{draft.version ? t.edit : t.add}</h3>
         <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
           {fields.map(key => <label key={key}>{t[key]}
