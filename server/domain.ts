@@ -808,14 +808,15 @@ export class Store {
   }
 
   // Admin Rentals Management
-  public saveRental(input: RentalProperty) {
+  public saveRental(input: RentalProperty, expectedUpdatedAt?: string) {
     this.requireAdmin();
     const property = rentalSchema.parse(input) as RentalProperty;
     const previous = this.state.rentals.find(item => item.id === property.id);
+    if(expectedUpdatedAt!==undefined&&(!previous||previous.updatedAt!==expectedUpdatedAt))throw new Error('اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.');
     if (property.slug && this.state.rentals.some(item => item.id !== property.id && item.slug === property.slug)) throw new Error('نشانی صفحه تکراری است.');
     if (property.media) property.photos = property.media.map(image => image.url);
     if (property.status === 'published' && (!property.slug || publicationIssues(property).length)) throw new Error('اطلاعات انتشار ملک کامل نیست.');
-    const now = new Date().toISOString();
+    const now = new Date(Math.max(Date.now(), (Date.parse(previous?.updatedAt ?? '') || 0) + 1)).toISOString();
     const saved = { ...property, verifiedBadge: false, verifiedExplanation: '', lastCheckedAt: '', createdAt: previous?.createdAt ?? now, updatedAt: now };
     const index = this.state.rentals.findIndex(item => item.id === saved.id);
     if (index >= 0) this.state.rentals[index] = saved;
@@ -824,10 +825,11 @@ export class Store {
     this.persist();
   }
 
-  public saveHostel(input: Hostel) {
+  public saveHostel(input: Hostel, expectedUpdatedAt?: string) {
     this.requireAdmin();
     let hostel = hostelSchema.parse(input) as Hostel;
     const previous = this.state.hostels.find(item => item.id === hostel.id);
+    if(expectedUpdatedAt!==undefined&&(!previous||previous.updatedAt!==expectedUpdatedAt))throw new Error('اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.');
     if (hostel.slug && this.state.hostels.some(item => item.id !== hostel.id && item.slug === hostel.slug)) throw new Error('نشانی صفحه تکراری است.');
     if (new Set(hostel.roomTypes.map(room => room.id)).size !== hostel.roomTypes.length) throw new Error('شناسه نوع اتاق تکراری است.');
     for (const room of hostel.roomTypes) {
@@ -869,7 +871,7 @@ export class Store {
     hostel.isPublished = hostel.listingStatus === 'published';
     if (hostel.isPublished && (!hostel.slug || publicationIssues(hostel).length)) throw new Error('اطلاعات انتشار هاستل کامل نیست.');
     const sameLocation = previous && previous.coordinates.lat === hostel.coordinates.lat && previous.coordinates.lng === hostel.coordinates.lng && previous.city === hostel.city && JSON.stringify(previous.address) === JSON.stringify(hostel.address) && hostel.coordinatesProvided !== false;
-    const now = new Date().toISOString();
+    const now = new Date(Math.max(Date.now(), (Date.parse(previous?.updatedAt ?? '') || 0) + 1)).toISOString();
     hostel = { ...hostel, minPricePerNightAMD: hostel.roomTypes.length ? Math.min(...hostel.roomTypes.map(room => room.pricePerNightAMD)) : 0, verification: { status: 'unverified' }, locationVerification: sameLocation ? previous.locationVerification : { status: 'unverified' }, createdAt: previous?.createdAt ?? now, updatedAt: now };
     const index = this.state.hostels.findIndex(item => item.id === hostel.id);
     if (index >= 0) this.state.hostels[index] = hostel;

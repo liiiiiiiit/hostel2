@@ -23,3 +23,17 @@ test('an interrupted final notification attempt expires to failed without resend
   assert.equal(rows.find(row => row.id === 'expired-final-attempt')?.status, 'failed');
   assert.equal(rows.find(row => row.id === 'active-final-attempt')?.status, 'sending');
 });
+
+test('concurrent workers on independent database clients claim a queued notification only once', async t => {
+  const directory=await mkdtemp(path.join(tmpdir(),'yh-worker-race-')),url=`file:${directory}/test.db`;
+  const database=new Database({url,demo:false}),other=new Database({url,demo:false});
+  const previous={RESEND_API_KEY:process.env.RESEND_API_KEY,NOTIFICATION_FROM:process.env.NOTIFICATION_FROM};
+  t.after(async()=>{for(const [key,value] of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;await database.close();await other.close();await rm(directory,{recursive:true,force:true});});
+  await database.waitUntilReady();await other.waitUntilReady();
+  await database.sqlTransaction(async tx=>{await tx.execute({sql:"INSERT INTO outbox(id,channel,recipient,subject,text,created_at) VALUES(?,'email','test@example.test','Test','Test',?)",args:[crypto.randomUUID(),Date.now()]});});
+  process.env.RESEND_API_KEY='test-only';process.env.NOTIFICATION_FROM='test@example.test';
+  let calls=0;const send:typeof fetch=async()=>{calls++;await new Promise(r=>setTimeout(r,20));return Response.json({id:'mock'});};
+  const results=await Promise.all([deliverNotifications(database,send),deliverNotifications(other,send)]);
+  assert.equal(calls,1);assert.equal(results.reduce((n,r)=>n+r.sent,0),1);
+  assert.equal((await database.client.execute('SELECT status FROM outbox')).rows[0].status,'sent');
+});

@@ -253,3 +253,14 @@ test('photo/media reordering survives reload and scoped inserts preserve existin
     await db.transaction(async (state) => { const h = state.hostels[0]; h.media!.reverse(); h.photos = h.media!.map(image => image.url); }, { action: 'saveHostel', args: [{ id, slug: '' }] });
     await db.transaction(async (state) => { const h = state.hostels.find(h => h.id === id)!; assert.deepEqual(h.media!.map(image => image.id), ['image-b', 'image-a']); assert.deepEqual(h.photos, ['/photo-b', '/photo-a']); assert.equal(state.hostels.length, 4); });
 });
+
+test('legacy rollback refuses to cascade-delete provider account profiles', async t => {
+  const { db } = await fixture(t);
+  await db.sqlTransaction(async tx => {
+    await tx.execute("INSERT INTO provider_accounts(user_id,provider_role,organization) SELECT id,'job_provider','Preserved organization' FROM users WHERE role='traveler' LIMIT 1");
+  });
+  const before = (await db.client.execute('SELECT * FROM provider_accounts')).rows;
+  await assert.rejects(() => rollbackRelational(db.client), /provider/i);
+  assert.deepEqual((await db.client.execute('SELECT * FROM provider_accounts')).rows, before);
+  assert.equal((await db.client.execute('PRAGMA integrity_check')).rows[0].integrity_check, 'ok');
+});

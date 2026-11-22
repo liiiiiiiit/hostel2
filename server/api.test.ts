@@ -1084,3 +1084,115 @@ test('admin-created providers use existing SQLite credentials, isolate roles and
   const constraints=await database.sqlTransaction(tx=>tx.execute('PRAGMA foreign_key_check'),'read');
   assert.equal(constraints.rows.length,0);
 });
+
+test('administrator provider password resets invalidate previously issued recovery tokens', async t => {
+  const { client, database } = await fixture(t);
+  const admin = client(), provider = client();
+  await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const password = crypto.randomUUID();
+  const details = { name: 'Recovery test', email: 'recovery@provider.test', phone: '', organization: '', role: 'job_provider', isActive: true, password };
+  assert.equal((await admin.action('saveProvider', [details])).data.success, true);
+  const account = (await admin.get()).state.providerAccounts!.find(p => p.email === details.email)!;
+  const { createHash, randomBytes } = await import('node:crypto');
+  const token = randomBytes(32).toString('hex');
+  await database.sqlTransaction(async tx => {
+    await tx.execute({ sql: 'INSERT INTO auth_tokens(token_hash,user_id,purpose,expires_at) VALUES(?,?,?,?)',
+      args: [createHash('sha256').update(token).digest('hex'), account.id, 'password', Date.now() + 60000] });
+  });
+  const replacement = crypto.randomUUID();
+  assert.equal((await admin.action('saveProvider', [{ ...details, id: account.id, password: replacement }])).data.success, true);
+  const reused = await provider.action('resetPassword', [token, crypto.randomUUID()]);
+  assert.equal(reused.data.success, false, 'Old recovery link must not undo an administrative password reset');
+  assert.equal((await provider.action('login', [details.email, replacement])).data.success, true);
+});
+
+test('provider email changes clear verification and revoke tokens, while disabling cannot leave reusable recovery links', async t => {
+  const { client, database } = await fixture(t);
+  const admin = client(); await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const input = { name: 'Identity test', email: 'identity@provider.test', phone: '', organization: '', role: 'tour_provider', isActive: true, password: crypto.randomUUID() };
+  await admin.action('saveProvider', [input]);
+  const account = (await admin.get()).state.providerAccounts!.find(p => p.email === input.email)!;
+  await database.sqlTransaction(async tx => {
+    await tx.execute({ sql: 'UPDATE users SET email_verified_at=? WHERE id=?', args: [new Date().toISOString(), account.id] });
+    await tx.execute({ sql: 'INSERT INTO auth_tokens(token_hash,user_id,purpose,expires_at) VALUES(?,?,?,?)', args: ['identity-token', account.id, 'email', Date.now()+60000] });
+  });
+  await admin.action('saveProvider', [{ ...input, id: account.id, email: 'changed@provider.test', password: '' }]);
+  const row = (await database.client.execute({ sql: 'SELECT email_verified_at FROM users WHERE id=?', args: [account.id] })).rows[0];
+  assert.equal(row.email_verified_at, null, 'A different email address must be verified again');
+  assert.ok((await database.client.execute("SELECT used_at FROM auth_tokens WHERE token_hash='identity-token'")).rows[0].used_at);
+  await database.sqlTransaction(async tx => {
+    await tx.execute({ sql: 'INSERT INTO auth_tokens(token_hash,user_id,purpose,expires_at) VALUES(?,?,?,?)', args: ['disable-token', account.id, 'password', Date.now()+60000] });
+  });
+  await admin.action('saveProvider', [{ ...input, id: account.id, email: 'changed@provider.test', isActive: false, password: '' }]);
+  assert.ok((await database.client.execute("SELECT used_at FROM auth_tokens WHERE token_hash='disable-token'")).rows[0].used_at);
+});
+
+test('legacy tour edits that omit capacity preserve the existing booking limit', async t => {
+  const { client, database } = await fixture(t);
+  const admin = client(); await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const input = { id: crypto.randomUUID(), version: 0, title: 'Capacity audit', organizer: 'Organizer', destination: 'Sevan', departure: 'Yerevan', schedule: 'Daily', duration: 'One day', description: 'Trip', contact: 'contact@example.test', price: 1000, published: true, hidden: false, capacity: 2 };
+  assert.equal((await admin.action('saveTour', [input])).data.success, true);
+  const { capacity: _capacity, ...edit } = input;
+  assert.equal((await admin.action('saveTour', [{ ...edit, version: 1, title: 'Updated title' }])).data.success, true);
+  const row = (await database.client.execute({ sql: 'SELECT capacity FROM tour_listings WHERE id=?', args: [input.id] })).rows[0];
+  assert.equal(Number(row.capacity), 2, 'An unrelated edit must not increase capacity to the legacy default');
+});
+
+test('two API instances enforce the last tour spot and duplicate application request IDs atomically', async t => {
+  const { client, databaseUrl, database, visitor } = await fixture(t);
+  const otherDatabase = new Database({ url: databaseUrl });
+  const otherServer = createApi(otherDatabase).listen(0, '127.0.0.1');
+  await once(otherServer, 'listening');
+  t.after(async () => { otherServer.closeAllConnections(); await new Promise<void>(r => otherServer.close(() => r())); await otherDatabase.close(); });
+  const otherUrl = `http://127.0.0.1:${(otherServer.address() as {port:number}).port}/api/app`;
+  const otherAction = async (action: string, args: unknown[]) => {
+    const r = await fetch(otherUrl, {method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'YerevanHub'},body:JSON.stringify({action,args})});
+    return {status:r.status,data:await r.json()};
+  };
+  const admin = client(); await admin.action('login', ['admin@yerevanhub.com', 'Admin@2026']);
+  const tour = {id:crypto.randomUUID(),version:0,title:'Last spot',organizer:'Organizer',destination:'Garni',departure:'Yerevan',schedule:'Daily',duration:'Day',description:'Trip',contact:'guide@example.test',price:1000,published:true,hidden:false,capacity:1};
+  await admin.action('saveTour',[tour]);
+  const booking = {requestId:crypto.randomUUID(),tourId:tour.id,tourVersion:1,name:'Guest',contact:'guest@example.test',travelDate:addCalendarDays(yerevanToday(),2),guests:1,notes:''};
+  const results = await Promise.all([visitor.action('bookTour',[booking]),otherAction('bookTour',[{...booking,requestId:crypto.randomUUID()}])]);
+  assert.equal(results.filter(r=>r.data.success).length,1);
+  assert.equal(Number((await database.client.execute({sql:"SELECT COALESCE(SUM(guests),0) AS n FROM tour_bookings WHERE tour_id=? AND status IN ('pending','confirmed')",args:[tour.id]})).rows[0].n),1);
+  const job = {id:crypto.randomUUID(),version:0,title:'Concurrent job',company:'Team',location:'Yerevan',schedule:'Daily',description:'Work',contact:'team@example.test',salary:10000,period:'day',status:'open'};
+  await admin.action('saveJob',[job]);
+  const application = {requestId:crypto.randomUUID(),jobId:job.id,version:1,name:'Applicant',contact:'applicant@example.test',message:'Experience'};
+  const applications = await Promise.all([visitor.action('applyForJob',[application]),otherAction('applyForJob',[application])]);
+  assert(applications.every(r=>r.data.success),JSON.stringify(applications));
+  assert.equal(applications[0].data.applicationReference,applications[1].data.applicationReference);
+  assert.equal(Number((await database.client.execute({sql:'SELECT COUNT(*) AS n FROM job_applications WHERE job_id=?',args:[job.id]})).rows[0].n),1);
+  assert.equal((await database.client.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
+});
+
+test('concurrent versioned property edits accept one writer and reject the stale editor without losing data', async t => {
+  const { admin,client,hostel }=await receptionFixture(t);
+  const current=(await admin.get()).state.hostels.find(h=>h.id===hostel.id)!;
+  const edits=await Promise.all([
+    admin.action('saveHostel',[{...current,phone:'+37491111111'},current.updatedAt]),
+    admin.action('saveHostel',[{...current,phone:'+37492222222'},current.updatedAt]),
+  ]);
+  assert.equal(edits.filter(r=>r.data.success).length,1);
+  const winner=edits.find(r=>r.data.success)!.data.state.hostels.find((h:{id:string})=>h.id===hostel.id);
+  const stored=(await admin.get()).state.hostels.find(h=>h.id===hostel.id)!;
+  assert.equal(stored.phone,winner.phone);
+  assert.notEqual(stored.updatedAt,current.updatedAt);
+  const outsider=client();
+  assert.equal((await outsider.action('saveHostel',[stored,stored.updatedAt])).data.success,false);
+});
+
+test('two independent API instances cannot redeem a single-use coupon twice', async t => {
+  const { client,visitor,booking,hostel,database,databaseUrl }=await fixture(t);
+  const otherDatabase=new Database({url:databaseUrl}),otherServer=createApi(otherDatabase).listen(0,'127.0.0.1');await once(otherServer,'listening');
+  t.after(async()=>{otherServer.closeAllConnections();await new Promise<void>(r=>otherServer.close(()=>r()));await otherDatabase.close();});
+  const admin=client();await admin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  await admin.action('addCoupon',[{code:'AUDIT-SINGLE-USE',percent:10,minAmountAMD:0,maxUses:1,usedCount:0,active:true,startsAt:new Date(Date.now()-60000).toISOString(),expiresAt:new Date(Date.now()+60000).toISOString(),description:'Isolated test'}]);
+  const payload={...booking,couponCode:'AUDIT-SINGLE-USE',acceptedTerms:true,idempotencyKey:crypto.randomUUID(),expectedHostelUpdatedAt:hostel.updatedAt};
+  const otherUrl=`http://127.0.0.1:${(otherServer.address() as {port:number}).port}/api/app`;
+  const second=async()=>{const r=await fetch(otherUrl,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'YerevanHub'},body:JSON.stringify({action:'createBooking',args:[{...payload,idempotencyKey:crypto.randomUUID()}]})});return {data:await r.json()};};
+  const results=await Promise.all([visitor.action('createBooking',[payload]),second()]);
+  assert.equal(results.filter(r=>r.data.success).length,1,JSON.stringify(results));
+  assert.equal(Number((await database.client.execute("SELECT used_count FROM coupons WHERE code='AUDIT-SINGLE-USE'")).rows[0].used_count),1);
+  assert.equal(Number((await database.client.execute("SELECT COUNT(*) AS n FROM bookings WHERE coupon_code='AUDIT-SINGLE-USE'")).rows[0].n),1);
+});

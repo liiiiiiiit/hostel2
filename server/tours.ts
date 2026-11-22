@@ -24,7 +24,13 @@ export async function saveTour(tx: Transaction, actor: User | null, tour: z.infe
   const admin = Number(actor.role === 'admin');
   const values = [tour.title, tour.organizer, tour.destination, tour.departure, tour.schedule, tour.duration,
     tour.description, tour.contact, tour.price, Number(tour.published)];
-  const capacity=tour.capacity??100000;
+  const previous = tour.version > 0 ? (await tx.execute({
+    sql: 'SELECT capacity FROM tour_listings WHERE id=? AND version=? AND (owner_id=? OR ?=1)',
+    args: [tour.id,tour.version,actor.id,admin],
+  })).rows[0] : undefined;
+  if(tour.version > 0 && !previous)throw new Error('اطلاعات واردشده معتبر نیست.');
+  // Old clients omit this additive field. Preserve the stored limit on edits.
+  const capacity=tour.capacity??Number(previous?.capacity??100000);
   if((await tx.execute({sql:"SELECT 1 FROM tour_bookings WHERE tour_id=? AND status IN ('pending','confirmed') GROUP BY travel_date HAVING SUM(guests)>? LIMIT 1",args:[tour.id,capacity]})).rows.length)throw new Error('ظرفیت کمتر از تعداد رزروهای فعلی است.');
   const result = tour.version === 0
     ? await tx.execute({

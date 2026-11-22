@@ -39,3 +39,32 @@ test('failed restore removes newly written local images and can retry on the sam
   await restoreSnapshot(target,snapshot,media);
   assert.equal((await readFile(path.join(media,id+'.webp'))).toString(),bytes.toString());
 });
+
+test('full snapshot round trip preserves every SQL value including provider profiles, credentials, sessions and requests', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'yh-full-roundtrip-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const database = new Database({ url: `file:${directory}/source.db`, demo: true });
+  t.after(() => database.close());
+  await database.waitUntilReady();
+  const job = crypto.randomUUID(), tour = crypto.randomUUID();
+  await database.sqlTransaction(async tx => {
+    const owner=String((await tx.execute("SELECT id FROM users WHERE role='traveler' LIMIT 1")).rows[0].id);
+    await tx.execute({sql:"INSERT INTO provider_accounts VALUES(?,'job_provider','Historical organization')",args:[owner]});
+    await tx.execute({sql:"INSERT INTO job_postings(id,owner_id,title,company,location,schedule,description,contact,period,status,created_at) VALUES(?,?,'Historical job','Team','Yerevan','Daily','Work','contact','month','open','2026-01-01')",args:[job,owner]});
+    await tx.execute({sql:"INSERT INTO job_applications(reference,request_id,fingerprint,job_id,name,contact,message,submitted_at) VALUES(?,?,?,?,'Applicant','applicant@example.test','History','2026-01-02')",args:[crypto.randomUUID(),crypto.randomUUID(),'application-fingerprint',job]});
+    await tx.execute({sql:"INSERT INTO tour_listings(id,owner_id,title,organizer,destination,departure,schedule,duration,description,contact,published,hidden,created_at,capacity) VALUES(?,?,'Historical tour','Guide','Sevan','Yerevan','Daily','Day','Trip','contact',1,0,'2026-01-01',2)",args:[tour,owner]});
+    await tx.execute({sql:"INSERT INTO tour_bookings(reference,request_id,fingerprint,tour_id,title,organizer,name,contact,travel_date,guests,notes,created_at,status) VALUES(?,?,?,?,'Historical tour','Guide','Guest','guest@example.test','2026-01-02',1,'History','2026-01-01','confirmed')",args:[crypto.randomUUID(),crypto.randomUUID(),'tour-fingerprint',tour]});
+    await tx.execute({sql:'INSERT INTO sessions VALUES(?,?,?)',args:['test-session-digest',owner,Date.now()+60000]});
+  });
+  const snapshot=await exportSnapshot(database.client);
+  const target=createClient({url:`file:${directory}/restored.db`});t.after(()=>target.close());
+  await restoreSnapshot(target,snapshot,path.join(directory,'media'));
+  for (const table of snapshot.tables) {
+    const result=await target.execute('SELECT * FROM "'+table.name+'"');
+    assert.deepEqual(result.columns,table.columns,table.name+' columns');
+    const normalize=(rows:unknown[][])=>rows.map(row=>JSON.stringify(row)).sort();
+    assert.deepEqual(normalize(result.rows.map(row=>table.columns.map(column=>row[column]))),normalize(table.rows),table.name+' records');
+  }
+  assert.equal((await target.execute('PRAGMA integrity_check')).rows[0].integrity_check,'ok');
+  assert.equal((await target.execute('PRAGMA foreign_key_check')).rows.length,0);
+});

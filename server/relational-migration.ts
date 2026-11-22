@@ -59,6 +59,11 @@ export async function rollbackRelational(client: Client) {
     try {
         if (!(await tx.execute('SELECT version FROM schema_migrations WHERE version=3')).rows.length)
             throw new Error('Schema v3 is not installed.');
+        // Dropping users would ON DELETE CASCADE the newer provider profiles.
+        // A v2 release cannot represent those roles; refuse before changing anything.
+        const hasProviders = (await tx.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_accounts'")).rows.length;
+        if (hasProviders && (await tx.execute('SELECT 1 FROM provider_accounts LIMIT 1')).rows.length)
+            throw new Error('Cannot roll back to v2 while provider accounts exist. Keep the current schema and roll back only compatible application code.');
         const { state } = await loadState(tx);
         for (const spec of [...tables].reverse())
             await tx.execute(`DROP TABLE ${quote(spec.table)}`);

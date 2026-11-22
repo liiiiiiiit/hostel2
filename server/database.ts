@@ -1,3 +1,4 @@
+import { databaseWriteQueue } from './database-write-queue.js';
 import { tourBookingTable } from './tour-bookings.js';
 import { tourTable } from './tours.js';
 import { applicationTable } from './job-applications.js';
@@ -21,6 +22,8 @@ export class Database {
   readonly demo: boolean;
   private ready: Promise<void>;
   private queue: Promise<unknown> = Promise.resolve();
+  private writeQueue: ReturnType<typeof databaseWriteQueue>;
+  private closed = false;
   private contexts = new WeakMap<Transaction,LoadedState>();
   constructor(options: DatabaseOptions = {}) {
     const url = options.url ?? process.env.DATABASE_URL;
@@ -29,7 +32,9 @@ export class Database {
     if (process.env.VERCEL && url?.startsWith('file:')) throw new Error('Vercel requires a remote DATABASE_URL; local files are ephemeral.');
     this.demo = process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
-    this.ready = this.initialize(options).then(async () => { await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); });
+    this.writeQueue = databaseWriteQueue(url ?? 'file:data/hostel.db');
+    this.ready = this.writeQueue.run(async () => { await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); });
+    this.queue = this.ready.catch(() => {});
   }
   async waitUntilReady(): Promise<void> { await this.ready; }
   private async initialize(options: DatabaseOptions) {
@@ -93,7 +98,7 @@ export class Database {
       finally { tx.close(); }
     };
     if(mode==='read')return run();
-    const task=this.queue.then(run,run);this.queue=task.catch(()=>{});return task;
+    const task=this.writeQueue.run(run);this.queue=task.catch(()=>{});return task;
   }
   /** Compatibility adapter for business operations; only changed selected rows persist. */
   async transaction<T>(operation:(state:AppStoreState,tx:Transaction)=>Promise<T>, request?:RequestScope|{scope:Scope}):Promise<T> {
@@ -111,5 +116,10 @@ export class Database {
   async publicState(actor:User|null=null,bookingToken='',inquiryToken='') {
     return this.sqlTransaction(tx=>visibleState(tx,actor,this.demo,bookingToken,inquiryToken),'read');
   }
-  async close() { try { await this.ready; await this.queue; } finally { this.client.close(); } }
+  async close() {
+    if(this.closed)return;
+    this.closed=true;
+    try { await this.ready; await this.queue; }
+    finally { this.client.close(); this.writeQueue.release(); }
+  }
 }
