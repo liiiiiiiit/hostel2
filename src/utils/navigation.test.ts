@@ -12,3 +12,11 @@ test('malformed links are unavailable and invalid search inputs cannot crash dat
   const parsed = parseRoute('#/hostels?guests=Infinity&checkIn=2030-02-30&checkOut=nope');
   assert.deepEqual(parsed.params, { guests: 1 });
 });
+
+test('homepage job and tour selections survive route serialization', () => {
+  for (const [view, key] of [['jobs','jobId'],['tours','tourId']]) {
+    const route = parseRoute(routeHash(view,{[key]:'listing-123'}));
+    assert.equal(route.view,view);
+    assert.equal(route.params[key],'listing-123');
+  }
+});

@@ -1,7 +1,7 @@
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { AdminTourBookings, TourBookingForm } from '../components/TourBookings';
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useState, useSyncExternalStore, useEffect } from 'react';
 import { CalendarDays, Clock, Compass, MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { toursText } from '../i18n/tours';
@@ -17,7 +17,8 @@ const newTour = (): Draft => ({
   duration: '', description: '', contact: '', price: null, published: true, hidden: false,
 });
 
-export function ToursView({ mode }: {
+export function ToursView({ mode, tourId }: {
+  tourId?: string;
   mode: 'public' | 'organizer' | 'admin';
 }) {
   const { currentLang } = useLanguage();
@@ -51,6 +52,11 @@ export function ToursView({ mode }: {
       setMessage(result.success ? t.deleted : result.error ?? '');
     } finally { setBusy(false); }
   }
+  const selectedListingAvailable = tours.some(item => item.id === tourId);
+  useEffect(() => {
+    if (mode !== 'public' || !selectedListingAvailable || !tourId) return;
+    document.getElementById('tour-' + tourId)?.scrollIntoView({block:'start'});
+  }, [mode, tourId, selectedListingAvailable]);
   const authorized = admin||state.currentUser?.role==='tour_provider'||tours.some(tour=>tour.owned);
   if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = admin ? 'h2' : 'h1';
@@ -80,7 +86,7 @@ export function ToursView({ mode }: {
         <div className="flex flex-wrap gap-3"><button disabled={busy} className="button-primary">{t.save}</button><button type="button" disabled={busy} className="button-secondary" onClick={() => setDraft(null)}>{t.cancel}</button></div>
       </form> : <div className="grid gap-4 md:grid-cols-2">
         {!tours.length && <p className="surface p-5">{managing ? t.none : t.empty}</p>}
-        {tours.map(tour => <article key={tour.id} className="surface min-w-0 space-y-4 p-5 [overflow-wrap:anywhere]">
+        {tours.map(tour => <article key={tour.id} id={"tour-" + tour.id} className="scroll-mt-28 surface min-w-0 space-y-4 p-5 [overflow-wrap:anywhere]">
           <header className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xl font-bold" dir="auto">{tour.title}</h3>
             {managing && <span className="status-pill">{tour.hidden ? t.hidden : tour.published ? t.live : t.draft}</span>}

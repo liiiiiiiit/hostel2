@@ -1,7 +1,7 @@
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { ApplyForJob, JobApplicants } from '../components/JobApplications';
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useState, useSyncExternalStore, useEffect } from 'react';
 import { MapPin } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { jobsText } from '../i18n/jobs';
@@ -15,7 +15,8 @@ const fresh = (): Draft => ({
   description: '', contact: '', salary: null, period: 'month', status: 'open',
 });
 
-export function JobsView({ mode }: {
+export function JobsView({ mode, jobId }: {
+  jobId?: string;
   mode: 'public' | 'employer' | 'admin';
 }) {
   const { currentLang } = useLanguage();
@@ -40,6 +41,11 @@ export function JobsView({ mode }: {
       if (result.success) setDraft(null);
     } finally { setBusy(false); }
   }
+  const selectedListingAvailable = postings.some(item => item.id === jobId);
+  useEffect(() => {
+    if (mode !== 'public' || !selectedListingAvailable || !jobId) return;
+    document.getElementById('job-' + jobId)?.scrollIntoView({block:'start'});
+  }, [mode, jobId, selectedListingAvailable]);
   const authorized = state.currentUser?.role==='admin'||state.currentUser?.role==='job_provider'||postings.some(job=>job.manageable);
   if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = mode === 'admin' ? 'h2' : 'h1';
@@ -66,7 +72,7 @@ export function JobsView({ mode }: {
         <div className="flex gap-3"><button disabled={busy} className="button-primary">{t.save}</button><button disabled={busy} className="button-secondary" type="button" onClick={() => setDraft(null)}>{t.cancel}</button></div>
       </form> : <div className="grid gap-4 md:grid-cols-2">
         {!postings.length && <p className="surface p-5">{managing ? t.none : t.empty}</p>}
-        {postings.map(job => <article key={job.id} className="surface p-5 space-y-3 min-w-0 [overflow-wrap:anywhere]">
+        {postings.map(job => <article key={job.id} id={"job-" + job.id} className="scroll-mt-28 surface p-5 space-y-3 min-w-0 [overflow-wrap:anywhere]">
           <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="text-xl font-bold" dir="auto">{job.title}</h3>{managing && <span className="status-pill">{t[job.status]}</span>}</div>
           <p dir="auto">{job.company}</p><p className="flex items-center gap-2"><MapPin size={16}/><bdi>{job.location}</bdi></p>
           <p>{t.salary} · <strong>{job.salary === null ? t.negotiable : job.salary.toLocaleString(currentLang) + ' / ' + t[job.period]}</strong></p>

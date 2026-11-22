@@ -1,3 +1,6 @@
+import { homeListings } from '../i18n/homeListings';
+import { jobsText } from '../i18n/jobs';
+import { toursText } from '../i18n/tours';
 import { StayCarousel } from '../components/StayCarousel';
 import { HeroCarousel } from '../components/HeroCarousel';
 import { stayExperience } from '../i18n/stayExperience';
@@ -5,8 +8,8 @@ import { StayPhoto } from '../components/StayPhoto';
 import { homeExperience } from '../i18n/homeExperience';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, CheckCircle2, Wallet } from 'lucide-react';
-import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase } from '../types';
+import { ArrowLeft, ArrowRight, BedDouble, Building2, Home, MapPin, Search, Star, ArrowUpRight, Languages, BookOpen, BriefcaseBusiness, Compass, CalendarDays, Clock, CheckCircle2, Wallet } from 'lucide-react';
+import type { AppLanguage, Hostel, RentalProperty, Article, TravelPhrase, JobPosting, Tour } from '../types';
 import { getLocalized, getCityName, getAmenityLabel } from '../utils/i18n';
 import { addCalendarDays, yerevanToday } from '../utils/dates';
 import { calculateNights } from '../utils/pricing';
@@ -22,14 +25,19 @@ interface Props {
   hostels: Hostel[];
   rentals: RentalProperty[];
   articles: Article[];
+  jobs?: JobPosting[];
+  tours?: Tour[];
   phrases?: TravelPhrase[];
   onNavigate: (view: string, params?: any) => void;
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
-export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, onNavigate, getHostelRating, loading = false, unavailable = false }) => {
+export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, jobs = [], tours = [], onNavigate, getHostelRating, loading = false, unavailable = false }) => {
   const text = publicSiteText(currentLang);
   const ux = homeExperience(currentLang);
+  const listings = homeListings[currentLang], jobCopy = jobsText[currentLang], tourCopy = toursText[currentLang];
+  const featuredJobs = jobs.filter(job => job.status === 'open' && job.approved !== false).slice(0,6);
+  const featuredTours = tours.filter(tour => tour.published && !tour.hidden && tour.approved !== false).slice(0,6);
   const design = stayExperience(currentLang);
   const Arrow = currentLang === 'fa' ? ArrowLeft : ArrowRight;
   const [tab, setTab] = useState<'hostels' | 'rentals'>('hostels');
@@ -44,6 +52,8 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
   const shortcuts = [
     { view:'hostels', label:text.hostels, hint:ux.hostelHint, Icon:BedDouble },
     { view:'rentals', label:text.rentals, hint:ux.rentalHint, Icon:Home },
+    { view:'jobs', label:jobCopy.jobs, hint:listings.jobHint, Icon:BriefcaseBusiness },
+    { view:'tours', label:tourCopy.nav, hint:listings.tourHint, Icon:Compass },
     { view:'guide', label:text.guide, hint:ux.guideHint, Icon:BookOpen },
     { view:'translator', label:text.translator, hint:ux.translatorHint, Icon:Languages },
   ];
@@ -54,8 +64,8 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
     if (tab === 'hostels' && calculateNights(checkIn, checkOut) < 1) { setError(text.datesError); return; }
     setError(''); onNavigate(tab, tab === 'hostels' ? { city, checkIn, checkOut, guests } : { city });
   };
-  const sectionHeading = (eyebrow: string, title: string, description: string, action: string, view: string) => <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-    <div><p className="mb-2 text-xs font-semibold tracking-[0.13em] text-[#8e7044]">{eyebrow}</p><h2 className="text-2xl font-bold tracking-tight text-[#142f2a] sm:text-3xl">{title}</h2><p className="mt-2 max-w-xl text-sm leading-7 text-slate-500">{description}</p></div>
+  const sectionHeading = (eyebrow: string, title: string, description: string, action: string, view: string, headingId?: string) => <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div><p className="mb-2 text-xs font-semibold tracking-[0.13em] text-[#8e7044]">{eyebrow}</p><h2 id={headingId} className="text-2xl font-bold tracking-tight text-[#142f2a] sm:text-3xl">{title}</h2><p className="mt-2 max-w-xl text-sm leading-7 text-slate-500">{description}</p></div>
     <button type="button" onClick={() => onNavigate(view)} className="flex min-h-10 shrink-0 items-center gap-2 self-start text-sm font-semibold text-[#142f2a] hover:text-[#89703d] sm:self-auto">{action}<Arrow className="size-4" /></button>
   </div>;
   return <div className="home-experience pb-3">
@@ -112,7 +122,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
 
       <section aria-label={ux.shortcuts}>
         <h2 className="mb-4 text-lg font-bold text-[#142f2a]">{ux.shortcuts}</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] font-semibold text-[#142f2a]">{label}</span><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{shortcuts.map(({view,label,hint,Icon}) => <button key={view} type="button" onClick={() => onNavigate(view)} className="group flex min-w-0 flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-start transition-colors hover:border-[#72957b] hover:bg-[#edf3ee] sm:p-5"><Icon className="size-6 text-[#567963]"/><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] font-semibold text-[#142f2a]">{label}</span><span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] text-xs leading-6 text-slate-500">{hint}</span></button>)}</div>
       </section>
 
       {rentals.length > 0 && <section>
@@ -122,6 +132,33 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
           <div className="flex flex-1 flex-col p-5"><p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500"><MapPin className="size-3.5" />{rental.neighborhood}</p><h3 className="text-lg font-semibold leading-7 text-[#142f2a]">{getLocalized(rental.title,currentLang)}</h3><p className="mt-3 text-sm text-slate-500"><span className="ltr-isolate">{rental.areaSqm} m²</span></p><div className="mt-auto pt-4">{rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <p className="text-lg font-bold text-[#142f2a]"><span className="ltr-isolate">{format(rental.pricePerNightAMD ?? rental.pricePerMonthAMD ?? 0)} AMD</span><span className="ms-2 text-xs font-normal text-slate-500">{rental.pricePerNightAMD ? text.perNight : text.perMonth}</span></p>}<PlaceActions kind="rental" id={rental.id} /><button type="button" onClick={() => onNavigate('rental-detail',{id:rental.id})} className="mt-1 flex min-h-10 items-center gap-2 text-sm font-semibold text-[#142f2a] hover:underline">{text.propertyDetails}<Arrow className="size-4" /></button></div></div>
         </article>)}</StayCarousel>
       </section>}
+
+      <section aria-labelledby="home-jobs-title">
+        {sectionHeading(jobCopy.jobs,listings.jobTitle,listings.jobIntro,listings.allJobs,'jobs','home-jobs-title')}
+        {loading ? <ContentLoading lang={currentLang} listings /> : unavailable ? <p className="py-5 text-sm text-slate-500">{loadingText(currentLang).unavailable}</p> :
+          !featuredJobs.length ? <p className="surface p-5 text-sm text-slate-500">{jobCopy.empty}</p> :
+          <StayCarousel lang={currentLang} label={jobCopy.jobs}>{featuredJobs.map(job => <article key={job.id} className="surface flex h-full min-w-0 flex-col gap-4 p-5 [overflow-wrap:anywhere]">
+            <div className="flex items-start gap-3"><BriefcaseBusiness className="mt-1 size-6 shrink-0 text-[#567963]" aria-hidden="true"/><div className="min-w-0"><h3 className="text-lg font-semibold" dir="auto"><button type="button" className="text-start hover:underline" onClick={() => onNavigate('jobs',{jobId:job.id})}>{job.title}</button></h3><p className="mt-1 text-sm text-slate-500" dir="auto">{job.company}</p></div></div>
+            <p className="flex gap-2 text-sm text-slate-500"><MapPin className="size-4 shrink-0" aria-hidden="true"/><bdi>{job.location}</bdi></p>
+            <p className="text-sm" dir="auto">{job.schedule}</p>
+            <div className="mt-auto border-t border-slate-100 pt-4"><p className="font-semibold">{job.salary === null ? jobCopy.negotiable : <><span className="ltr-isolate">{format(job.salary)} AMD</span> / {jobCopy[job.period]}</>}</p>
+              <button type="button" className="mt-3 flex min-h-11 items-center gap-2 text-start text-sm font-semibold hover:underline" onClick={() => onNavigate('jobs',{jobId:job.id})}>{listings.jobDetails}<Arrow className="size-4 shrink-0" aria-hidden="true"/></button></div>
+          </article>)}</StayCarousel>}
+      </section>
+
+      <section aria-labelledby="home-tours-title">
+        {sectionHeading(tourCopy.nav,listings.tourTitle,listings.tourIntro,listings.allTours,'tours','home-tours-title')}
+        {loading ? <ContentLoading lang={currentLang} listings /> : unavailable ? <p className="py-5 text-sm text-slate-500">{loadingText(currentLang).unavailable}</p> :
+          !featuredTours.length ? <p className="surface p-5 text-sm text-slate-500">{tourCopy.empty}</p> :
+          <StayCarousel lang={currentLang} label={tourCopy.nav}>{featuredTours.map(tour => <article key={tour.id} className="surface flex h-full min-w-0 flex-col gap-4 p-5 [overflow-wrap:anywhere]">
+            <div className="flex items-start gap-3"><Compass className="mt-1 size-6 shrink-0 text-[#567963]" aria-hidden="true"/><div className="min-w-0"><h3 className="text-lg font-semibold" dir="auto"><button type="button" className="text-start hover:underline" onClick={() => onNavigate('tours',{tourId:tour.id})}>{tour.title}</button></h3><p className="mt-1 text-sm text-slate-500" dir="auto">{tour.organizer}</p></div></div>
+            <p className="flex gap-2 text-sm text-slate-500"><MapPin className="size-4 shrink-0" aria-hidden="true"/><bdi>{tour.destination}</bdi></p>
+            <p className="flex gap-2 text-sm"><CalendarDays className="size-4 shrink-0" aria-hidden="true"/><bdi>{tour.schedule}</bdi></p>
+            <p className="flex gap-2 text-sm"><Clock className="size-4 shrink-0" aria-hidden="true"/><bdi>{tour.duration}</bdi></p>
+            <div className="mt-auto border-t border-slate-100 pt-4"><p className="text-xs text-slate-500">{tourCopy.price}</p><p className="mt-1 font-semibold">{tour.price === null ? tourCopy.ask : <span className="ltr-isolate">{format(tour.price)} AMD</span>}</p>
+              <button type="button" className="mt-3 flex min-h-11 items-center gap-2 text-start text-sm font-semibold hover:underline" onClick={() => onNavigate('tours',{tourId:tour.id})}>{listings.tourDetails}<Arrow className="size-4 shrink-0" aria-hidden="true"/></button></div>
+          </article>)}</StayCarousel>}
+      </section>
 
       {articles.length > 0 && <section>
         {sectionHeading(text.journalEyebrow,text.journalTitle,ux.guideIntro,text.allArticles,'guide')}
