@@ -78,8 +78,8 @@ export class ApiStore {
   createRentalInquiry = (...args: Parameters<DomainStore['createRentalInquiry']>) => this.action('createRentalInquiry', args);
   setCapacity = (...args: Parameters<DomainStore['setCapacity']>) => this.action('setCapacity', args);
   setVerification = (...args: Parameters<DomainStore['setVerification']>) => this.action('setVerification', args);
-  saveHostel = (...args: Parameters<DomainStore['saveHostel']>) => this.action('saveHostel', args);
-  saveRental = (...args: Parameters<DomainStore['saveRental']>) => this.action('saveRental', args);
+  saveHostel = (input: Parameters<DomainStore['saveHostel']>[0], expectedUpdatedAt?: string) => this.action('saveHostel', expectedUpdatedAt === undefined ? [input] : [input, expectedUpdatedAt]);
+  saveRental = (input: Parameters<DomainStore['saveRental']>[0], expectedUpdatedAt?: string) => this.action('saveRental', expectedUpdatedAt === undefined ? [input] : [input, expectedUpdatedAt]);
   setHostelStatus = (...args: Parameters<DomainStore['setHostelStatus']>) => this.action('setHostelStatus', args);
   setRentalStatus = (...args: Parameters<DomainStore['setRentalStatus']>) => this.action('setRentalStatus', args);
   toggleHostelPublished = (...args: Parameters<DomainStore['toggleHostelPublished']>) => this.action('toggleHostelPublished', args);

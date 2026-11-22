@@ -28,6 +28,20 @@ jobs:
           TELEGRAM_BOT_TOKEN: ''
           GEMINI_API_KEY: ''
         run: npm run test:browser
+      - name: Provider workflows and restart persistence
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+        run: npm run test:providers
+      - name: Hero controls and accessibility
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+        run: npm run test:hero
+      - name: Isolated schema health check
+        env:
+          DATABASE_URL: file:${{ runner.temp }}/hostel2-ci-check.db
+        run: |
+          npm run db:migrate
+          npm run db:check
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !cancelled() }}
         with:

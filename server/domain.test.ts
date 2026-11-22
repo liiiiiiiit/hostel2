@@ -197,3 +197,21 @@ test('two reviews submitted in the same millisecond keep distinct persistent IDs
   assert.equal(store.submitReview(two.privateToken,4,'Second stay').success,true);
   assert.notEqual(one.reviewId,two.reviewId);
 });
+
+for (const kind of ['hostel','rental'] as const) test(`stale ${kind} editor saves cannot overwrite a newer property revision`, async () => {
+  const { store }=fixture();await admin(store);
+  const { completeHostel,completeRental }=await import('./property-fixtures.js');
+  if(kind==='hostel'){
+    const input=completeHostel();store.saveHostel(input);
+    const original=structuredClone(store.getState().hostels.find(h=>h.id===input.id)!);
+    store.saveHostel({...original,phone:'+37491111111'},original.updatedAt);
+    assert.throws(()=>store.saveHostel({...original,phone:'+37492222222'},original.updatedAt));
+    assert.equal(store.getState().hostels.find(h=>h.id===input.id)!.phone,'+37491111111');
+  }else{
+    const input=completeRental();store.saveRental(input);
+    const original=structuredClone(store.getState().rentals.find(r=>r.id===input.id)!);
+    store.saveRental({...original,areaSqm:65},original.updatedAt);
+    assert.throws(()=>store.saveRental({...original,areaSqm:75},original.updatedAt));
+    assert.equal(store.getState().rentals.find(r=>r.id===input.id)!.areaSqm,65);
+  }
+});

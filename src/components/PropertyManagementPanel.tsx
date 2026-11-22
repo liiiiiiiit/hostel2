@@ -31,6 +31,7 @@ function PropertyEditor({initial,onClose}:{initial:Property;onClose:()=>void}) {
   const {currentLang,getLocalized}=useLanguage();const t=propertyText(currentLang);const w=workflowText(currentLang);
   const normalize=(input:Property):Property=>({...input,...('roomTypes' in input?{roomTypes:input.roomTypes.map(room=>({...room,bookingUnit:room.bookingUnit??(room.type==='private'?'room':'bed'),maxGuestsPerUnit:room.maxGuestsPerUnit??(room.type==='private'?undefined:1)}))}:{}),media:input.media??input.photos.map((url,index)=>({id:`external-${index}`,url,alt:emptyTranslation()}))});
   const persistedMedia=useRef(initial.media??[]);
+  const expectedUpdatedAt=useRef<string|undefined>([...appStore.getState().hostels,...appStore.getState().rentals].some(item=>item.id===initial.id)?initial.updatedAt:undefined);
   const [value,setValue]=useState<Property>(()=>normalize(structuredClone(initial)));const [step,setStep]=useState(0);const [busy,setBusy]=useState(false);const [dirty,setDirty]=useState(false);const [feedback,setFeedback]=useState<{ok:boolean;text:string}|null>(null);
   const [paymentsInput,setPaymentsInput]=useState('rules' in initial?initial.rules.acceptedPaymentMethodsOnArrival.join(', '):'');
   const [coordinateInput,setCoordinateInput]=useState({lat:'coordinates' in initial&&initial.coordinatesProvided!==false?String(initial.coordinates.lat):'',lng:'coordinates' in initial&&initial.coordinatesProvided!==false?String(initial.coordinates.lng):''});
@@ -53,9 +54,11 @@ function PropertyEditor({initial,onClose}:{initial:Property;onClose:()=>void}) {
     setBusy(true);setFeedback(null);
     const saved:Property=hostel?{...hostel,listingStatus:status,isPublished:status==='published'}:{...rental!,status};
     try {
-      const result=hostel?await appStore.saveHostel(saved as Hostel):await appStore.saveRental(saved as RentalProperty);
+      const result=hostel?await appStore.saveHostel(saved as Hostel,expectedUpdatedAt.current):await appStore.saveRental(saved as RentalProperty,expectedUpdatedAt.current);
       if(!result.success){setFeedback({ok:false,text:result.error||t('error')});return;}
-      setValue(saved);setDirty(false);setFeedback({ok:true,text:t('saved')});
+      const persisted=(hostel?result.state?.hostels:result.state?.rentals)?.find(item=>item.id===saved.id)??saved;
+      expectedUpdatedAt.current=persisted.updatedAt;
+      setValue(persisted);setDirty(false);setFeedback({ok:true,text:t('saved')});
       // Only remove detached, owned uploads after the property update is durable.
       const previousMedia=persistedMedia.current;persistedMedia.current=saved.media??[];
       for(const old of previousMedia) if(!saved.media?.some(image=>image.id===old.id)&&/^[a-f0-9-]{36}$/.test(old.id)){

@@ -58,7 +58,7 @@ const schemas = {
   setCapacity: z.tuple([text, text, date, z.number().int().min(0).max(100)]),
   setVerification: z.tuple([z.enum(['hostel','rental']), text, z.boolean(), z.string().max(1000)]),
   checkCoupon: z.tuple([text, z.number().min(0)]),
-  saveHostel: z.tuple([hostelSchema]), saveRental: z.tuple([rentalSchema]), setHostelStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), setRentalStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), toggleHostelPublished: z.tuple([text]), toggleRentalAvailability: z.tuple([text]),
+  saveHostel: z.tuple([hostelSchema, z.string().min(1).max(100).optional()]), saveRental: z.tuple([rentalSchema, z.string().min(1).max(100).optional()]), setHostelStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), setRentalStatus: z.tuple([text, z.enum(['draft','published','hidden','archived'])]), toggleHostelPublished: z.tuple([text]), toggleRentalAvailability: z.tuple([text]),
   createHostelManager: z.tuple([z.object({ name: text, email, initialPassword: password, phone: optionalText, assignedHostelIds: z.array(text).min(1) })]),
   toggleManagerActive: z.tuple([text]),
   addCoupon: z.tuple([z.object({ code: text, percent: z.number().min(0).max(100), minAmountAMD: z.number().min(0), maxUses: z.number().int().min(0), usedCount: z.literal(0), active: z.boolean(), startsAt: text, expiresAt: text, description: z.string().max(1000) })]),

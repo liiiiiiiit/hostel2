@@ -75,7 +75,10 @@ try {
           const toolbar = element.querySelector('.hero-story-toolbar').getBoundingClientRect();
           const tag = element.querySelector('.hero-slide-tag').getBoundingClientRect();
           const card = element.getBoundingClientRect();
-          return card.left >= 0 && card.right <= innerWidth && tag.top >= toolbar.bottom && copy.bottom <= controls.top + 1 && copy.right <= slide.right + 1;
+          const brand = document.querySelector('.header-brand').getBoundingClientRect();
+          const buttons = document.querySelector('.header-controls').getBoundingClientRect();
+          const headerFits = brand.right <= buttons.left || buttons.right <= brand.left;
+          return headerFits && card.left >= 0 && card.right <= innerWidth && tag.top >= toolbar.bottom && copy.bottom <= controls.top + 1 && copy.right <= slide.right + 1;
         });
         assert(fits, `${language}/${width}/${index}: text or controls clipped`);
       }

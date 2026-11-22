@@ -189,3 +189,10 @@ html.dark .site-header { --header-surface: rgb(17 36 29 / 96%); }
   .header-language-chevron { transition: none; }
   .site-header .header-control:active { transform: none; }
 }
+/* Preserve 44px touch targets at 320px even with enlarged browser text. */
+@media (max-width: 359px) {
+  .header-inner { padding-inline: 8px; gap: 6px; }
+  .header-controls { gap: 4px; }
+  .header-brand { gap: 6px; }
+  .site-header .header-language-button { padding-inline: 8px; gap: 4px; }
+}

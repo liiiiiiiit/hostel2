@@ -83,3 +83,14 @@ test('leaving private tracking prevents a late mutation response from restoring 
   reply(2, { state: state(null) });
   await leaving;
 });
+
+test('property saves omit absent revisions rather than serializing them as invalid null tuple arguments', async t => {
+  const { store,requests,state,reply }=fixture(t);
+  const hostel={id:'new-property'} as Parameters<ApiStore['saveHostel']>[0];
+  const create=store.saveHostel(hostel,undefined);await tick();
+  assert.deepEqual(JSON.parse(String(requests[0].init.body)).args,[hostel]);
+  reply(0,{success:true,state:state(null)});await create;
+  const edit=store.saveHostel(hostel,'server-revision');await tick();
+  assert.deepEqual(JSON.parse(String(requests[1].init.body)).args,[hostel,'server-revision']);
+  reply(1,{success:true,state:state(null)});await edit;
+});
