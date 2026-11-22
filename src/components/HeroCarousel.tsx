@@ -1,92 +1,145 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { ArrowLeft, ArrowRight, BedDouble, House, Compass, BriefcaseBusiness, BookOpen, Languages, Pause, Play } from 'lucide-react';
 import type { AppLanguage } from '../types';
+import { heroSlides, heroLabels, HERO_DURATION_MS } from '../i18n/heroSlides';
+import { browserPath } from '../utils/public-routes';
 import { StayPhoto } from './StayPhoto';
 
-const images = [
-  'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85',
-  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1600&q=85',
-  'https://images.pexels.com/photos/35215765/pexels-photo-35215765/free-photo-of-republic-square-in-yerevan-with-iconic-clock-tower.jpeg?auto=compress&dpr=1&h=750&w=1260',
-];
-const copy = {
-  fa: {
-    label: 'خدمات یروان هاب', previous: 'اسلاید قبلی', next: 'اسلاید بعدی', pause: 'توقف چرخش تصاویر', play: 'پخش تصاویر', slide: 'اسلاید',
-    slides: [
-      { tag: 'هاستل و اتاق', title: 'جای خوب پیدا کن؛ خاطره‌های تازه بساز.', description: 'هاستل‌ها و اتاق‌ها را مقایسه کن و اقامت مناسب سفرت را پیدا کن.', action: 'کشف هاستل‌ها' },
-      { tag: 'خانه و آپارتمان', title: 'خانه‌ای برای روزهای تازهٔ تو.', description: 'خانه‌ها و آپارتمان‌ها را ببین و فضای دلخواهت را انتخاب کن.', action: 'دیدن خانه‌ها' },
-      { tag: 'راهنمای سفر و مترجم', title: 'ارمنستان را نزدیک‌تر تجربه کن.', description: 'با راهنمای سفر و مترجم چهارزبانه، آماده‌تر قدم به شهر بگذار.', action: 'راهنمای سفر', secondary: 'مترجم همراه' },
-    ],
-  },
-  en: {
-    label: 'Yerevan Hub services', previous: 'Previous slide', next: 'Next slide', pause: 'Pause slideshow', play: 'Play slideshow', slide: 'Slide',
-    slides: [
-      { tag: 'Hostels & rooms', title: 'Find your stay. Make new memories.', description: 'Compare hostels and rooms to find a stay that fits your trip.', action: 'Explore hostels' },
-      { tag: 'Homes & apartments', title: 'A place to make your own.', description: 'Explore homes and apartments and choose your kind of space.', action: 'Explore homes' },
-      { tag: 'Travel guide & translator', title: 'Feel closer to Armenia.', description: 'Explore with a travel guide and a translator in four languages.', action: 'Travel guide', secondary: 'Open translator' },
-    ],
-  },
-  ru: {
-    label: 'Услуги Yerevan Hub', previous: 'Предыдущий слайд', next: 'Следующий слайд', pause: 'Остановить показ', play: 'Продолжить показ', slide: 'Слайд',
-    slides: [
-      { tag: 'Хостелы и номера', title: 'Найдите жильё. Создавайте воспоминания.', description: 'Сравните хостелы и номера и выберите подходящий вариант.', action: 'Найти хостел' },
-      { tag: 'Дома и квартиры', title: 'Ваш уютный уголок в новом городе.', description: 'Посмотрите дома и квартиры и выберите своё пространство.', action: 'Смотреть жильё' },
-      { tag: 'Путеводитель и переводчик', title: 'Откройте для себя Армению.', description: 'Путеводитель и переводчик на четырёх языках помогут в поездке.', action: 'Путеводитель', secondary: 'Переводчик' },
-    ],
-  },
-  hy: {
-    label: 'Yerevan Hub ծառայություններ', previous: 'Նախորդ սլայդ', next: 'Հաջորդ սլայդ', pause: 'Դադարեցնել ցուցադրումը', play: 'Շարունակել ցուցադրումը', slide: 'Սլայդ',
-    slides: [
-      { tag: 'Հոսթելներ և սենյակներ', title: 'Գտեք կացարան, ստեղծեք հիշողություններ։', description: 'Համեմատեք հոսթելներն ու սենյակները և ընտրեք հարմար տարբերակը։', action: 'Դիտել հոսթելները' },
-      { tag: 'Տներ և բնակարաններ', title: 'Ձեր անկյունը նոր քաղաքում։', description: 'Դիտեք տներն ու բնակարանները և ընտրեք ձեր տարածքը։', action: 'Դիտել բնակարանները' },
-      { tag: 'Ուղեցույց և թարգմանիչ', title: 'Բացահայտեք Հայաստանը։', description: 'Ճամփորդեք ուղեցույցի և չորս լեզվով թարգմանչի օգնությամբ։', action: 'Ճամփորդական ուղեցույց', secondary: 'Թարգմանիչ' },
-    ],
-  },
-};
+const icons = { hostels: BedDouble, rentals: House, tours: Compass, jobs: BriefcaseBusiness, guide: BookOpen, translator: Languages };
+const emptyEntities = { hostels: [], rentals: [], articles: [] };
+
 export function HeroCarousel({ language, onNavigate }: {
   language: AppLanguage; onNavigate: (view: string) => void;
 }) {
-  const [active, setActive] = useState(0);
+  const [selection, setSelection] = useState({ index: 0, cycle: 0 });
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
+  const [held, setHeld] = useState(false);
+  const [manualPause, setManualPause] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const t = copy[language];
-  const slide = t.slides[active];
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const gesture = useRef<{ x: number; y: number; id: number } | null>(null);
+  const active = selection.index;
+  const slide = heroSlides[active];
+  const copy = slide.copy[language];
+  const labels = heroLabels[language];
   const isRtl = language === 'fa';
+  const paused = hovered || focused || held || manualPause || hidden || reducedMotion;
+  const select = (index: number) => setSelection(value => ({ index: (index + heroSlides.length) % heroSlides.length, cycle: value.cycle + 1 }));
+  const advance = (step: number) => setSelection(value => ({ index: (value.index + step + heroSlides.length) % heroSlides.length, cycle: value.cycle + 1 }));
+
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const syncMotion = () => setReducedMotion(media.matches);
     const syncVisibility = () => setHidden(document.hidden);
+    const release = () => { setHeld(false); gesture.current = null; };
+    syncMotion(); syncVisibility();
     media.addEventListener('change', syncMotion);
     document.addEventListener('visibilitychange', syncVisibility);
-    return () => { media.removeEventListener('change', syncMotion); document.removeEventListener('visibilitychange', syncVisibility); };
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    window.addEventListener('blur', release);
+    return () => {
+      media.removeEventListener('change', syncMotion);
+      document.removeEventListener('visibilitychange', syncVisibility);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      window.removeEventListener('blur', release);
+    };
   }, []);
+
   useEffect(() => {
-    if (hovered || focused || hidden || reducedMotion) return;
-    const timer = window.setInterval(() => setActive(value => (value + 1) % images.length), 4000);
-    return () => window.clearInterval(timer);
-  }, [hovered, focused, hidden, reducedMotion, active]);
-  return <section className="hero-carousel" role="region" aria-roledescription="carousel" aria-label={t.label}
-    onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-    onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
-    <div className="hero-slide" role="group" aria-roledescription="slide" aria-label={`${t.slide} ${active + 1} / 3`} aria-live="off">
-      <StayPhoto key={active} src={images[active]} alt="" className="discovery-photo hero-slide-photo" eager />
+    const track = categoriesRef.current;
+    const selected = track?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!track || !selected) return;
+    const bounds = track.getBoundingClientRect(), pill = selected.getBoundingClientRect();
+    const delta = pill.left < bounds.left ? pill.left - bounds.left : pill.right > bounds.right ? pill.right - bounds.right : 0;
+    // Only scroll the category rail; never move the page when the slide rotates.
+    if (delta) track.scrollBy({ left: delta, behavior: reducedMotion ? 'instant' : 'smooth' });
+  }, [active, language, reducedMotion]);
+
+  useEffect(() => {
+    // Warm only the next image; keep the initial page load focused on the hero.
+    const nextImage = new Image();
+    nextImage.decoding = 'async';
+    nextImage.fetchPriority = 'low';
+    nextImage.src = heroSlides[(active + 1) % heroSlides.length].image;
+  }, [active]);
+
+  const pointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!event.isPrimary || event.button !== 0) return;
+    setHeld(true);
+    if ((event.target as HTMLElement).closest('button, a, .hero-categories')) return;
+    gesture.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const pointerUp = (event: PointerEvent<HTMLElement>) => {
+    const start = gesture.current;
+    setHeld(false); gesture.current = null;
+    if (!start || start.id !== event.pointerId) return;
+    const dx = event.clientX - start.x, dy = event.clientY - start.y;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.3) advance((dx < 0 ? 1 : -1) * (isRtl ? -1 : 1));
+  };
+  const Forward = isRtl ? ArrowLeft : ArrowRight;
+  const Back = isRtl ? ArrowRight : ArrowLeft;
+
+  return <section className="hero-carousel" dir={isRtl ? 'rtl' : 'ltr'} role="region" aria-roledescription="carousel" aria-label={labels.label}
+    data-paused={paused} data-slide={slide.id} style={{ '--hero-duration': `${HERO_DURATION_MS}ms`, '--hero-image-position': slide.imagePosition ?? 'center' } as CSSProperties}
+    onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true); }}
+    onPointerLeave={event => { if (event.pointerType === 'mouse') setHovered(false); }}
+    onPointerDown={pointerDown} onPointerUp={pointerUp} onPointerCancel={() => { setHeld(false); gesture.current = null; }}
+    onFocusCapture={event => setFocused(event.target.matches(':focus-visible'))}
+    onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}
+    onKeyDown={event => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        advance((event.key === 'ArrowRight' ? 1 : -1) * (isRtl ? -1 : 1));
+      }
+    }}>
+    <div className="hero-slide" role="group" aria-roledescription="slide" aria-label={`${labels.slide} ${active + 1} / ${heroSlides.length}: ${copy.badge}`} aria-live={paused ? 'polite' : 'off'}>
+      <StayPhoto key={`${slide.id}-${selection.cycle}`} src={slide.image} alt="" className="hero-slide-photo" eager />
       <div className="hero-slide-shade" aria-hidden="true" />
-      <div className="hero-slide-copy">
-        <p className="hero-slide-tag">{slide.tag}</p>
-        <h1>{slide.title}</h1>
-        <p className="hero-slide-description">{slide.description}</p>
+      <div className="hero-slide-copy" key={`${language}-${selection.cycle}`}>
+        <p className="hero-slide-tag">{copy.badge}</p>
+        <h1>{copy.headline}</h1>
+        <p className="hero-slide-description">{copy.subtitle}</p>
         <div className="hero-slide-actions">
-          <button type="button" onClick={() => onNavigate(['hostels', 'rentals', 'guide'][active])}>{slide.action}{isRtl ? <ArrowLeft size={17}/> : <ArrowRight size={17}/>}</button>
-          {'secondary' in slide && <button type="button" className="hero-slide-secondary" onClick={() => onNavigate('translator')}>{slide.secondary}</button>}
+          <a href={browserPath(slide.view, {}, language, emptyEntities)} onClick={event => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault(); onNavigate(slide.view);
+          }}>{copy.cta}<Forward size={17} aria-hidden="true" /></a>
         </div>
       </div>
+      <div className="hero-desktop-arrows">
+        <button type="button" className="hero-glass-button" onClick={() => advance(-1)} aria-label={labels.previous}><Back size={18} aria-hidden="true" /></button>
+        <button type="button" className="hero-glass-button" onClick={() => advance(1)} aria-label={labels.next}><Forward size={18} aria-hidden="true" /></button>
+      </div>
+    </div>
+    <div className="hero-story-toolbar">
+      <div className="hero-story-progress" aria-hidden="true">
+        {heroSlides.map((item, index) => <span className="hero-story-segment" key={item.id} data-complete={index < active}>
+          {index === active && <span key={selection.cycle} className="hero-story-fill" onAnimationEnd={event => {
+            if (event.animationName === 'hero-story-fill' && !paused) advance(1);
+          }} />}
+        </span>)}
+      </div>
+      <span className="hero-story-count" aria-hidden="true">{String(active + 1).padStart(2, '0')} / {String(heroSlides.length).padStart(2, '0')}</span>
+      <button type="button" className="hero-glass-button hero-playback" disabled={reducedMotion}
+        onClick={() => setManualPause(value => !value)} aria-label={manualPause ? labels.play : labels.pause} aria-pressed={manualPause}>
+        {manualPause || reducedMotion ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}
+      </button>
     </div>
     <div className="hero-carousel-controls">
-      <div className="hero-carousel-dots">{t.slides.map((item, index) => <button type="button" key={index}
-        aria-label={`${t.slide} ${index + 1}: ${item.tag}`} aria-current={active === index ? 'true' : undefined}
-        onClick={() => setActive(index)}><span /></button>)}</div>
-
+      <div className="hero-categories" ref={categoriesRef} role="group" aria-label={labels.categories}>
+        {heroSlides.map((item, index) => {
+          const Icon = icons[item.view];
+          return <button type="button" key={item.id} className="hero-category" aria-current={active === index ? 'true' : undefined}
+            aria-label={`${labels.slide} ${index + 1}: ${item.copy[language].chip}`} onClick={() => select(index)}>
+            <Icon size={15} strokeWidth={1.6} aria-hidden="true" /><span>{item.copy[language].chip}</span>
+          </button>;
+        })}
+      </div>
     </div>
   </section>;
 }

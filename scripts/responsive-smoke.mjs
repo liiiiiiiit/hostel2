@@ -168,8 +168,8 @@ try {
           }
           // Larger text and every translation must fit the slide, not just the first image.
           await page.evaluate(() => { document.documentElement.style.fontSize = '20px'; });
-          for (let index = 0; index < 3; index++) {
-            await page.locator('.hero-carousel-dots button').nth(index).click();
+          for (let index = 0; index < 6; index++) {
+            await page.locator('.hero-categories button').nth(index).click();
             const fits = await page.evaluate(() => {
               const slide = document.querySelector('.hero-slide').getBoundingClientRect();
               const copy = document.querySelector('.hero-slide-copy').getBoundingClientRect();

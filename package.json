@@ -21,7 +21,8 @@
     "db:check": "node --import tsx scripts/database.ts check",
     "db:rollback": "node --import tsx scripts/database.ts rollback",
     "test:responsive": "npm run build && node scripts/responsive-smoke.mjs",
-    "test:ipad": "npm run build && node scripts/ipad-search-smoke.mjs"
+    "test:ipad": "npm run build && node scripts/ipad-search-smoke.mjs",
+    "test:hero": "npm run build && node scripts/hero-carousel-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
