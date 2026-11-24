@@ -1,12 +1,13 @@
 import {assertRuntimeEnvironment,assertDatabaseTarget} from '../server/environment.js';
+import {createVerifiedBackup,verifyBackup,retainVerifiedBackups} from '../server/backup-files.js';
+import {assertRestoreSeparation} from '../server/persistence.js';
+import {assertExistingBackupSource,assertPersistentConfiguration} from '../server/storage-paths.js';
 import { put, del } from "@vercel/blob";
 import "dotenv/config";
 import { createClient } from "@libsql/client";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  exportSnapshot,
-  encryptSnapshot,
   decryptSnapshot,
   restoreSnapshot,
 } from "../server/backups.js";
@@ -15,7 +16,9 @@ if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const key = process.env.BACKUP_ENCRYPTION_KEY;
 if (!key)
   throw new Error("Set BACKUP_ENCRYPTION_KEY securely before backup/restore.");
-if (process.argv[2] === "restore") {
+if(process.argv[2]==='verify'){
+ const file=process.argv[3];if(!file)throw Error('Provide the backup filename.');const {snapshot,...report}=await verifyBackup(file,key);console.log(JSON.stringify({verified:true,...report}));
+}else if (process.argv[2] === "restore") {
   const url = process.env.RESTORE_DATABASE_URL,
     directory = process.env.RESTORE_MEDIA_DIRECTORY ?? "",
     file = process.argv[3],
@@ -30,8 +33,10 @@ if (process.argv[2] === "restore") {
       "Restore needs a separate empty RESTORE_DATABASE_URL, RESTORE_MEDIA_DIRECTORY and backup filename.",
     );
   assertDatabaseTarget(url,process.env,true);
+  if(!blob)assertRestoreSeparation(process.env.DATABASE_URL??'',url,process.env.MEDIA_DIRECTORY||'data/uploads',directory);
   const client = createClient({
     url,
+    intMode:'bigint',
     authToken: process.env.RESTORE_DATABASE_AUTH_TOKEN,
   });
   try {
@@ -70,25 +75,19 @@ if (process.argv[2] === "restore") {
 } else {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required.");
+  assertExistingBackupSource(url);
+  assertPersistentConfiguration();
   const client = createClient({
     url,
+    intMode:'bigint',
     authToken: process.env.DATABASE_AUTH_TOKEN,
   });
   try {
-    const snapshot = await exportSnapshot(client);
-    const directory = process.env.BACKUP_DIRECTORY ?? "backups";
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    const file = path.join(
-      directory,
-      `yerevanhub-${new Date().toISOString().replace(/[:.]/g, "-")}.yhbak`,
-    );
-    await writeFile(file, encryptSnapshot(snapshot, key), {
-      mode: 0o600,
-      flag: "wx",
-    });
-    console.log(
-      `Encrypted backup saved: ${file}. Copy it to separate protected storage.`,
-    );
+    const directory=path.resolve(process.env.BACKUP_DIRECTORY??'backups');
+    const result=await createVerifiedBackup(client,directory,key);
+    console.log(JSON.stringify({verified:true,...result}));
+    if(process.env.BACKUP_RETENTION_DAYS){const retention=await retainVerifiedBackups(directory,key,{days:Number(process.env.BACKUP_RETENTION_DAYS),minimum:Number(process.env.BACKUP_RETENTION_MIN_COUNT??7)});console.log(JSON.stringify({retention}));if(retention.skipped.length)process.exitCode=1;}
+
   } finally {
     client.close();
   }

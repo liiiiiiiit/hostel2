@@ -1,0 +1,23 @@
+[Unit]
+Description=YEREVANHUB verified encrypted backup and safe retention
+After=network.target
+
+[Service]
+Type=oneshot
+User=hostel2
+Group=hostel2
+WorkingDirectory=/opt/hostel2/app
+EnvironmentFile=/opt/hostel2/config/production.env
+Environment=PATH=/opt/hostel2/node/bin:/usr/bin:/bin
+ExecStart=/usr/bin/flock --shared --nonblock /opt/hostel2/config/writers.lock /opt/hostel2/node/bin/node --import tsx scripts/backup.ts
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/hostel2/data /opt/hostel2/backups /opt/hostel2/config/writers.lock
+InaccessiblePaths=-/opt/hostel2-staging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hostel2-backup
+TimeoutStartSec=15min

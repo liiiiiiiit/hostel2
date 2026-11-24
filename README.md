@@ -84,3 +84,13 @@ Run `BROWSER_PATH=/path/to/chrome npm run test:responsive` for the mobile/tablet
 Hostel and rental detail pages share a responsive location card with a saved-point map, Yandex Maps and Google Maps links, Google directions and address copying. The embedded basemap uses the Yandex Maps iframe widget; external provider links require no API key. Without a saved point the card offers public-address searches, not a fabricated pin.
 
 For rentals, open **Admin → Homes & apartments → Edit → Basic information** and set the optional public latitude and longitude. These coordinates are visible to visitors; use an approximate public point when appropriate. Leave both blank to remove the pin. The internal exact address and landlord notes never enter map URLs. Existing listings remain compatible and require no database migration.
+
+### Persistent VPS storage and verified recovery
+
+Task 02 extends the existing encrypted backup/restore implementation with atomic verified archives, full media preservation, safe retention and a guarded offline migration path. Start with the read-only discovery procedure; **do not assume the live database location**. Managed storage is opt-in after an offline, verified relocation and preserves SQLite/libSQL. Production/staging remain separate.
+
+- Persian operations, discovery, exact migration/recovery commands, scheduling and rollback: [PERSISTENCE_BACKUP_RECOVERY_FA.md](PERSISTENCE_BACKUP_RECOVERY_FA.md).
+- Implementation findings and executed checks: [PERSISTENCE_VERIFICATION.md](PERSISTENCE_VERIFICATION.md).
+- Reviewed templates/manual-only copy tool: [ops/persistence](ops/persistence).
+- Focused regression checks: `node --import tsx --test server/persistence.test.ts server/backups.test.ts`.
+- Fixed production-path installation/rebuild/restart smoke: `scripts/persistence-smoke.mjs`, restricted to a **fresh disposable GitHub Actions runner**, never a VPS.
