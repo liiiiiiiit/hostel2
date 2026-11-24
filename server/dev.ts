@@ -23,7 +23,8 @@ app.get(['/services','/services/:slug'],(req,res)=>res.redirect(302,'/fa'+req.or
 const publicData=()=>database.publicState();
 const publicHandler=(template:(url:string)=>Promise<string>)=>async(req:express.Request,res:express.Response,next:express.NextFunction)=>{if(!/^\/(fa|en|ru|hy)(\/|$)/.test(req.path)&&!['/sitemap.xml','/robots.txt'].includes(req.path)){next();return;}try{const base=(process.env.APP_URL||req.protocol+'://'+req.get('host')).replace(/\/$/,'');if(req.path==='/robots.txt'){res.type('text').send(robots(base));return;}const state=await servicesForPage(database,await publicData(),req.originalUrl);if(req.path==='/sitemap.xml'){res.type('xml').send(sitemap(state,base));return;}const page=renderPublicHtml(await template(req.originalUrl),state,req.originalUrl,base);res.set({'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}).status(page.status).type('html').send(environmentHtml(page.html));}catch{res.status(503).send('YEREVANHUB unavailable');}};
 if (production || process.env.SERVE_BUILT_CLIENT === 'true') {
-  app.use(express.static('dist',{index:applicationEnvironment()==='staging'?false:'index.html'}));
+  const staticFiles=express.static('dist',{index:applicationEnvironment()==='staging'?false:'index.html'});
+  app.use((req,res,next)=>{if(applicationEnvironment()==='staging'){try{if(/\.html$/i.test(decodeURIComponent(req.path))){next();return;}}catch{res.sendStatus(400);return;}}staticFiles(req,res,next);});
   app.use(publicHandler(()=>readFile('dist/index.html','utf8')));
   app.get('*', async (_req,res,next)=>{if(applicationEnvironment()!=='staging'){res.sendFile(path.resolve('dist/index.html'));return;}try{res.type('html').send(environmentHtml(await readFile('dist/index.html','utf8')));}catch(e){next(e);}});
 } else {

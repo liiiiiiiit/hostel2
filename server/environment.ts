@@ -13,7 +13,7 @@ export function canonicalPath(input:string):string{const absolute=path.resolve(i
 function assertPath(input:string,expected:string){if(path.resolve(input)!==expected||canonicalPath(input)!==expected)throw Error('Staging resource must use its dedicated canonical path.');}
 export function assertDatabaseTarget(url:string,env:NodeJS.ProcessEnv=process.env,restore=false){
  const environment=applicationEnvironment(env);if(!['staging','testing'].includes(environment))return;
- if(!url.startsWith('file:/')||/[?#\0]/.test(url)||url.startsWith('file://'))throw Error('Isolated environments require a local absolute SQLite file URL.');
+ if(!url.startsWith('file:/')||/[?#%\0]/.test(url)||url.startsWith('file://'))throw Error('Isolated environments require a local absolute SQLite file URL.');
  const file=url.slice(5),resolved=canonicalPath(file);
  if(environment==='staging'){
   if(restore){if(!resolved.startsWith(stagingPaths.root+'/data/')||resolved===stagingPaths.database||resolved!==path.resolve(file))throw Error('Restore requires a separate staging data target.');}
