@@ -171,6 +171,17 @@ html.dark .site-header { --header-surface: rgb(17 36 29 / 96%); }
   .site-header .header-sign-in-button { display: inline-flex; }
   .site-header .header-account { display: block; }
 }
+/* Keep the desktop menu at inline-start instead of beside the opposite-side account controls.
+   Reserve its own space so the brand and all 44px controls remain unobstructed. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .header-inner { position: relative; padding-inline-start: 88px; }
+  .site-header .header-menu-toggle {
+    position: absolute;
+    inset-inline-start: 24px;
+    inset-block: 0;
+    margin-block: auto;
+  }
+}
 @media (min-width: 1440px) {
   .header-inner {
     grid-template-areas: "brand navigation controls";

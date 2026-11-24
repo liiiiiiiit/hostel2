@@ -24,7 +24,8 @@
     "test:ipad": "npm run build && node scripts/ipad-search-smoke.mjs",
     "test:hero": "npm run build && node scripts/hero-carousel-smoke.mjs",
     "test:providers": "node scripts/provider-browser-smoke.mjs",
-    "test:services": "node --import tsx scripts/services-browser-smoke.mjs"
+    "test:services": "node --import tsx scripts/services-browser-smoke.mjs",
+    "test:header": "node scripts/header-layout-smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
