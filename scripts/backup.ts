@@ -12,6 +12,8 @@ import {
   restoreSnapshot,
 } from "../server/backups.js";
 assertRuntimeEnvironment();
+// New recovery databases/WAL files must be private even outside systemd.
+process.umask(0o077);
 if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const key = process.env.BACKUP_ENCRYPTION_KEY;
 if (!key)

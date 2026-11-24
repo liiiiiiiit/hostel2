@@ -19,7 +19,7 @@ const ok=(result)=>assert.equal(result.status,0,result.stderr||result.stdout);
 const backup=(env)=>{const result=run(['scripts/backup.ts'],env);ok(result);return JSON.parse(result.stdout.trim().split('\n').find(l=>l.startsWith('{')&&l.includes('"file"'))).file;};
 let server,output='';
 async function start(env){output='';server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{env,stdio:['ignore','pipe','pipe']});server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);for(let i=0;!output.includes('server ready');i++){if(i===150||server.exitCode!==null)throw Error(output||'Startup timeout');await new Promise(r=>setTimeout(r,100));}}
-async function stop(){if(server?.exitCode===null){server.kill();await new Promise(r=>server.once('exit',r));}}
+async function stop(){const child=server;server=undefined;if(child?.exitCode===null&&child.signalCode===null){const exited=new Promise(r=>child.once('exit',r));child.kill();await exited;}}
 try{
  await mkdir(source.MEDIA_DIRECTORY,{mode:0o700});ok(run(['scripts/database.ts','migrate']));
  const id=randomUUID(),image=Buffer.from('immutable-CI-image'),raw=createClient({url:source.DATABASE_URL});
