@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment,assertDatabaseTarget} from '../server/environment.js';
 import { put, del } from "@vercel/blob";
 import "dotenv/config";
 import { createClient } from "@libsql/client";
@@ -9,6 +10,8 @@ import {
   decryptSnapshot,
   restoreSnapshot,
 } from "../server/backups.js";
+assertRuntimeEnvironment();
+if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const key = process.env.BACKUP_ENCRYPTION_KEY;
 if (!key)
   throw new Error("Set BACKUP_ENCRYPTION_KEY securely before backup/restore.");
@@ -26,6 +29,7 @@ if (process.argv[2] === "restore") {
     throw new Error(
       "Restore needs a separate empty RESTORE_DATABASE_URL, RESTORE_MEDIA_DIRECTORY and backup filename.",
     );
+  assertDatabaseTarget(url,process.env,true);
   const client = createClient({
     url,
     authToken: process.env.RESTORE_DATABASE_AUTH_TOKEN,

@@ -1,0 +1,35 @@
+[Unit]
+Description=YEREVANHUB isolated staging website
+Requires=hostel2-staging-egress.service
+After=network.target hostel2-staging-egress.service
+
+[Service]
+Type=simple
+User=hostel2-staging
+Group=hostel2-staging
+WorkingDirectory=/opt/hostel2-staging/app
+EnvironmentFile=/etc/hostel2-staging/staging.env
+Environment=PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
+ExecStartPre=/opt/hostel2-staging/node/bin/node --import tsx ops/staging/check.ts
+ExecStart=/opt/hostel2-staging/node/bin/node --import tsx server/dev.ts
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/opt/hostel2-staging/data /opt/hostel2-staging/backups /opt/hostel2-staging/logs
+InaccessiblePaths=-/opt/hostel2 -/var/lib/hostel2 -/etc/hostel2
+StandardOutput=append:/opt/hostel2-staging/logs/app.log
+StandardError=append:/opt/hostel2-staging/logs/error.log
+SyslogIdentifier=hostel2-staging
+
+[Install]
+WantedBy=multi-user.target

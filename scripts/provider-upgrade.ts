@@ -1,14 +1,18 @@
+import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import 'dotenv/config';
 import {createClient} from '@libsql/client';
 import {createHash} from 'node:crypto';
 import {migrateProviderTables} from '../server/provider-accounts.js';
 
+assertRuntimeEnvironment();
+if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 if(!process.argv.includes('--offline'))throw new Error('Stop the web service and workers, back up SQLite, then pass --offline.');
 const url=process.env.DATABASE_URL;
 if(!url)throw new Error('DATABASE_URL is required. Existing data is required for this upgrade.');
 const client=createClient({url,authToken:process.env.DATABASE_AUTH_TOKEN});
 const quote=(name:string)=>'"'+name.replaceAll('"','""')+'"';
 const checksum=(rows:unknown[])=>createHash('sha256').update(JSON.stringify(rows,(_key,value)=>typeof value==='bigint'?value.toString():value)).digest('hex');
+await assertDatabaseIdentity(client);
 const tx=await client.transaction('write');
 try {
   const version=await tx.execute('SELECT MAX(version) AS version FROM schema_migrations');

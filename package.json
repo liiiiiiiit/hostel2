@@ -25,7 +25,9 @@
     "test:hero": "npm run build && node scripts/hero-carousel-smoke.mjs",
     "test:providers": "node scripts/provider-browser-smoke.mjs",
     "test:services": "node --import tsx scripts/services-browser-smoke.mjs",
-    "test:header": "node scripts/header-layout-smoke.mjs"
+    "test:header": "node scripts/header-layout-smoke.mjs",
+    "test:built": "node scripts/built-client-smoke.mjs",
+    "test:isolation": "APP_ENV=testing node --import tsx --test server/environment.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

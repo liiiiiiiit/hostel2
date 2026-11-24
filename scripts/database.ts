@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import { serviceIntegrity } from '../server/services.js';
 import 'dotenv/config';
 import { providerIntegrity } from '../server/provider-integrity.js';
@@ -5,6 +6,8 @@ import { createClient } from '@libsql/client';
 import { Database } from '../server/database.js';
 import { rollbackRelational } from '../server/relational-migration.js';
 import { tables, indexSQL, quote } from '../server/relational-schema.js';
+assertRuntimeEnvironment();
+if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const command = process.argv[2] ?? 'status';
 if (!process.env.DATABASE_URL)
     throw new Error('DATABASE_URL is required. Run from the project directory with the existing .env.');
@@ -22,6 +25,7 @@ try {
     else {
         const client = createClient({ url: process.env.DATABASE_URL, authToken: process.env.DATABASE_AUTH_TOKEN });
         try {
+            await assertDatabaseIdentity(client);
             await client.execute('PRAGMA foreign_keys=ON');
             if (command === 'rollback') {
                 if (!process.argv.includes('--offline'))

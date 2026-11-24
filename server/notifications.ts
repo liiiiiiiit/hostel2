@@ -1,3 +1,4 @@
+import {externalDeliveryAllowed} from './environment.js';
 import {bookingStatusText} from '../src/i18n/dashboard.js';
 import {workflowText} from '../src/i18n/workflows.js';
 import type { Transaction } from '@libsql/client';
@@ -22,6 +23,7 @@ export async function enqueueBookingNotification(tx: Transaction, state: AppStor
 // Durable outbox: no external network calls while the booking transaction holds a lock.
 // The worker is explicitly invoked by an authorized admin or an authenticated scheduler.
 export async function deliverNotifications(database: import('./database.js').Database, send: typeof fetch = fetch) {
+  if(!externalDeliveryAllowed())return {attempted:0,sent:0,suppressed:true};
   const claimed = await database.sqlTransaction(async tx => {
     // A worker can stop during its final attempt. Once that lease expires the
     // message must leave "sending", even though it has no retry attempts left.

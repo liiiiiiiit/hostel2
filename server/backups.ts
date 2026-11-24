@@ -1,3 +1,4 @@
+import {applicationEnvironment,assertDatabaseIdentity} from './environment.js';
 import type { Client } from "@libsql/client";
 import {
   createHash,
@@ -26,6 +27,7 @@ export async function exportSnapshot(
   client: Client,
   readAsset?: (asset: Record<string, unknown>) => Promise<Buffer>,
 ): Promise<Snapshot> {
+  await assertDatabaseIdentity(client);
   const tx = await client.transaction("write");
   let committed = false;
   try {
@@ -71,6 +73,7 @@ export async function exportSnapshot(
             ),
           );
         else {
+          if(applicationEnvironment()==='staging')throw new Error('Staging backups cannot access remote media.');
           const url = new URL(String(asset.url));
           if (
             url.protocol !== "https:" ||

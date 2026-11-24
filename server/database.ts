@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment,assertDatabaseTarget,ensureDatabaseEnvironment,applicationEnvironment} from './environment.js';
 import { databaseWriteQueue } from './database-write-queue.js';
 import { migrateServices } from './services.js';
 import { tourBookingTable } from './tour-bookings.js';
@@ -27,14 +28,17 @@ export class Database {
   private closed = false;
   private contexts = new WeakMap<Transaction,LoadedState>();
   constructor(options: DatabaseOptions = {}) {
+    assertRuntimeEnvironment();
     const url = options.url ?? process.env.DATABASE_URL;
-    if (!url && (process.env.VERCEL || process.env.NODE_ENV === 'production')) throw new Error('DATABASE_URL is required in production. Use a persistent hosted libSQL database.');
+    if(url)assertDatabaseTarget(url);
+    if(applicationEnvironment()==='staging'&&options.authToken)throw Error('Staging local SQLite does not accept shared database credentials.');
+    if (!url && (['production','testing'].includes(applicationEnvironment()) || process.env.VERCEL || process.env.NODE_ENV === 'production')) throw new Error('DATABASE_URL is required in production/testing. Use an explicit persistent SQLite/libSQL database.');
     if (!url) mkdirSync('data', { recursive: true });
     if (process.env.VERCEL && url?.startsWith('file:')) throw new Error('Vercel requires a remote DATABASE_URL; local files are ephemeral.');
-    this.demo = process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
+    this.demo = !['staging','production'].includes(applicationEnvironment()) && process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
     this.writeQueue = databaseWriteQueue(url ?? 'file:data/hostel.db');
-    this.ready = this.writeQueue.run(async () => { await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); });
+    this.ready = this.writeQueue.run(async () => { await ensureDatabaseEnvironment(this.client); await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); });
     this.queue = this.ready.catch(() => {});
   }
   async waitUntilReady(): Promise<void> { await this.ready; }

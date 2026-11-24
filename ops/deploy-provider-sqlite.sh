@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+if [[ "${APP_ENV:-}" == staging ]] || [[ "$PWD" == /opt/hostel2-staging/* ]]; then
+  echo "This helper targets production. Use STAGING_SETUP_FA.md for staging."
+  exit 1
+fi
 
 if [ "$(id -u)" != 0 ]; then
   echo "Run this script with sudo bash."

@@ -1,8 +1,10 @@
+import {applicationEnvironment} from './environment.js';
 import type { AppLanguage } from '../src/types/index.js';
 type Language=AppLanguage|'auto';
 export interface TranslationInput {text:string;source:Language;target:AppLanguage}
 export type TranslationProvider=(input:TranslationInput)=>Promise<string>;
 export async function translateOnServer(input:TranslationInput,provider?:TranslationProvider){
+  if(applicationEnvironment()==='staging'||applicationEnvironment()==='testing'&&!provider)throw new Error('ترجمهٔ آنلاین در محیط آزمایشی غیرفعال است؛ از عبارت‌های آماده استفاده کنید.');
   if(!input.text.trim()||input.text.length>2000||!['auto','fa','en','ru','hy'].includes(input.source)||!['fa','en','ru','hy'].includes(input.target))throw new Error('اطلاعات واردشده معتبر نیست.');
   if(!provider&&!process.env.GEMINI_API_KEY)throw new Error('سرویس ترجمه تنظیم نشده است؛ از عبارت‌های آماده استفاده کنید.');
   try{

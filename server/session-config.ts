@@ -1,5 +1,9 @@
+import {applicationEnvironment} from './environment.js';
 export function sessionCookiePolicy(env: NodeJS.ProcessEnv = process.env) {
-  const production = env.NODE_ENV === 'production' || Boolean(env.VERCEL);
+  const environment=applicationEnvironment(env);
+  if(environment==='staging'){if(env.HTTP_TEST_MODE==='true')throw Error('Staging sessions require HTTPS.');return {secure:true,name:'__Host-yh_staging_session'};}
+  if(environment==='testing')return {secure:false,name:'yh_testing_session'};
+  const production = environment==='production' || env.NODE_ENV === 'production' || Boolean(env.VERCEL);
   const httpTest = env.HTTP_TEST_MODE === 'true';
   if (httpTest) {
     let url: URL;
