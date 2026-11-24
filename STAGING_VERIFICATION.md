@@ -40,4 +40,9 @@ The runner test does not validate the real VPS's firewall/kernel capabilities, U
 - Database/backup/provider/rollback CLI entry points validate staging targets before opening resources. The production deployment helper refuses a staging context.
 - `ops/staging/`: separate environment/secret generation, Nginx HTTP bootstrap and HTTPS Basic Auth, systemd web/egress/backup units and timer, UID firewall, certificate renewal hook and log rotation.
 - `server/environment.test.ts`, `scripts/staging-smoke.mjs`, `.github/workflows/staging-isolation.yml`, `package.json`: isolation regression tests and disposable CI integration.
+- `vercel.json` disables automatic hosting for the staging preparation branch; runtime also refuses that branch on Vercel before database initialization.
 - `.env.example`, `STAGING_SETUP_FA.md`: compatibility notes and complete Persian installation, update, verification, troubleshooting and rollback guidance.
+
+## Existing hosting integration discovered during verification
+
+The repository's existing Vercel integration automatically created preview deployments for earlier PR commits (observed as a successful Vercel commit status on `9f1fb7e4`). No deployment tool or VPS command was invoked by this task. The preparation branch is now explicitly disabled in `vercel.json`, and its Vercel runtime is denied before database initialization. Existing preview deployments were not deleted, their runtime secrets were not inspected, and no claim is made about their database configuration. The owner should remove/protect those historical previews and verify that Vercel Preview credentials are isolated. This does not require changing the production VPS service.

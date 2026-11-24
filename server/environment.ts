@@ -23,6 +23,7 @@ export function assertDatabaseTarget(url:string,env:NodeJS.ProcessEnv=process.en
 }
 export function externalDeliveryAllowed(env:NodeJS.ProcessEnv=process.env){return !['staging','testing'].includes(applicationEnvironment(env))&&env.NOTIFICATION_DELIVERY!=='disabled';}
 export function assertRuntimeEnvironment(env:NodeJS.ProcessEnv=process.env){
+ if(env.VERCEL&&env.VERCEL_GIT_COMMIT_REF==='codex/01-staging-environment')throw Error('The staging preparation branch is VPS-only; automatic hosted previews are disabled.');
  const environment=applicationEnvironment(env);if(environment!=='staging')return environment;
  if(env.NODE_ENV!=='production'||env.DEMO_MODE!=='false'||env.HTTP_TEST_MODE==='true'||env.VERCEL)throw Error('Staging requires a production build, DEMO_MODE=false and HTTPS on the VPS.');
  if(env.APP_URL!=='https://test.yerevanhub.ir'||env.HOST!=='127.0.0.1'||env.PORT!=='3002')throw Error('Staging requires its own HTTPS origin and loopback port 3002.');
