@@ -1,4 +1,4 @@
-import {requireCurrentRecovery} from '../server/persistence.js';
+import {requireCurrentRecovery,assertPersistentConfiguration} from '../server/persistence.js';
 import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import { serviceIntegrity } from '../server/services.js';
 import 'dotenv/config';
@@ -12,6 +12,7 @@ if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const command = process.argv[2] ?? 'status';
 if (!process.env.DATABASE_URL)
     throw new Error('DATABASE_URL is required. Run from the project directory with the existing .env.');
+assertPersistentConfiguration();
 try {
     if (command === 'migrate') {
         const backupIndex=process.argv.indexOf('--backup');const backup=backupIndex>=0?process.argv[backupIndex+1]:undefined;

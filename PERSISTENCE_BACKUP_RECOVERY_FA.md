@@ -247,8 +247,11 @@ sudo install -m 644 /opt/hostel2/app/ops/persistence/hostel2-backup.timer /etc/s
 sudo systemctl daemon-reload
 sudo systemctl start hostel2
 sudo systemctl status hostel2 --no-pager -l
+sudo systemctl is-enabled hostel2
 sudo journalctl -u hostel2 -n 60 --no-pager
 ```
+
+اگر سرویس وب برای شروع پس از reboot فعال نیست، پس از تأیید تنظیمات `sudo systemctl enable hostel2` اجرا کنید. reboot واقعی VPS را به پنجرهٔ نگه‌داری جدا موکول و بعد از آن مسیر DB/مدیا و سلامت را دوباره بررسی کنید.
 
 هیچ تنظیم Nginx در این کار تغییر نمی‌کند. host/port باید همچنان مطابق reverse proxy موجود باشد. workerهای مورد نیاز را با config جدید و flock شروع کنید؛ cron را فقط پس از اتصال به مسیر/قفل جدید برگردانید. سلامت `/` و `/api/app` را با پورت واقعی روی loopback و HTTPS عمومی، ورود حساب قدیمی، درخواست‌های قبلی و چند تصویر واقعی بررسی کنید. تغییر رکورد آزمایشی در production لازم نیست.
 

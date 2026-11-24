@@ -34,7 +34,7 @@ Encrypted logical backups are format-compatible with existing YHBK1 archives; op
 
 - `npm run lint`: passed (TypeScript frontend/server and API project).
 - `node --import tsx --test server/persistence.test.ts server/backups.test.ts`: **15/15 passed**, including 11 new persistence tests and 4 existing backup tests.
-- `npm test`: final full suite **198/198 passed**, 0 failed, 0 skipped (33.07 seconds).
+- `npm test`: final full suite **198/198 passed**, 0 failed, 0 skipped (34.05 seconds on the final local rerun).
 - `npm run build`: passed.
 - `npm run test:built`: passed; production-mode HTML, 18 built asset responses, runtime identity and no staging banner leakage.
 - `npm run test:isolation`: **9/9 passed**.
@@ -46,8 +46,19 @@ No production DB, service, worker, Nginx, key or account was modified. Unit fixt
 
 `.github/workflows/persistence-recovery.yml` adds fresh-runner-only managed production-path checks: WAL-safe relocation, credential/media preservation, absent-source rejection, migration/startup refusal without backup, verified offline upgrade, login/session after npm installation + build + restart, schema checks and separately restored media/database. It refuses nonempty deployment roots and cannot be used as a VPS diagnostic script.
 
-Existing staging isolation CI is retained and exercises actual HTTPS Basic Auth, distinct cookies, staging identity, persisted upload/session after rebuild/restart, disabled worker delivery and encrypted backup/recovery. Existing browser/responsive/WebKit workflows remain enabled. Their final results will be recorded after branch publication; they are not presumed passed here.
+Existing staging isolation CI is retained and exercises actual HTTPS Basic Auth, distinct cookies, staging identity, persisted upload/session after rebuild/restart, disabled worker delivery and encrypted backup/recovery. Existing browser/responsive/WebKit workflows remain enabled. See the executed CI results below; results are attributed to their tested commits.
 
 Real VPS restart, systemd sandbox execution on the user's machine, disk/power failure injection, actual off-host backup storage/alerts and recovery time measurements are not verified. The Persian operations guide explicitly separates discovery, manual cutover, scheduling, rehearsal and rollback. JSON archives default to a 64 MiB encoded-content budget and use RAM; oversized/missing/unsupported inputs fail closed. Remote blob deletion during download may fail a backup, but cannot produce a verified-success archive. Retention verification cost grows with recovery-point count; measure production duration and capacity before scheduling.
 
 CI first attempt (`8c6d17f`): managed persistence completed every application/recovery assertion, then the fixture cleanup waited a second time for an already-signalled child process (Node exit 13). The cleanup now clears its child reference and checks signal state; this was a smoke-harness defect, not a suppressed application failure. Rerun results follow after publication.
+
+## Executed CLI and CI evidence
+
+- Local isolated real CLI rehearsal: `scripts/database.ts migrate`, `check`, `scripts/backup.ts`, `verify FILE`, `restore FILE` and recovered-target `check` all passed. Historical media bytes matched and recovered DB permissions were 0600. All paths were new temporary directories, with external delivery disabled.
+- Managed database `status`/`check`/rollback commands now validate persistent configuration before opening a SQL client; the regression rejects a mistyped managed URL without creating the file.
+- Existing full-suite `real migration mismatches still roll back and startup never announces readiness for a failed migration` regression also passed; failure recovery is not inferred solely from a successful build or a toy SQL transaction.
+- [Managed persistence CI run 45440379048](https://github.com/liiiiiiiit/hostel2/actions/runs/45440379048): **success** on code commit `8a9f9ea2e5bac55990d8de8be5a62173eb7a9162`. `npm ci`, lint, 17 focused backup/persistence/legacy/provider migration tests, build and the full managed fixed-path relocation/install/build/restart/recovery scenario passed.
+- [Staging CI run 45440378851](https://github.com/liiiiiiiit/hostel2/actions/runs/45440378851): **success** on the same code commit. Includes 198 full tests, 9 environment-isolation tests, built-client checks and real HTTPS/Basic Auth Nginx + persistent staging/session/upload + separate recovery.
+- [Browser/responsive CI run 45440032517](https://github.com/liiiiiiiit/hostel2/actions/runs/45440032517): **all six jobs passed** on initial implementation commit `8c6d17f3fefd0a82d06859427c94c0ce7513bc9c`: browser/provider/services/header/hero/schema workflows, fa/en/ru/hy responsive matrices and iPad WebKit. Subsequent-commit CI remains visible on PR #13; do not assume a pending run passed.
+
+The npm install in these CI runs reported zero dependency vulnerabilities at execution time. That is a point-in-time package audit result, not a claim that the application is vulnerability-free.
