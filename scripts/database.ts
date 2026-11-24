@@ -1,3 +1,4 @@
+import { serviceIntegrity } from '../server/services.js';
 import 'dotenv/config';
 import { providerIntegrity } from '../server/provider-integrity.js';
 import { createClient } from '@libsql/client';
@@ -42,10 +43,11 @@ try {
                     const indexes = (await tx.execute("SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")).rows.map(row => String(row.name));
                     const missingTables = tables.map(table => table.table).filter(name => !existing.includes(name));
                     const missingIndexes = indexSQL.map(sql => sql.match(/INDEX\s+(\w+)/)![1]).filter(name => !indexes.includes(name));
+                    const services = await serviceIntegrity(tx);
                     const providers = await providerIntegrity(tx);
-                    Object.assign(counts,providers.counts);
-                    const schemaReady = providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
-                    console.log(JSON.stringify({ versions, schemaReady, missingTables, missingIndexes, providers, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
+                    Object.assign(counts,providers.counts,services.counts);
+                    const schemaReady = services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
+                    console.log(JSON.stringify({ versions, schemaReady, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
                     if (violations.length || integrity?.some(row => row.integrity_check !== 'ok') || (command === 'check' && !schemaReady))
                         process.exitCode = 1;
                     await tx.commit();

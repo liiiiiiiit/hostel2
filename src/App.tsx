@@ -300,6 +300,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
             hostels={appStore.getHostels()}
             rentals={appStore.getRentals()}
             articles={appStore.getArticles().flatMap(article=>articleInLanguage(article,currentLang)??[])}
+            services={storeState.services??[]}
+            serviceCategories={storeState.serviceCategories??[]}
             phrases={appStore.getPhrases()}
             onNavigate={handleNavigate}
             getHostelRating={id => appStore.getHostelAverageRating(id)}

@@ -121,3 +121,19 @@ export async function serviceAction(tx:Transaction,actor:User|null,action:keyof 
  }
  return {success:true};
 }
+
+export async function serviceIntegrity(tx:Transaction){
+ const required={service_categories:'id slug icon sort_order is_active name_json version',service_listings:'id slug category_id is_active is_featured is_verified allow_booking_request title_json short_description_json description_json address_json working_hours_json price_range_json cover_image gallery_json phone whatsapp telegram instagram website city district map_url latitude longitude languages_json highlights_json search_text version created_at updated_at',service_requests:'reference request_id fingerprint service_id title_json name contact preferred_date note status created_at'};
+ const existing=new Set((await tx.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map(r=>String(r.name)));
+ const missingTables:string[]=[],missingColumns:string[]=[];const counts:Record<string,number>={};
+ for(const [table,columns] of Object.entries(required)){
+  if(!existing.has(table)){missingTables.push(table);continue;}
+  const present=new Set((await tx.execute('PRAGMA table_info('+table+')')).rows.map(r=>String(r.name)));
+  for(const column of columns.split(' '))if(!present.has(column))missingColumns.push(table+'.'+column);
+  counts[table]=Number((await tx.execute('SELECT COUNT(*) AS n FROM '+table)).rows[0].n);
+ }
+ const indexes=new Set((await tx.execute("SELECT name FROM sqlite_master WHERE type='index'")).rows.map(r=>String(r.name)));
+ const missingIndexes=['service_listings_public','service_listings_city','service_listings_cover','service_requests_listing'].filter(name=>!indexes.has(name));
+ const migrated=existing.has('module_migrations')&&(await tx.execute("SELECT name FROM module_migrations WHERE name='services-v1'")).rows.length>0;
+ return {ready:!!migrated&&!missingTables.length&&!missingColumns.length&&!missingIndexes.length,migrated,missingTables,missingColumns,missingIndexes,counts};
+}

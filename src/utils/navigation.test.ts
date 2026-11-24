@@ -20,3 +20,16 @@ test('homepage job and tour selections survive route serialization', () => {
     assert.equal(route.params[key],'listing-123');
   }
 });
+
+test('services filters and Unicode detail slugs round-trip through hash and four localized routes', async () => {
+  const {parseBrowserRoute,browserPath}=await import('./public-routes');
+  const entities={hostels:[],rentals:[],articles:[]};
+  for(const lang of ['fa','en','ru','hy'] as const){
+    const params={category:'medical',city:'Yerevan',language_spoken:'fa',search:'پزشک',verified:'true',featured:'true'};
+    assert.deepEqual(parseBrowserRoute(browserPath('services',params,lang,entities),''),{view:'services',params});
+    const slug='خدمات-ایروان';
+    assert.deepEqual(parseBrowserRoute(browserPath('service-detail',{slug},lang,entities),''),{view:'service-detail',params:{slug}});
+  }
+  assert.deepEqual(parseBrowserRoute('/services/example',''),{view:'service-detail',params:{slug:'example'}});
+  assert.equal(parseBrowserRoute('/en/services/%ZZ','').view,'not-found');
+});

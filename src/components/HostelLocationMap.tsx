@@ -5,8 +5,8 @@ import { getLocalized } from '../utils/i18n';
 import { getMapLinks, getProviderLinks } from '../utils/maps';
 import { locationText, mapText } from '../i18n/maps';
 
-interface LocationProps { currentLang: AppLanguage; name: string; address: string; point?: {lat:number;lng:number}; verified?: boolean; checkedAt?: string; rental?: boolean }
-export const PropertyLocationMap: React.FC<LocationProps> = ({ currentLang, name, address, point, verified = false, checkedAt, rental = false }) => {
+interface LocationProps { currentLang: AppLanguage; name: string; address: string; point?: {lat:number;lng:number}; verified?: boolean; checkedAt?: string; rental?: boolean; unverifiedNote?: string }
+export const PropertyLocationMap: React.FC<LocationProps> = ({ currentLang, name, address, point, verified = false, checkedAt, rental = false, unverifiedNote }) => {
   const t = mapText(currentLang);
   const c = locationText(currentLang);
   const links = point ? getMapLinks(point, currentLang) : null;
@@ -35,7 +35,7 @@ export const PropertyLocationMap: React.FC<LocationProps> = ({ currentLang, name
     </div>
     <div className="space-y-4 p-5 sm:p-6">
       <div><p className="mb-1 text-xs font-medium text-slate-500">{t.address}</p><p className="break-words select-text text-sm leading-7 text-slate-800">{address}</p></div>
-      <p className="text-xs leading-6 text-slate-500">{rental ? c.publicHint : verified ? t.verifiedNote : t.unverifiedNote}</p>
+      <p className="text-xs leading-6 text-slate-500">{rental ? c.publicHint : verified ? t.verifiedNote : unverifiedNote ?? t.unverifiedNote}</p>
       {verified && checkedAt && <p className="text-xs text-slate-500">{t.checked}: {new Date(checkedAt!).toLocaleDateString(currentLang === 'fa' ? 'fa-IR' : currentLang)}</p>}
       <div className="flex flex-wrap gap-2">
         {providers && <><a href={providers.yandex} target="_blank" rel="noopener noreferrer" className="button-primary inline-flex items-center gap-2"><MapPin className="h-4 w-4" />{c.yandex}</a><a href={providers.google} target="_blank" rel="noopener noreferrer" className="button-secondary inline-flex items-center gap-2"><ArrowUpRight className="h-4 w-4" />{c.google}</a></>}
