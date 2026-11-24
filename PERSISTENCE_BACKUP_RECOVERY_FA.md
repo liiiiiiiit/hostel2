@@ -88,8 +88,11 @@ SOURCE_ENV=/actual/discovered/path/.env
 ```bash
 sudo install -d -m 750 -o root -g hostel2 /opt/hostel2/config
 sudo install -d -m 700 -o hostel2 -g hostel2 /opt/hostel2/backups
-sudo test ! -e /opt/hostel2/config/source-maintenance.env
-sudo install -m 600 -o hostel2 -g hostel2 "$SOURCE_ENV" /opt/hostel2/config/source-maintenance.env
+sudo bash -s -- "$SOURCE_ENV" <<'SH'
+set -euo pipefail
+test ! -e /opt/hostel2/config/source-maintenance.env
+install -m 600 -o hostel2 -g hostel2 "$1" /opt/hostel2/config/source-maintenance.env
+SH
 sudo -u hostel2 nano /opt/hostel2/config/source-maintenance.env
 ```
 
@@ -162,20 +165,26 @@ sudo -u hostel2 test ! -e "$CANDIDATE/INCOMPLETE"
 
 ## ۴. ارتقای دستی مسیرها و کد — فقط بعد از بازبینی نتیجه
 
-این بخش نقطهٔ تغییر production است؛ خودکار اجرا نشده است. اگر `/opt/hostel2/data` یا `/opt/hostel2/media` موجود است، **توقف کنید** و ادغام/تطبیق جدا انجام دهید. دستورها از جایگزینی جلوگیری می‌کنند:
+این بخش نقطهٔ تغییر production است؛ خودکار اجرا نشده است. اگر `/opt/hostel2/data` یا `/opt/hostel2/media` موجود است، **توقف کنید** و ادغام/تطبیق جدا انجام دهید. بلوک زیر با اولین خطا در یک shell فرعی متوقف می‌شود و از جایگزینی جلوگیری می‌کند؛ فقط پس از موفقیت کامل آن، فایل جدید را در ویرایشگر باز کنید:
 
 ```bash
-sudo test ! -e /opt/hostel2/data
-sudo test ! -e /opt/hostel2/media
-sudo mv -T --no-clobber "$CANDIDATE/data" /opt/hostel2/data
-sudo mv -T --no-clobber "$CANDIDATE/media" /opt/hostel2/media
-sudo test ! -e "$CANDIDATE/data"
-sudo test ! -e "$CANDIDATE/media"
-sudo chown -R hostel2:hostel2 /opt/hostel2/data /opt/hostel2/media
-sudo chmod 700 /opt/hostel2/data /opt/hostel2/media
-sudo chmod 600 /opt/hostel2/data/hostel.db
-sudo test ! -e /opt/hostel2/config/production.env
-sudo install -m 640 -o root -g hostel2 /opt/hostel2/config/source-maintenance.env /opt/hostel2/config/production.env
+sudo bash -s -- "$CANDIDATE" <<'SH'
+set -euo pipefail
+candidate=$1
+test -f "$candidate/VERIFIED.json"
+test ! -e "$candidate/INCOMPLETE"
+test ! -e /opt/hostel2/data
+test ! -e /opt/hostel2/media
+test ! -e /opt/hostel2/config/production.env
+mv -T --no-clobber "$candidate/data" /opt/hostel2/data
+mv -T --no-clobber "$candidate/media" /opt/hostel2/media
+test ! -e "$candidate/data"
+test ! -e "$candidate/media"
+chown -R hostel2:hostel2 /opt/hostel2/data /opt/hostel2/media
+chmod 700 /opt/hostel2/data /opt/hostel2/media
+chmod 600 /opt/hostel2/data/hostel.db
+install -m 640 -o root -g hostel2 /opt/hostel2/config/source-maintenance.env /opt/hostel2/config/production.env
+SH
 sudo nano /opt/hostel2/config/production.env
 ```
 

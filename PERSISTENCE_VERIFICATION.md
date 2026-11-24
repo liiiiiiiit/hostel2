@@ -62,3 +62,12 @@ CI first attempt (`8c6d17f`): managed persistence completed every application/re
 - [Browser/responsive CI run 45440032517](https://github.com/liiiiiiiit/hostel2/actions/runs/45440032517): **all six jobs passed** on initial implementation commit `8c6d17f3fefd0a82d06859427c94c0ce7513bc9c`: browser/provider/services/header/hero/schema workflows, fa/en/ru/hy responsive matrices and iPad WebKit. Subsequent-commit CI remains visible on PR #13; do not assume a pending run passed.
 
 The npm install in these CI runs reported zero dependency vulnerabilities at execution time. That is a point-in-time package audit result, not a claim that the application is vulnerability-free.
+
+Latest application-code verification (`41518fc09acd79c05066e4725ed7b6ade62376a2`):
+
+- [Managed persistence run 45441170793](https://github.com/liiiiiiiit/hostel2/actions/runs/45441170793): success, including the managed CLI configuration regression and fixed-path recovery smoke.
+- [Staging isolation run 45441170762](https://github.com/liiiiiiiit/hostel2/actions/runs/45441170762): success, including the full 198-test suite and real HTTPS isolation/restart/recovery.
+- [Browser/responsive run 45440378845](https://github.com/liiiiiiiit/hostel2/actions/runs/45440378845): all six jobs passed on the preceding code commit `8a9f9ea`. The final application-code browser rerun is [45441170953](https://github.com/liiiiiiiit/hostel2/actions/runs/45441170953); its live status is authoritative.
+- `systemd-analyze calendar '*-*-* 03:40:00 Asia/Yerevan'`: parsed successfully. This checks the timer expression, not execution of a production systemd unit.
+
+The final documentation-only update makes promotion/config-copy examples stop on the first failed precondition in a child shell. It does not change application code or deploy anything.
