@@ -1,0 +1,27 @@
+name: Persistence and recovery
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  managed-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: node --import tsx --test server/persistence.test.ts server/backups.test.ts server/migrations.test.ts server/provider-migration.test.ts
+      - run: npm run build
+      - name: Prepare fresh disposable runner paths only
+        run: |
+          test ! -e /opt/hostel2
+          sudo install -d -m 700 -o "$USER" -g "$(id -gn)" /opt/hostel2
+      - name: Managed persistence, migration safety, install/build/restart and recovery
+        run: node scripts/persistence-smoke.mjs

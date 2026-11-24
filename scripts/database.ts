@@ -1,3 +1,4 @@
+import {requireCurrentRecovery,assertPersistentConfiguration} from '../server/persistence.js';
 import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import { serviceIntegrity } from '../server/services.js';
 import 'dotenv/config';
@@ -11,9 +12,12 @@ if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const command = process.argv[2] ?? 'status';
 if (!process.env.DATABASE_URL)
     throw new Error('DATABASE_URL is required. Run from the project directory with the existing .env.');
+assertPersistentConfiguration();
 try {
     if (command === 'migrate') {
-        const database = new Database({ demo: false });
+        const backupIndex=process.argv.indexOf('--backup');const backup=backupIndex>=0?process.argv[backupIndex+1]:undefined;
+        if(process.env.REQUIRE_MIGRATION_BACKUP==='true'&&!process.argv.includes('--offline'))throw Error('Managed migration requires --offline after stopping web and workers.');
+        const database = new Database({ demo: false, migrationBackup:backup });
         try {
             const versions = await database.sqlTransaction(async (tx) => (await tx.execute('SELECT version FROM schema_migrations ORDER BY version')).rows, 'read');
             console.log(JSON.stringify({ migrated: true, versions: versions.map(row => Number(row.version)) }));
@@ -30,6 +34,7 @@ try {
             if (command === 'rollback') {
                 if (!process.argv.includes('--offline'))
                     throw new Error('Stop the web service and all workers, take a full backup, then pass --offline.');
+                if(process.env.REQUIRE_MIGRATION_BACKUP==='true'){const i=process.argv.indexOf('--backup');await requireCurrentRecovery(client,i>=0?process.argv[i+1]:undefined);}
                 await rollbackRelational(client);
                 console.log('Schema restored to v2 using current records. Start the previous application release; v3 code would migrate forward again.');
             }

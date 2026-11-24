@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily verified production backup
+[Timer]
+OnCalendar=*-*-* 03:40:00 Asia/Yerevan
+RandomizedDelaySec=300
+Persistent=true
+Unit=hostel2-backup.service
+[Install]
+WantedBy=timers.target

@@ -1,3 +1,4 @@
+import {requireCurrentRecovery} from '../server/persistence.js';
 import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import 'dotenv/config';
 import {createClient} from '@libsql/client';
@@ -13,6 +14,7 @@ const client=createClient({url,authToken:process.env.DATABASE_AUTH_TOKEN});
 const quote=(name:string)=>'"'+name.replaceAll('"','""')+'"';
 const checksum=(rows:unknown[])=>createHash('sha256').update(JSON.stringify(rows,(_key,value)=>typeof value==='bigint'?value.toString():value)).digest('hex');
 await assertDatabaseIdentity(client);
+if(process.env.REQUIRE_MIGRATION_BACKUP==='true'){if(!process.argv.includes('--offline'))throw Error('Stop all writers and pass --offline --backup VERIFIED_FILE.');const i=process.argv.indexOf('--backup');await requireCurrentRecovery(client,i>=0?process.argv[i+1]:undefined);}
 const tx=await client.transaction('write');
 try {
   const version=await tx.execute('SELECT MAX(version) AS version FROM schema_migrations');
