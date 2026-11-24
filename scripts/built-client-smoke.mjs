@@ -1,0 +1,12 @@
+import {spawn} from 'node:child_process';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {createServer} from 'node:net';
+import assert from 'node:assert/strict';
+const dir=await mkdtemp(tmpdir()+'/yh-built-');const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
+const server=spawn(process.execPath,['--import','tsx','server/dev.ts'],{env:{...process.env,APP_ENV:'production',NODE_ENV:'production',HOST:'127.0.0.1',PORT:String(port),DATABASE_URL:'file:'+dir+'/test.db',DATABASE_AUTH_TOKEN:'',ADMIN_EMAIL:'',ADMIN_PASSWORD:'',DEMO_MODE:'false',SERVE_BUILT_CLIENT:'true',DISABLE_HMR:'true',APP_URL:'https://example.test',RESEND_API_KEY:'',TELEGRAM_BOT_TOKEN:'',GEMINI_API_KEY:''},stdio:['ignore','pipe','pipe']});let output='';server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);
+try{
+ for(let i=0;!output.includes('server ready');i++){if(i===150||server.exitCode!==null)throw Error(output||'Startup timeout');await new Promise(r=>setTimeout(r,100));}
+ let count=0;for(const route of ['/','/fa/','/en/services']){const r=await fetch(`http://127.0.0.1:${port}${route}`);const html=await r.text();assert.equal(r.status,200,html.slice(0,400));assert.equal(r.headers.get('x-app-environment'),'production');assert(!html.includes('STAGING · TEST ENVIRONMENT'));const assets=[...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+)"/g)].map(m=>m[1]))];assert(assets.some(a=>a.endsWith('.js')));assert(assets.some(a=>a.endsWith('.css')));for(const asset of assets){const response=await fetch(`http://127.0.0.1:${port}${asset}`);assert.equal(response.status,200,asset);assert.match(response.headers.get('content-type')||'',asset.endsWith('.css')?/text\/css/:/(javascript|ecmascript)/,asset);count++;}}
+ console.log(`PASS built production-mode HTML and ${count} asset responses; runtime identity and no staging banner leakage`);
+}finally{if(server.exitCode===null){server.kill();await new Promise(r=>server.once('exit',r));}await rm(dir,{recursive:true,force:true});}

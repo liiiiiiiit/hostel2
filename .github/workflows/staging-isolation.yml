@@ -20,6 +20,7 @@ jobs:
       - run: npm run test:isolation
       - run: npm test
       - run: npm run build
+      - run: npm run test:built
       - name: Prepare disposable runner only
         run: |
           sudo apt-get update
