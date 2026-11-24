@@ -36,6 +36,10 @@ jobs:
         env:
           BROWSER_PATH: /usr/bin/google-chrome
         run: npm run test:services
+      - name: Header direction and desktop menu placement
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+        run: npm run test:header
       - name: Hero controls and accessibility
         env:
           BROWSER_PATH: /usr/bin/google-chrome
