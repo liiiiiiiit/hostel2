@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import "dotenv/config";
 import { createClient } from "@libsql/client";
 import { rollbackOperationsMigration } from "../server/migrations.js";
@@ -8,10 +9,13 @@ if (
   throw new Error(
     "Stop application and worker, take a full backup, then set CONFIRM_OPERATIONS_ROLLBACK=1 and DATABASE_URL.",
   );
+assertRuntimeEnvironment();
+if(process.env.DATABASE_URL)assertDatabaseTarget(process.env.DATABASE_URL);
 const client = createClient({
   url: process.env.DATABASE_URL,
   authToken: process.env.DATABASE_AUTH_TOKEN,
 });
+await assertDatabaseIdentity(client);
 try {
   await rollbackOperationsMigration(client);
   console.log(

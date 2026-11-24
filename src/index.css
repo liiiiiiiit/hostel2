@@ -492,3 +492,6 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
   .home-search-form[data-search-kind="hostels"] { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .7fr) minmax(0, 1.1fr); }
   .home-search-form[data-search-kind="hostels"] > .home-search-destination { grid-column: auto; }
 }
+
+/* Runtime-rendered only for staging; production HTML has no indicator. */
+.environment-indicator { position: fixed; inset-inline-end: 12px; bottom: 12px; z-index: 10000; max-width: calc(100vw - 24px); border: 2px solid #fff; border-radius: 10px; background: #9f1239; color: #fff; padding: 8px 14px; font: 700 12px/1.5 system-ui,sans-serif; box-shadow: 0 2px 12px #0004; pointer-events: none; }

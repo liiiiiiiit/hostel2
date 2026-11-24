@@ -1,10 +1,11 @@
+import {assertRuntimeEnvironment,applicationEnvironment} from './environment.js';
 import sharp from 'sharp';
 import { put, del } from '@vercel/blob';
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-export const mediaDirectory = () => path.resolve(process.env.MEDIA_DIRECTORY || 'data/uploads');
+export const mediaDirectory = () => {assertRuntimeEnvironment();return path.resolve(process.env.MEDIA_DIRECTORY || 'data/uploads');};
 export async function optimizeImage(input: Buffer, contentType: string) {
   if (!input.length || input.length > MAX_IMAGE_BYTES) throw new Error('حجم تصویر باید حداکثر ۴ مگابایت باشد.');
   if (!['image/jpeg','image/png','image/webp'].includes(contentType)) throw new Error('فقط تصویر JPEG، PNG و WebP پذیرفته می‌شود.');
@@ -17,6 +18,7 @@ export async function optimizeImage(input: Buffer, contentType: string) {
   } catch { throw new Error('تصویر معتبر نیست یا ابعاد آن بیش از حد مجاز است.'); }
 }
 export async function storeImage(id: string, bytes: Buffer) {
+  assertRuntimeEnvironment();
   const key = `properties/${id}.webp`;
   const backend = process.env.MEDIA_STORAGE || (process.env.VERCEL ? 'blob' : 'local');
   if (backend === 'blob') {
@@ -30,6 +32,8 @@ export async function storeImage(id: string, bytes: Buffer) {
   return { backend, key: `${id}.webp`, url: `/api/app?media=${id}` };
 }
 export async function deleteStoredImage(asset: { backend: string; storage_key: string }) {
+  assertRuntimeEnvironment();
+  if(applicationEnvironment()==='staging'&&asset.backend!=='local')throw Error('Remote media is disabled in staging.');
   if (asset.backend === 'blob') await del(asset.storage_key);
   else await unlink(path.join(mediaDirectory(), path.basename(asset.storage_key))).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
 }

@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment} from '../server/environment.js';
 import { servicesForPage } from '../server/service-pages.js';
 import {renderPublicHtml,sitemap,robots} from '../server/public-pages.js';
 import {readFile} from 'node:fs/promises';
@@ -16,6 +17,7 @@ function json(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 export default async function endpoint(req: IncomingMessage, res: ServerResponse) {
+  assertRuntimeEnvironment();
   const rewrittenService=new URL(req.url??'/','https://local.invalid');
   const servicePath=rewrittenService.searchParams.get('servicePath')??(req as IncomingMessage&{query?:Record<string,unknown>}).query?.servicePath;
   if(typeof servicePath==='string'&&/^\/api\/(services|service-categories|admin\/(services|service-categories|service-requests))(\/|$)/.test(servicePath)&&!servicePath.includes('?')){

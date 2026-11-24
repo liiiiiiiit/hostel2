@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted staging backup
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=hostel2-staging-backup.service
+
+[Install]
+WantedBy=timers.target

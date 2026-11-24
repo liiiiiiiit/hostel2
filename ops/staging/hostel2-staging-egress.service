@@ -1,0 +1,12 @@
+[Unit]
+Description=Block new outbound traffic for YEREVANHUB staging UID
+Before=hostel2-staging.service hostel2-staging-backup.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/bin/bash /usr/local/lib/hostel2-staging/egress.sh start
+ExecStop=/bin/bash /usr/local/lib/hostel2-staging/egress.sh stop
+
+[Install]
+WantedBy=multi-user.target

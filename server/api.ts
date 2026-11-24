@@ -1,3 +1,4 @@
+import {assertRuntimeEnvironment,applicationEnvironment} from './environment.js';
 import { mountServiceRoutes } from './service-routes.js';
 import { ServiceError, serviceActionSchemas, serviceAction } from './services.js';
 import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
@@ -77,7 +78,9 @@ const digest = (value: string) => createHash('sha256').update(value).digest('hex
 const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(part => part.includes('=')).map(part => { const split = part.indexOf('='); return [part.slice(0, split).trim(), part.slice(split + 1)]; }));
 
 export function createApi(database: Database) {
+  assertRuntimeEnvironment();
   const app = express();
+  app.get('/api/environment',(_req,res)=>res.set('Cache-Control','no-store').json({environment:applicationEnvironment()}));
   app.disable('x-powered-by');
   if (process.env.VERCEL) app.set('trust proxy', 1);
   else if (process.env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
