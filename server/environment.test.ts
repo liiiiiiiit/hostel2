@@ -48,3 +48,9 @@ test('staging templates isolate service UID, filesystem, loopback port, proxy cr
  for(const command of ['iptables','ip6tables'])await writeFile(dir+'/'+command,'#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOCK_COMMAND_LOG"\ncase " $* " in *" -C "*) exit 1;; esac\nexit 0\n',{mode:0o755});
  const run=spawnSync('bash',['ops/staging/egress.sh','start'],{env:{...process.env,PATH:dir+':'+process.env.PATH,MOCK_COMMAND_LOG:dir+'/commands'}});assert.equal(run.status,0,run.stderr.toString());const commands=await readFile(dir+'/commands','utf8');assert(commands.includes('--uid-owner 1701'));assert(!commands.includes('--uid-owner 1700'));assert(commands.includes('--ctstate NEW -j REJECT'));assert(!commands.includes(' -F'));
 });
+
+test('explicit production identity enforces secure cookies and refuses implicit local/demo databases even without NODE_ENV production',()=>{
+ assert.deepEqual(sessionCookiePolicy({APP_ENV:'production',NODE_ENV:'development'}),{secure:true,name:'__Host-yh_session'});
+ const old={APP_ENV:process.env.APP_ENV,NODE_ENV:process.env.NODE_ENV,DATABASE_URL:process.env.DATABASE_URL};
+ try{process.env.NODE_ENV='development';delete process.env.DATABASE_URL;for(const environment of ['production','testing']){process.env.APP_ENV=environment;assert.throws(()=>new Database({demo:true}),/DATABASE_URL is required/);}}finally{for(const [key,value]of Object.entries(old))if(value===undefined)delete process.env[key];else process.env[key]=value;}
+});

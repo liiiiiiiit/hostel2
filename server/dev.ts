@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createApi } from './api.js';
 import { Database } from './database.js';
 assertRuntimeEnvironment();
-const production = process.env.NODE_ENV === 'production';
+const production = applicationEnvironment()==='production' || process.env.NODE_ENV === 'production';
 const database = new Database({ demo: !production && process.env.DEMO_MODE !== 'false' });
 try { await database.waitUntilReady(); }
 catch (error) { await database.close().catch(() => {}); throw error; }
