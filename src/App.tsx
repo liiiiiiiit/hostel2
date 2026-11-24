@@ -1,3 +1,4 @@
+import { servicesText } from './i18n/services';
 import {TranslatorView} from './views/TranslatorView';
 import {articleInLanguage} from './utils/article-language';
 import {publicPage} from './utils/public-seo';
@@ -16,6 +17,8 @@ import { useLanguage } from './context/LanguageContext';
 import { ContentLoading } from './components/ContentLoading';
 import { loadingText, type StartupStatus } from './i18n/loading';
 
+const ServicesView=lazy(()=>import('./views/ServicesView').then(m=>({default:m.ServicesView})));
+const ServiceDetailView=lazy(()=>import('./views/ServiceDetailView').then(m=>({default:m.ServiceDetailView})));
 const HostelsView = lazy(() => import('./views/HostelsView').then(module => ({ default: module.HostelsView })));
 const HostelDetailView = lazy(() => import('./views/HostelDetailView').then(module => ({ default: module.HostelDetailView })));
 const BookingTrackingView = lazy(() => import('./views/BookingTrackingView').then(module => ({ default: module.BookingTrackingView })));
@@ -131,6 +134,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     if (trackingLoading) return <ContentLoading lang={currentLang} />;
     if (trackingError) return <div role="alert" className="p-8 text-center space-y-4"><p>{trackingError}</p><button type="button" className="button-secondary mx-auto" onClick={() => window.dispatchEvent(new PopStateEvent('popstate'))}>{loadingText(currentLang).retry}</button></div>;
     switch (activeView) {
+      case 'services':return <ServicesView key={JSON.stringify(viewParams)} onNavigate={handleNavigate} initial={viewParams}/>;
+      case 'service-detail':return <ServiceDetailView key={String(viewParams.slug)} slug={String(viewParams.slug)} onNavigate={handleNavigate}/>;
       case 'tours': return <ToursView key="public-tours" mode="public" tourId={String(viewParams.tourId??'')} />;
       case 'tour-organizer': return <ToursView key={currentUser?.id ?? 'guest'} mode="organizer" />;
       case 'jobs': return <JobsView key="public-jobs" mode="public" jobId={String(viewParams.jobId??'')} />;
@@ -143,6 +148,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
           <HomeView
             loading={startupStatus === 'loading'}
             unavailable={startupStatus === 'error'}
+            services={storeState.services ?? []}
+            serviceCategories={storeState.serviceCategories ?? []}
             jobs={storeState.jobs ?? []}
             tours={storeState.tours ?? []}
             currentLang={currentLang}
@@ -293,6 +300,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
             hostels={appStore.getHostels()}
             rentals={appStore.getRentals()}
             articles={appStore.getArticles().flatMap(article=>articleInLanguage(article,currentLang)??[])}
+            services={storeState.services??[]}
+            serviceCategories={storeState.serviceCategories??[]}
             phrases={appStore.getPhrases()}
             onNavigate={handleNavigate}
             getHostelRating={id => appStore.getHostelAverageRating(id)}

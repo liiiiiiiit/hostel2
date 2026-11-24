@@ -1,3 +1,4 @@
+import { servicesText } from '../i18n/services.js';
 import { toursText } from '../i18n/tours.js';
 import { jobsText } from '../i18n/jobs.js';
 import { previewText } from '../i18n/publicPreview.js';
@@ -65,6 +66,15 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
     status = 404;
   else if (parts.length === 1)
     content = `<h1>${escape(intro[lang])}</h1>${list()}`;
+  else if(parts.length===2&&section==='services'){
+    title=servicesText[lang].title+' · YEREVANHUB';description=servicesText[lang].intro;
+    content=`<h1>${escape(servicesText[lang].title)}</h1>`+(state.services??[]).filter(s=>s.isActive).map(s=>`<article><h2><a href="/${lang}/services/${encodeURIComponent(s.slug)}">${escape(s.title[lang])}</a></h2><p>${escape(s.shortDescription[lang])}</p></article>`).join('');
+  }
+  else if(parts.length===3&&section==='services'){
+    const service=(state.services??[]).find(s=>s.isActive&&s.slug===parts[2]);
+    if(!service)status=404;
+    else{title=service.title[lang]+' · YEREVANHUB';description=service.shortDescription[lang];image=service.coverImage||service.gallery[0]||'';content=`<h1>${escape(service.title[lang])}</h1><p>${escape(service.description[lang])}</p><p>${escape(service.address[lang])}</p>`;}
+  }
   else if (parts.length === 2 && section === "tours") {
     description = toursText[lang].tours;
     title = description + " · YEREVANHUB";
@@ -197,6 +207,8 @@ export function sitemap(state: ClientState, base: string) {
       `/${lang}/guides`,
       `/${lang}/jobs`,
       `/${lang}/tours`,
+      `/${lang}/services`,
+      ...(state.services??[]).filter(s=>s.isActive).map(s=>`/${lang}/services/${encodeURIComponent(s.slug)}`),
       ...state.hostels
         .filter((h) => h.isPublished && !h.sampleContent)
         .map((h) => `/${lang}/hostels/${encodeURIComponent(h.slug)}`),

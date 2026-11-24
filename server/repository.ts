@@ -1,3 +1,4 @@
+import { servicesState, serviceActionSchemas } from './services.js';
 import { providerUser, providerAccounts } from './provider-accounts.js';
 import { adminTourBookings } from './tour-bookings.js';
 import { readTours } from './tours.js';
@@ -33,7 +34,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
     const accountActions = ['saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
-    if (accountActions.includes(action)) {
+    if (accountActions.includes(action) || action in serviceActionSchemas) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
             targetId = String((await tx.execute({ sql: 'SELECT user_id FROM auth_tokens WHERE token_hash=?', args: [digest(String(args[0]))] })).rows[0]?.user_id ?? '');
@@ -230,8 +231,8 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         for (const row of rows)
             availability.push({ hostelId: String(row.hostel_id), roomTypeId: String(row.room_type_id), date: String(row.date), capacity: Number(row.capacity), booked: Number(row.booked), available: Math.max(0, Number(row.capacity) - Number(row.booked) - Number(row.blocked)) });
     }
-    return { ...publicState(state, actor, demo, bookingToken, inquiryToken, availability), jobs: await readJobs(tx, actor), jobApplications: await readApplications(tx, actor), tours: await readTours(tx, actor), tourBookings: await adminTourBookings(tx, actor), providerAccounts: await providerAccounts(tx,actor) };
+    return { ...publicState(state, actor, demo, bookingToken, inquiryToken, availability), ...await servicesState(tx,actor), jobs: await readJobs(tx, actor), jobApplications: await readApplications(tx, actor), tours: await readTours(tx, actor), tourBookings: await adminTourBookings(tx, actor), providerAccounts: await providerAccounts(tx,actor) };
 }
 export async function imageIsReferenced(tx: Transaction, url: string) {
-    return !!(await tx.execute({ sql: `SELECT 1 FROM property_photos WHERE url=? UNION ALL SELECT 1 FROM property_images WHERE url=? UNION ALL SELECT 1 FROM articles WHERE featured_image=? UNION ALL SELECT 1 FROM properties WHERE json_extract(extras_json,'$.entrancePhoto')=? LIMIT 1`, args: [url, url, url, url] })).rows.length;
+    return !!(await tx.execute({ sql: `SELECT 1 FROM service_listings WHERE cover_image=? UNION ALL SELECT 1 FROM service_listings s,json_each(s.gallery_json) g WHERE g.value=? UNION ALL SELECT 1 FROM property_photos WHERE url=? UNION ALL SELECT 1 FROM property_images WHERE url=? UNION ALL SELECT 1 FROM articles WHERE featured_image=? UNION ALL SELECT 1 FROM properties WHERE json_extract(extras_json,'$.entrancePhoto')=? LIMIT 1`, args: [url, url, url, url, url, url] })).rows.length;
 }

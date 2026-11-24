@@ -4,3 +4,8 @@ export function isTourPhone(value: string): boolean {
     .replace(/[٠-٩]/g, digit => String(digit.charCodeAt(0) - 0x0660));
   return /^\+?[\d\s().-]+$/.test(digits) && /^\d{6,15}$/.test(digits.replace(/\D/g, ''));
 }
+
+/** A dialable international/local number; validation still uses isTourPhone. */
+export function normalizeTourPhone(value:string):string {
+  return value.replace(/[۰-۹]/g,d=>String(d.charCodeAt(0)-0x06f0)).replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-0x0660)).replace(/[^\d+]/g,'');
+}

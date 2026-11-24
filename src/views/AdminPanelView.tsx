@@ -1,3 +1,5 @@
+import { ServicesAdmin } from '../components/ServicesAdmin';
+import { servicesText } from '../i18n/services';
 import { ProviderAccounts, providerWords } from '../components/ProviderAccounts';
 import { toursText } from "../i18n/tours";
 import { ToursView } from "./ToursView";
@@ -67,6 +69,7 @@ type Section =
   | "coupons"
   | "reviews"
   | "rentals"
+  | "services"
   | "tours"
   | "providers"
   | "jobs"
@@ -188,6 +191,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       icon: <House size={17} />,
       count: inquiries.length,
     },
+    { id: "services", label: servicesText[currentLang].nav, icon: <Compass size={17}/> },
     { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
     { id: "providers", label: providerWords[currentLang].title, icon: <Users size={17} /> },
     { id: "jobs", label: jobsText[currentLang].jobs, icon: <BriefcaseBusiness size={17} /> },
@@ -220,7 +224,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.contentGroup,
-      ids: ["rentals", "reviews", "articles", "providers", "tours", "jobs", "coupons"],
+      ids: ["rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
     { label: admin.system, ids: ["audit", "profile"] },
   ];
@@ -926,6 +930,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </>
         )}
+        {section === "services" && <ServicesAdmin />}
         {section === "tours" && <ToursView mode="admin" />}
         {section === "providers" && <ProviderAccounts />}
         {section === "jobs" && <JobsView mode="admin" />}

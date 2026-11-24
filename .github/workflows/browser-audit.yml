@@ -32,6 +32,10 @@ jobs:
         env:
           BROWSER_PATH: /usr/bin/google-chrome
         run: npm run test:providers
+      - name: Services directory, admin and inquiry workflows
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+        run: npm run test:services
       - name: Hero controls and accessibility
         env:
           BROWSER_PATH: /usr/bin/google-chrome
