@@ -171,9 +171,9 @@ html.dark .site-header { --header-surface: rgb(17 36 29 / 96%); }
   .site-header .header-sign-in-button { display: inline-flex; }
   .site-header .header-account { display: block; }
 }
-/* Keep the desktop menu at inline-start instead of beside the opposite-side account controls.
+/* Keep the tablet/compact-desktop menu at inline-start, including phone desktop-site viewports.
    Reserve its own space so the brand and all 44px controls remain unobstructed. */
-@media (min-width: 1024px) and (max-width: 1439px) {
+@media (min-width: 640px) and (max-width: 1439px) {
   .header-inner { position: relative; padding-inline-start: 88px; }
   .site-header .header-menu-toggle {
     position: absolute;
