@@ -1,3 +1,4 @@
+import { servicesText } from '../i18n/services';
 import React from 'react';
 import { ArrowUpRight, Building2 } from 'lucide-react';
 import type { AppLanguage } from '../types';
@@ -6,7 +7,7 @@ import { publicSiteText } from '../i18n/publicSite';
 interface Props { currentLang: AppLanguage; onNavigate: (view: string) => void }
 export const Footer: React.FC<Props> = ({ currentLang, onNavigate }) => {
   const text = publicSiteText(currentLang);
-  const groups = [ { title: text.browse, links: [['hostels',text.hostels],['rentals',text.rentals],['guide',text.guide],['translator',text.translator]] }, { title: text.information, links: [['about',text.about],['contact',text.contact],['rules',text.rules],['privacy',text.privacy]] } ];
+  const groups = [ { title: text.browse, links: [['hostels',text.hostels],['rentals',text.rentals],['services',servicesText[currentLang].nav],['guide',text.guide],['translator',text.translator]] }, { title: text.information, links: [['about',text.about],['contact',text.contact],['rules',text.rules],['privacy',text.privacy]] } ];
   return <footer className="mt-16 bg-[#142f2a] text-[#d8e3db] sm:mt-24">
     <div className="mx-auto max-w-7xl px-5 pb-6 pt-12 sm:px-6 lg:px-8">
       <div className="grid gap-10 pb-12 sm:grid-cols-2 sm:gap-12 lg:grid-cols-[1.5fr_1fr_1fr]">

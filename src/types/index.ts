@@ -1,3 +1,5 @@
+import type { ServiceCategory, ServiceListing, ServiceRequest } from './services.js';
+export type { ServiceCategory, ServiceListing, ServiceRequest, ServiceText, ServicePage } from './services.js';
 import type {CancellationRule,CommissionRule,OptionalService,UnitBlock,BookingChange,BookingEvent,SupportThread,FinanceEntry} from './operations.js';
 export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 
@@ -395,6 +397,9 @@ export interface ClientState {
   tourBookings?: TourBooking[];
   tours?: Tour[];
   jobApplications?: JobApplication[];
+  services?: ServiceListing[];
+  serviceCategories?: ServiceCategory[];
+  serviceRequests?: ServiceRequest[];
   providerAccounts?: {id:string;name:string;email:string;phone:string;organization:string;role:'job_provider'|'tour_provider';isActive:boolean}[];
   jobs?: JobPosting[];
   unitBlocks?:UnitBlock[];bookingChanges?:BookingChange[];supportThreads?:SupportThread[];financeEntries?:FinanceEntry[];savedPlaces?:string[];
@@ -405,4 +410,5 @@ export interface ClientState {
   availability: AvailabilityDay[]; demoMode: boolean;
   settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
-export interface ActionResult { applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }
+export interface ActionResult {
+  serviceReference?: string; applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

@@ -1,3 +1,4 @@
+import { servicesText } from '../i18n/services';
 import React, { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
@@ -8,6 +9,7 @@ import {
   LogOut,
   LayoutDashboard,
   Compass,
+  Store,
   BriefcaseBusiness,
   BedDouble,
   House,
@@ -53,6 +55,7 @@ export const Header: React.FC<Props> = ({
     ["rentals", text.rentals],
     ["tours", toursText[currentLang].nav],
     ["jobs", jobsText[currentLang].jobs],
+    ["services", servicesText[currentLang].nav],
     ["guide", text.guide],
     ["translator", text.translator],
   ];
@@ -61,6 +64,7 @@ export const Header: React.FC<Props> = ({
     rentals: House,
     tours: Compass,
     jobs: BriefcaseBusiness,
+    services: Store,
     guide: BookOpen,
     translator: Languages,
   };
@@ -68,7 +72,7 @@ export const Header: React.FC<Props> = ({
     activeView === view ||
     (view === "hostels" && activeView === "hostel-detail") ||
     (view === "rentals" && activeView === "rental-detail") ||
-    (view === "guide" && activeView === "article-detail");
+    (view === "guide" && activeView === "article-detail") || (view === "services" && activeView === "service-detail");
   const accountView = currentUser?.role === "job_provider" ? "employer" : currentUser?.role === "tour_provider" ? "tour-organizer" :
     currentUser?.role === "admin"
       ? "admin"

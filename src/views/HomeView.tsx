@@ -1,3 +1,5 @@
+import { servicesText } from '../i18n/services';
+import { ServiceCard } from '../components/ServiceCard';
 import { homeListings } from '../i18n/homeListings';
 import { jobsText } from '../i18n/jobs';
 import { toursText } from '../i18n/tours';
@@ -27,17 +29,21 @@ interface Props {
   articles: Article[];
   jobs?: JobPosting[];
   tours?: Tour[];
+  services?: import('../types').ServiceListing[];
+  serviceCategories?: import('../types').ServiceCategory[];
   phrases?: TravelPhrase[];
   onNavigate: (view: string, params?: any) => void;
   getHostelRating: (hostelId: string) => { avg: number; count: number };
 }
 
-export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, jobs = [], tours = [], onNavigate, getHostelRating, loading = false, unavailable = false }) => {
+export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, articles, jobs = [], tours = [], services = [], serviceCategories = [], onNavigate, getHostelRating, loading = false, unavailable = false }) => {
   const text = publicSiteText(currentLang);
   const ux = homeExperience(currentLang);
   const listings = homeListings[currentLang], jobCopy = jobsText[currentLang], tourCopy = toursText[currentLang];
   const featuredJobs = jobs.filter(job => job.status === 'open' && job.approved !== false).slice(0,6);
   const featuredTours = tours.filter(tour => tour.published && !tour.hidden && tour.approved !== false).slice(0,6);
+  const serviceCopy=servicesText[currentLang];
+  const featuredServices=services.filter(s=>s.isActive&&serviceCategories.some(c=>c.id===s.categoryId&&c.isActive)).sort((a,b)=>Number(b.isFeatured)-Number(a.isFeatured)||b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);
   const design = stayExperience(currentLang);
   const Arrow = currentLang === 'fa' ? ArrowLeft : ArrowRight;
   const [tab, setTab] = useState<'hostels' | 'rentals'>('hostels');
@@ -54,6 +60,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
     { view:'rentals', label:text.rentals, hint:ux.rentalHint, Icon:Home },
     { view:'jobs', label:jobCopy.jobs, hint:listings.jobHint, Icon:BriefcaseBusiness },
     { view:'tours', label:tourCopy.nav, hint:listings.tourHint, Icon:Compass },
+    { view:'services', label:serviceCopy.nav, hint:serviceCopy.hint, Icon:Building2 },
     { view:'guide', label:text.guide, hint:ux.guideHint, Icon:BookOpen },
     { view:'translator', label:text.translator, hint:ux.translatorHint, Icon:Languages },
   ];
@@ -118,6 +125,12 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
           </article>; })}
         </StayCarousel>}
         {!loading && !unavailable && !hostels.length && <p className="py-10 text-sm text-slate-500">{text.noStays}</p>}
+      </section>
+
+      <section aria-labelledby="home-services-heading">
+        {sectionHeading(serviceCopy.preview,serviceCopy.previewTitle,serviceCopy.intro,serviceCopy.all,'services','home-services-heading')}
+        {loading ? <ContentLoading lang={currentLang} /> : unavailable ? <p role="status" className="surface p-5">{serviceCopy.offline}</p> : !featuredServices.length ? <p className="surface p-5">{serviceCopy.empty}</p> :
+          <StayCarousel lang={currentLang} label={serviceCopy.nav}>{featuredServices.map(service=><ServiceCard key={service.id} service={service} category={serviceCategories.find(c=>c.id===service.categoryId)} language={currentLang} onNavigate={onNavigate}/>)}</StayCarousel>}
       </section>
 
       <section aria-label={ux.shortcuts}>

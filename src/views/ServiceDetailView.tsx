@@ -1,0 +1,41 @@
+import { useEffect, useRef, useState } from 'react';
+import { Phone, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { servicesText } from '../i18n/services';
+import { fetchService, fetchCategories } from '../services/services-directory';
+import { appStore } from '../services/store';
+import { createRequestId } from '../utils/request-id';
+import { normalizeTourPhone } from '../utils/tour-contact';
+import { yerevanToday } from '../utils/dates';
+import { StayPhoto } from '../components/StayPhoto';
+import { PropertyLocationMap } from '../components/HostelLocationMap';
+import type { ServiceListing, ServiceCategory } from '../types';
+function Inquiry({service}:{service:ServiceListing}){
+ const {currentLang}=useLanguage(),t=servicesText[currentLang];const [busy,setBusy]=useState(false),[reference,setReference]=useState(''),[error,setError]=useState('');const attempt=useRef({body:'',id:''});
+ async function submit(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();if(busy)return;const form=new FormData(event.currentTarget);const input={serviceId:service.id,version:service.version,name:String(form.get('name')).trim(),contact:String(form.get('contact')).trim(),preferredDate:String(form.get('date')),note:String(form.get('note')).trim()};
+  const body=JSON.stringify(input);if(body!==attempt.current.body)attempt.current={body,id:createRequestId()};setBusy(true);setError('');
+  try{const result=await appStore.action('requestService',[{...input,requestId:attempt.current.id}]);if(result.success&&result.serviceReference)setReference(result.serviceReference);else setError(result.error||t.invalid);}finally{setBusy(false);}
+ }
+ return <section className="surface space-y-4 p-5" aria-label={t.request}><h2 className="text-xl font-bold">{t.request}</h2>{reference?<div role="status"><p>{t.received}</p><p>{t.reference} · <code dir="ltr" className="break-all select-all">{reference}</code></p></div>:<form onSubmit={submit} className="space-y-4"><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2"><label>{t.name}<input name="name" required maxLength={120} autoComplete="name" className="field mt-1 w-full"/></label><label>{t.contact}<input name="contact" required maxLength={250} className="field mt-1 w-full" dir="auto"/></label><label>{t.date}<input name="date" type="date" min={yerevanToday()} className="field mt-1 w-full"/></label><label className="sm:col-span-2">{t.note}<textarea name="note" maxLength={2000} rows={4} className="field mt-1 w-full"/></label></fieldset>{error&&<p role="alert">{error}</p>}<button className="button-primary" disabled={busy}>{busy?t.sending:t.send}</button></form>}</section>;
+}
+export function ServiceDetailView({slug,onNavigate}:{slug:string;onNavigate:(view:string,params?:Record<string,unknown>)=>void}){
+ const {currentLang}=useLanguage(),t=servicesText[currentLang];const [service,setService]=useState<ServiceListing|null>(null),[category,setCategory]=useState<ServiceCategory>(),[error,setError]=useState(''),[busy,setBusy]=useState(true),[retry,setRetry]=useState(0),[image,setImage]=useState('');
+ useEffect(()=>{const controller=new AbortController();setBusy(true);setError('');setService(null);
+ void Promise.all([fetchService(slug,currentLang,controller.signal),fetchCategories(currentLang,controller.signal)]).then(([detail,options])=>{if(controller.signal.aborted)return;setService(detail.service);setCategory(options.categories.find(c=>c.id===detail.service.categoryId));setImage(detail.service.coverImage||detail.service.gallery[0]||'');}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:t.offline);}).finally(()=>{if(!controller.signal.aborted)setBusy(false);});return()=>controller.abort();
+ },[slug,currentLang,retry,t.offline]);
+ if(busy)return <section className="page-shell py-8"><p role="status">{t.loading}</p></section>;
+ if(error||!service)return <section className="page-shell space-y-4 py-8"><h1 className="text-xl font-bold">{t.notFound}</h1><p role="alert">{error}</p><button className="button-secondary" onClick={()=>setRetry(v=>v+1)}>{t.retry}</button><button className="button-secondary" onClick={()=>onNavigate('services')}>{t.back}</button></section>;
+ const images=[...new Set([service.coverImage,...service.gallery].filter(Boolean))];
+ const external=(label:string,href:string)=>href?<a key={label} href={href} target="_blank" rel="noopener noreferrer" className="button-secondary inline-flex items-center gap-2">{label}<ArrowUpRight size={15}/></a>:null;
+ const profile=(value:string,host:string)=>value.startsWith('https://')?value:`https://${host}/${encodeURIComponent(value.replace(/^@/,''))}`;
+ return <article className="page-shell space-y-6 py-8" dir={currentLang==='fa'?'rtl':'ltr'}>
+  <button className="button-secondary" onClick={()=>onNavigate('services')}>{t.back}</button>
+  <header className="space-y-3"><div className="flex flex-wrap gap-3">{category&&<span className="status-pill">{category.name[currentLang]}</span>}{service.isVerified&&<span className="inline-flex items-center gap-1 text-sm text-emerald-700"><ShieldCheck size={17}/>{t.verified}</span>}</div><h1 className="text-3xl font-bold text-[#142f2a]">{service.title[currentLang]}</h1><p className="text-slate-500">{service.shortDescription[currentLang]}</p><p><bdi>{service.city} · {service.district}</bdi></p></header>
+  <section aria-label={t.gallery} className="space-y-3"><StayPhoto key={image} src={image} alt={service.title[currentLang]} eager className="h-64 w-full overflow-hidden rounded-3xl sm:h-96"/>{images.length>1&&<div className="flex gap-3 overflow-x-auto py-2">{images.map((url,i)=><button key={url} type="button" aria-label={`${t.gallery} ${i+1}`} aria-pressed={image===url} onClick={()=>setImage(url)} className="shrink-0 overflow-hidden rounded-xl border-2 border-transparent focus-visible:border-[#a78049]"><StayPhoto src={url} alt="" className="h-20 w-28"/></button>)}</div>}</section>
+  <div className="flex flex-wrap gap-3">{service.phone&&<a className="button-primary inline-flex items-center gap-2" href={'tel:'+normalizeTourPhone(service.phone)}><Phone size={16}/>{t.call}</a>}{service.whatsapp&&external(t.whatsapp,'https://wa.me/'+normalizeTourPhone(service.whatsapp).replace(/\D/g,''))}{service.telegram&&external(t.telegram,profile(service.telegram,'t.me'))}{service.instagram&&external(t.instagram,profile(service.instagram,'instagram.com'))}{external(t.website,service.website)}{external(t.map,service.mapUrl)}</div>
+  <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]"><section className="surface space-y-5 p-5"><h2 className="text-xl font-bold">{t.description}</h2><p className="whitespace-pre-line leading-8">{service.description[currentLang]}</p>{service.highlights.some(v=>v[currentLang])&&<><h2 className="text-lg font-bold">{t.highlights}</h2><ul className="list-inside list-disc space-y-2">{service.highlights.map((h,i)=>h[currentLang]&&<li key={i}>{h[currentLang]}</li>)}</ul></>}</section><aside className="surface space-y-5 p-5"><h2 className="font-bold">{t.spoken}</h2><div className="flex flex-wrap gap-2">{service.languagesSpoken.map(l=><span className="status-pill" key={l}>{t[l]}</span>)}</div><dl className="space-y-5">{([[t.address,service.address[currentLang]],[t.workingHours,service.workingHours[currentLang]],[t.priceRange,service.priceRange[currentLang]]] as const).map(([label,value])=>value&&<div key={label}><dt className="font-semibold">{label}</dt><dd className="mt-2 whitespace-pre-line leading-7">{value}</dd></div>)}</dl></aside></div>
+  {(service.latitude!==null||service.address[currentLang])&&<PropertyLocationMap currentLang={currentLang} name={service.title[currentLang]} address={service.address[currentLang]} point={service.latitude!==null&&service.longitude!==null?{lat:service.latitude,lng:service.longitude}:undefined} verified={false}/>}
+  {service.allowBookingRequest&&<Inquiry key={service.id+':'+service.version} service={service}/>}
+ </article>;
+}

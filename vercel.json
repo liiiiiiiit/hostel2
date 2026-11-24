@@ -16,6 +16,26 @@
   },
   "rewrites": [
     {
+      "source": "/api/services/:path*",
+      "destination": "/api/app?servicePath=/api/services/:path*"
+    },
+    {
+      "source": "/api/admin/services/:path*",
+      "destination": "/api/app?servicePath=/api/admin/services/:path*"
+    },
+    {
+      "source": "/api/admin/service-categories/:path*",
+      "destination": "/api/app?servicePath=/api/admin/service-categories/:path*"
+    },
+    {
+      "source": "/api/admin/service-requests/:path*",
+      "destination": "/api/app?servicePath=/api/admin/service-requests/:path*"
+    },
+    {
+      "source": "/api/service-categories",
+      "destination": "/api/app?servicePath=/api/service-categories"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/app?publicPath=/sitemap.xml"
     },
@@ -26,6 +46,18 @@
     {
       "source": "/:lang(fa|en|ru|hy)/:path*",
       "destination": "/api/app?publicPath=/:lang/:path*"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/services",
+      "destination": "/fa/services",
+      "permanent": false
+    },
+    {
+      "source": "/services/:slug",
+      "destination": "/fa/services/:slug",
+      "permanent": false
     }
   ]
 }

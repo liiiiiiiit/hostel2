@@ -1,3 +1,5 @@
+import { mountServiceRoutes } from './service-routes.js';
+import { ServiceError, serviceActionSchemas, serviceAction } from './services.js';
 import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
 import {sessionCookiePolicy} from './session-config.js';
 import {scheduledWork} from './jobs.js';
@@ -35,6 +37,7 @@ const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
 const schemas = {
+  ...serviceActionSchemas,
   bookTour: z.tuple([bookingInput]),
   trackTour: z.tuple([z.uuid()]),
   changeTourBooking: z.tuple([z.uuid(),tourBookingStatus,tourBookingStatus]),
@@ -87,6 +90,7 @@ export function createApi(database: Database) {
     if (!token) return null;
     return sessionUser(tx,digest(token));
   };
+  mountServiceRoutes(app,database,session);
   app.get(paths, async (req, res, next) => {
     if (!req.query.media) { next(); return; }
     if (typeof req.query.media !== 'string' || !/^[a-f0-9-]{36}$/.test(req.query.media)) { res.sendStatus(404); return; }
@@ -163,7 +167,7 @@ export function createApi(database: Database) {
         const rate = (await tx.execute({ sql: 'SELECT count,expires_at FROM rate_limits WHERE key=?', args: [bucket] })).rows[0];
         return { count: Number(rate.count), retryAfter: Math.max(1, Math.ceil((Number(rate.expires_at) - now) / 1000)) };
       });
-      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['applyForJob','bookTour','createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
+      const max = ['login','registerTraveler','translateText','requestPasswordRecovery','resetPassword','requestEmailVerification','verifyEmail','changePassword'].includes(envelope.action) ? 10 : ['requestService','applyForJob','bookTour','createBooking','createRentalInquiry'].includes(envelope.action) ? 5 : 60;
       if (limit.count > max) {
         res.set('Retry-After', String(limit.retryAfter)).status(429).json({ success: false, error: localizeError('تعداد درخواست زیاد است؛ یک دقیقه صبر کنید.', req.headers['x-app-language']) });
         return;
@@ -189,6 +193,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if (envelope.action in serviceActionSchemas) {
+          actionResult = await serviceAction(tx,actor,envelope.action as keyof typeof serviceActionSchemas,args);
         } else if (envelope.action === 'bookTour') {
           actionResult.tourReference = await bookTour(tx, args[0] as z.infer<typeof bookingInput>);
         } else if (envelope.action === 'trackTour') {
@@ -285,6 +291,7 @@ export function createApi(database: Database) {
   app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large') { res.status(413).json({success:false,error:localizeError('حجم فایل بیش از حد مجاز است.',req.headers['x-app-language'])}); return; }
     if(error&&typeof error==='object'&&'type' in error&&error.type==='entity.parse.failed'){res.status(400).json({success:false,error:localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language'])});return;}
+    if (error instanceof ServiceError) { res.status(error.status).json({success:false,error:error.localized(req.headers['x-app-language'])}); return; }
     if (error instanceof z.ZodError) { res.status(400).json({ success: false, error: localizeError('اطلاعات واردشده معتبر نیست.',req.headers['x-app-language']) }); return; }
     if (error instanceof Error && /[\u0600-\u06ff]/.test(error.message) && !error.message.includes('SQL')) { res.status(error.message === 'دسترسی مجاز نیست.' ? 403 : error.message.includes('ترجمه') ? 503 : 400).json({ success: false, error: localizeError(error.message,req.headers['x-app-language']) }); return; }
     const forbidden = error instanceof Error && error.message === 'دسترسی مجاز نیست.';

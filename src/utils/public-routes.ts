@@ -7,6 +7,7 @@ import type {
 import { parseRoute, routeHash, type Route } from "./navigation.js";
 export const publicLanguages: AppLanguage[] = ["fa", "en", "ru", "hy"];
 const list: Record<string, string> = {
+  services: "services",
   tours: "tours",
   jobs: "jobs",
   recommendations: "recommendations",
@@ -25,6 +26,7 @@ export function parseBrowserRoute(path: string, hash: string): Route {
   const url = new URL(path, "https://local.invalid"),
     parts = url.pathname.split("/").filter(Boolean);
   if (!parts.length) return { view: "home", params: {} };
+  if(parts[0]==='services'&&parts.length<=2)return parseRoute(parts.length===1?'#/services'+url.search:'#/service/'+parts[1]+url.search);
   if (!publicLanguages.includes(parts[0] as AppLanguage))
     return { view: "not-found", params: {} };
   const query = url.search;
@@ -39,7 +41,7 @@ export function parseBrowserRoute(path: string, hash: string): Route {
   }
   if (parts.length === 3) {
     const segment = (
-      { hostels: "hostel", rentals: "rental", guides: "article" } as Record<
+      { services: "service", hostels: "hostel", rentals: "rental", guides: "article" } as Record<
         string,
         string
       >
@@ -58,6 +60,7 @@ export function browserPath(
     articles: Article[];
   },
 ) {
+  if(view==='service-detail')return `/${lang}/services/${encodeURIComponent(String(params.slug??params.id??''))}`;
   const section =
     view === "hostel-detail"
       ? "hostels"
