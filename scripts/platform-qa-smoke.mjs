@@ -711,8 +711,9 @@ async function browserAudit({ actors, origin, proxyPassword, article, job }) {
     );
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(origin + "/en/article/" + article.slug);
+    await page.goto(origin + "/en/guides/" + article.slug);
     await page.locator("#site-preloader").waitFor({ state: "detached" });
+    await page.getByRole("heading", { name: article.title, exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__qa04Xss), undefined);
     assert((await page.locator("body").innerText()).includes("QA04"));
     assert.equal(await page.locator('main img[src="x"]').count(), 0);
