@@ -15,7 +15,7 @@ Authorized targets: disposable test SQLite databases and marked CI staging only.
 
 Confirmed P1 recovery-token revocation gap is fixed: disabling hostel managers now consumes outstanding reset and verification tokens transactionally, in addition to sessions. Existing provider account policy was inspected for consistency.
 
-The actual automated suite exercises disabled/expired sessions, password hashing, scoped relational state, role/ownership enforcement, provider moderation, public/private DTO separation, guest tracking, safe upload decoding and traversal rejection, CSRF/origin constraints, unsafe URL and XSS defenses, and notification isolation. New staging API checks add literal SQL-injection search, forged-origin rejection, profile role-injection rejection, password/session revocation, private-data canaries and upload authorization. New browser checks include an inert article HTML/script canary. See execution results; do not treat merely defined checks as executed.
+The actual automated suite exercises disabled/expired sessions, password hashing, scoped relational state, role/ownership enforcement, provider moderation, public/private DTO separation, guest tracking, safe upload decoding and traversal rejection, CSRF/origin constraints, unsafe URL and XSS defenses, and notification isolation. New staging API checks add literal SQL-injection search, forged-origin rejection, profile role-injection rejection, password/session revocation, private-data canaries and upload authorization. New browser checks include an inert article HTML/script canary. These extended staging API and browser checks passed in run 45563345273; detailed command/run evidence is in QA04_TEST_RESULTS.md.
 
 ## Residual limitations
 
