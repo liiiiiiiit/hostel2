@@ -1,3 +1,4 @@
+import {addCalendarDays,yerevanToday} from './dates.js';
 import type { RoomPricingRules } from '../types/index.js';
 /**
  * YEREVANHUB - Pure Booking, Pricing, Discount, and Arrival Logic
@@ -50,6 +51,11 @@ function parseCalendarDate(value: string): number | null {
   return timestamp;
 }
 
+/** A guest without a recorded checkout still occupies today's inventory.
+ * Extend inventory accounting only; never alter agreed dates or charges. */
+export function inventoryBookings<T extends {checkIn:string;checkOut:string;checkedInAt?:string;checkedOutAt?:string}>(bookings:T[],today=yerevanToday()):T[]{
+ return bookings.map(b=>b.checkedInAt&&!b.checkedOutAt&&b.checkOut<=today?{...b,checkOut:addCalendarDays(today,1)}:b);
+}
 /** Maximum simultaneous occupancy, with checkout releasing capacity that day. */
 export function peakBookedQuantity(checkIn: string, checkOut: string, bookings: { checkIn: string; checkOut: string; quantity: number }[]): number {
   const events: { date: string; delta: number }[] = [];

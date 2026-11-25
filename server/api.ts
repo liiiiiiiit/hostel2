@@ -1,3 +1,4 @@
+import {queueMediaDeletion,drainMediaDeletions} from './media-cleanup.js';
 import {mountDemoRoutes} from './demo/routes.js';
 import {assertRuntimeEnvironment,applicationEnvironment} from './environment.js';
 import { mountServiceRoutes } from './service-routes.js';
@@ -125,11 +126,11 @@ export function createApi(database: Database) {
           const asset = (await tx.execute({sql:'SELECT * FROM media_assets WHERE id=?',args:[id]})).rows[0];
           if (asset) {
             if(await imageIsReferenced(tx,String(asset.url)))throw new Error('ابتدا تصویر را از ملک جدا و تغییرات را ذخیره کنید.');
-            await deleteStoredImage({backend:String(asset.backend),storage_key:String(asset.storage_key)});
-            await tx.execute({sql:'DELETE FROM media_assets WHERE id=?',args:[id]});
+            await queueMediaDeletion(tx,asset);
           }
         });
-        res.json({success:true}); return;
+        const cleanup=await drainMediaDeletions(database,id);
+        res.json({success:true,cleanupPending:cleanup.pending>0}); return;
       }
       if (!Buffer.isBuffer(req.body)) throw new Error('فایل تصویر معتبر ارسال کنید.');
       const bytes = await optimizeImage(req.body,String(req.headers['content-type']).split(';')[0]);
@@ -267,7 +268,7 @@ export function createApi(database: Database) {
         Object.assign(state, store.getState());
         if (envelope.action === 'toggleManagerActive') {
           const user = state.users.find(user => user.id === args[0]);
-          if (user && !user.isActive) await tx.execute({ sql: 'DELETE FROM sessions WHERE user_id=?', args: [user.id] });
+          if (user && !user.isActive) {await tx.execute({ sql: 'DELETE FROM sessions WHERE user_id=?', args: [user.id] });await tx.execute({sql:'UPDATE auth_tokens SET used_at=? WHERE user_id=? AND used_at IS NULL',args:[now,user.id]});}
         }
         const additional=envelope.action==='reportEntranceIssue'?state.bookings.find(b=>b.privateToken===args[0]):['createSupportThread','replySupportThread','resolveSupportThread'].includes(envelope.action)&&actionResult.thread?state.bookings.find(b=>b.id===actionResult.thread!.bookingId):['requestBookingChange','applyBookingChange','rejectBookingChange'].includes(envelope.action)?state.bookings.find(b=>b.id===(actionResult.proposal?.bookingId??state.bookingChanges?.find(change=>change.id===args[0])?.bookingId)):undefined;
         if(additional)await enqueueBookingNotification(tx,state,additional,envelope.action.includes('Support')||envelope.action==='reportEntranceIssue'?'support':'change');

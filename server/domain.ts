@@ -1,3 +1,4 @@
+import {inventoryBookings} from '../src/utils/pricing.js';
 import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
 import { createHash } from 'node:crypto';
 import { occupancyIsValid, guestsPerUnit } from '../src/utils/occupancy.js';
@@ -391,8 +392,7 @@ export class Store {
       b =>
         b.hostelId === data.hostelId &&
         b.roomTypeId === data.roomTypeId &&
-        b.status === 'confirmed' &&
-        areDatesOverlapping(data.checkIn, data.checkOut, b.checkIn, b.checkOut)
+        b.status === 'confirmed'
     );
     const currentlyBooked = peakBookedQuantity(data.checkIn, data.checkOut, activeConfirmed);
     const remaining = this.remainingCapacity(hostel.id, roomType.id, data.checkIn, data.checkOut, activeConfirmed);
@@ -505,7 +505,7 @@ export class Store {
     for (let date = checkIn; date < checkOut; date = addCalendarDays(date, 1)) {
       const capacity = this.state.capacities.find(item => item.hostelId === hostelId && item.roomTypeId === roomTypeId && item.date === date)?.capacity ?? room.totalBedsOrRooms;
       const blocked=(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostelId&&block.roomTypeId===roomTypeId&&date>=block.from&&date<block.to).reduce((count,block)=>count+block.unitIds.length,0);
-      available = Math.min(available, capacity - blocked - peakBookedQuantity(date, addCalendarDays(date, 1), bookings));
+      available = Math.min(available, capacity - blocked - peakBookedQuantity(date, addCalendarDays(date, 1), inventoryBookings(bookings,yerevanToday(this.now()))));
     }
     return Math.max(0, available);
   }
@@ -514,7 +514,7 @@ export class Store {
     if (!this.canManageHostel(hostelId)) throw new Error('دسترسی مجاز نیست.');
     const room = this.state.hostels.find(h => h.id === hostelId)?.roomTypes.find(r => r.id === roomTypeId);
     if (!room || !Number.isSafeInteger(capacity) || capacity < 0 || capacity > room.totalBedsOrRooms || calculateNights(date, addCalendarDays(date, 1)) !== 1) throw new Error('ظرفیت یا تاریخ معتبر نیست.');
-    const booked = peakBookedQuantity(date, addCalendarDays(date, 1), this.state.bookings.filter(b => b.hostelId === hostelId && b.roomTypeId === roomTypeId && b.status === 'confirmed'));
+    const booked = peakBookedQuantity(date, addCalendarDays(date, 1), inventoryBookings(this.state.bookings.filter(b => b.hostelId === hostelId && b.roomTypeId === roomTypeId && b.status === 'confirmed'),yerevanToday(this.now())));
     const blocked=(this.state.unitBlocks??[]).filter(block=>!block.releasedAt&&block.hostelId===hostelId&&block.roomTypeId===roomTypeId&&date>=block.from&&date<block.to).reduce((sum,block)=>sum+block.unitIds.length,0);
     if (capacity < booked+blocked) throw new Error('ظرفیت نمی‌تواند کمتر از رزروهای تأییدشده باشد.');
     this.state.capacities = this.state.capacities.filter(item => !(item.hostelId === hostelId && item.roomTypeId === roomTypeId && item.date === date));
@@ -616,8 +616,7 @@ export class Store {
           b.id !== booking.id &&
           b.hostelId === booking.hostelId &&
           b.roomTypeId === booking.roomTypeId &&
-          b.status === 'confirmed' &&
-          areDatesOverlapping(booking.checkIn, booking.checkOut, b.checkIn, b.checkOut)
+          b.status === 'confirmed'
       );
       const booked = peakBookedQuantity(booking.checkIn, booking.checkOut, activeConfirmed);
       if (booking.quantity > this.remainingCapacity(booking.hostelId, roomType.id, booking.checkIn, booking.checkOut, activeConfirmed)) {

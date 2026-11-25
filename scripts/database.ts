@@ -1,3 +1,4 @@
+import {mediaCleanupReady} from '../server/media-cleanup.js';
 import {requireCurrentRecovery,assertPersistentConfiguration} from '../server/persistence.js';
 import {assertRuntimeEnvironment,assertDatabaseTarget,assertDatabaseIdentity} from '../server/environment.js';
 import { serviceIntegrity } from '../server/services.js';
@@ -55,8 +56,9 @@ try {
                     const services = await serviceIntegrity(tx);
                     const providers = await providerIntegrity(tx);
                     Object.assign(counts,providers.counts,services.counts);
-                    const schemaReady = services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
-                    console.log(JSON.stringify({ versions, schemaReady, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
+                    const mediaCleanup=await mediaCleanupReady(tx);
+                    const schemaReady = mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
+                    console.log(JSON.stringify({ versions, schemaReady, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
                     if (violations.length || integrity?.some(row => row.integrity_check !== 'ok') || (command === 'check' && !schemaReady))
                         process.exitCode = 1;
                     await tx.commit();

@@ -1,3 +1,4 @@
+import {queueMediaDeletion,drainMediaDeletions} from './media-cleanup.js';
 import { Store } from "./domain.js";
 import type { Database } from "./database.js";
 import {
@@ -7,7 +8,6 @@ import {
 import { imageIsReferenced } from './repository.js';
 import { tables } from './relational-schema.js';
 import { none, where } from './relational-store.js';
-import { deleteStoredImage } from "./media.js";
 export async function scheduledWork(
   database: Database,
   {
@@ -49,14 +49,7 @@ export async function scheduledWork(
       })
     ).rows) {
       if (await imageIsReferenced(tx,String(asset.url))) continue;
-      await deleteStoredImage({
-        backend: String(asset.backend),
-        storage_key: String(asset.storage_key),
-      });
-      await tx.execute({
-        sql: "DELETE FROM media_assets WHERE id=?",
-        args: [String(asset.id)],
-      });
+      await queueMediaDeletion(tx,asset);
       removed++;if(removed>=2)break;
     }
     await tx.execute({
@@ -71,8 +64,9 @@ export async function scheduledWork(
     bookings:due,properties:hosts,
     users:where(`role='admin' OR id IN (SELECT user_id FROM manager_properties WHERE hostel_id IN (SELECT id FROM properties WHERE ${hosts.sql})) OR id IN (SELECT traveler_user_id FROM bookings WHERE ${due.sql})`,...(hosts.args??[]),...(due.args??[])),
   }});
+  const mediaCleanup=await drainMediaDeletions(database);
   return {
-    ...counts,
+    ...counts,mediaCleanup,
     ...(deliver
       ? await deliverNotifications(database)
       : { attempted: 0, sent: 0 }),

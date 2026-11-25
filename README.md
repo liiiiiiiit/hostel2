@@ -100,3 +100,5 @@ Task 02 extends the existing encrypted backup/restore implementation with atomic
 The opt-in staging-only admin tab and `demo:generate`, `demo:validate`, `demo:seed`, `demo:status`, `demo:cleanup` commands create persistent, interconnected synthetic fixtures through existing business services. Production/development/remote targets and external delivery credentials are refused. Imports are atomic and replay-safe; selected-batch cleanup protects edited/unowned data. Private test credentials live outside Git/app.
 
 Read [DEMO_DATA_MANAGER_FA.md](DEMO_DATA_MANAGER_FA.md) for exact staging/sandbox commands, counts, protected manifests and supported roles. [DEMO_DATA_VERIFICATION.md](DEMO_DATA_VERIFICATION.md) records actual persisted counts and executed tests. Never run the disposable fixed-path CI fixture on a VPS.
+
+Task 04 isolated platform QA: [confirmed fixes](QA04_BUG_REPORT.md), [executed tests and limits](QA04_TEST_RESULTS.md), [database integrity](QA04_DATABASE_INTEGRITY_REPORT.md), [security](QA04_SECURITY_REPORT.md), [راهنمای فارسی](QA04_RUNBOOK_FA.md).
