@@ -41,9 +41,9 @@ export async function providerAccounts(tx:Transaction,actor:User|null){
   const rows=(await tx.execute('SELECT u.id,u.name,u.email,u.phone,u.is_active,p.provider_role,p.organization FROM users u JOIN provider_accounts p ON p.user_id=u.id ORDER BY u.name,u.id')).rows;
   return rows.map(r=>({id:String(r.id),name:String(r.name),email:String(r.email),phone:String(r.phone??''),isActive:!!r.is_active,role:r.provider_role as 'job_provider'|'tour_provider',organization:String(r.organization)}));
 }
-export async function saveProvider(tx:Transaction,actor:User|null,input:z.infer<typeof providerInput>){
+export async function saveProvider(tx:Transaction,actor:User|null,input:z.infer<typeof providerInput>,createId:()=>string=randomUUID){
   if(actor?.role!=='admin')throw new Error('دسترسی مجاز نیست.');
-  const id=input.id??randomUUID();
+  const id=input.id??createId();
   if(input.id&&!(await tx.execute({sql:'SELECT user_id FROM provider_accounts WHERE user_id=?',args:[id]})).rows.length)throw new Error('دسترسی مجاز نیست.');
   if((!input.id||input.password)&&input.password.length<12)throw new Error('رمز عبور باید حداقل ۱۲ نویسه باشد.');
   if((await tx.execute({sql:'SELECT id FROM users WHERE email=? COLLATE NOCASE AND id<>?',args:[input.email,id]})).rows.length)throw new Error('این ایمیل قبلاً ثبت‌نام شده است.');

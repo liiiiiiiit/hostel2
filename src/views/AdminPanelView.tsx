@@ -1,3 +1,5 @@
+import {DemoDataManager} from '../components/DemoDataManager';
+import {demoText} from '../i18n/demo';
 import { ServicesAdmin } from '../components/ServicesAdmin';
 import { servicesText } from '../i18n/services';
 import { ProviderAccounts, providerWords } from '../components/ProviderAccounts';
@@ -17,7 +19,7 @@ import { PlatformSettings } from "../components/PlatformSettings";
 import { ReceptionPanel } from "../components/ReceptionPanel";
 import { FinancePanel } from "../components/FinancePanel";
 import { workflowText } from "../i18n/workflows";
-import React, { useState, useRef, useSyncExternalStore } from "react";
+import React, { useState, useRef, useSyncExternalStore, useEffect } from "react";
 import { PropertyManagementPanel } from "../components/PropertyManagementPanel";
 import {
   Compass,
@@ -62,6 +64,7 @@ interface Props {
   onNavigate: (view: string, params?: Record<string, string>) => void;
 }
 type Section =
+  | "demo"
   | "overview"
   | "bookings"
   | "properties"
@@ -95,6 +98,8 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const admin = adminText(currentLang);
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [section, setSection] = useState<Section>("overview");
+  const [demoAvailable,setDemoAvailable]=useState(false);
+  useEffect(()=>{let live=true;void fetch('/api/environment').then(r=>r.ok?r.json():null).then(v=>{if(live)setDemoAvailable(v?.environment==='staging'&&v?.demoTools===true);}).catch(()=>{});return()=>{live=false;};},[]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<BookingStatus | "all">("all");
   const actionLock = useRef(false);
@@ -191,6 +196,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       icon: <House size={17} />,
       count: inquiries.length,
     },
+    ...(demoAvailable?[{id:"demo" as const,label:demoText[currentLang].nav,icon:<Activity size={17}/>}]:[]),
     { id: "services", label: servicesText[currentLang].nav, icon: <Compass size={17}/> },
     { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
     { id: "providers", label: providerWords[currentLang].title, icon: <Users size={17} /> },
@@ -226,7 +232,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       label: admin.contentGroup,
       ids: ["rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
-    { label: admin.system, ids: ["audit", "profile"] },
+    { label: admin.system, ids: ["audit", "profile",...(demoAvailable?["demo"]:[])] },
   ];
   const organizedNav = navigationGroups.flatMap((group) =>
     group.ids.flatMap((id) => {
@@ -930,6 +936,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </>
         )}
+        {section === "demo" && demoAvailable && <DemoDataManager language={currentLang}/> }
         {section === "services" && <ServicesAdmin />}
         {section === "tours" && <ToursView mode="admin" />}
         {section === "providers" && <ProviderAccounts />}

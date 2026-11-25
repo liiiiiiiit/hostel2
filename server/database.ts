@@ -108,10 +108,10 @@ export class Database {
     const task=this.writeQueue.run(run);this.queue=task.catch(()=>{});return task;
   }
   /** Compatibility adapter for business operations; only changed selected rows persist. */
-  async transaction<T>(operation:(state:AppStoreState,tx:Transaction)=>Promise<T>, request?:RequestScope|{scope:Scope}):Promise<T> {
+  async transaction<T>(operation:(state:AppStoreState,tx:Transaction)=>Promise<T>, request?:RequestScope|{scope:Scope},options?:{retainExistingAuditRows?:boolean}):Promise<T> {
     return this.sqlTransaction(async tx=>{
       const scope=request ? 'scope' in request ? request.scope : await mutationScope(tx,request) : undefined;
-      const loaded=await loadState(tx,scope);this.contexts.set(tx,loaded);
+      const loaded=await loadState(tx,scope);loaded.retainExistingAuditRows=options?.retainExistingAuditRows;this.contexts.set(tx,loaded);
       try { const result=await operation(loaded.state,tx);loaded.state.currentUser=null;await flushState(tx,loaded);return result; }
       finally { this.contexts.delete(tx); }
     });

@@ -239,6 +239,7 @@ export interface LoadedState {
     state: AppStoreState;
     rows: Map<string, ResultSet>;
     baseline: Encoded;
+    retainExistingAuditRows?:boolean;
     legacyReviews: Map<string, string>;
 }
 export async function loadState(tx: Transaction, scope: Scope = {}): Promise<LoadedState> {
@@ -303,7 +304,11 @@ function orderRows(spec: TableSpec, next: Map<string, RowData>, existing: Map<st
     const orders = new Map<string, number>();
     for (const entries of groups.values()) {
         const known = entries.filter(([key]) => existing.has(key)).map(([key]) => existing.get(key)!);
-        const reordered = known.some((value, i) => i > 0 && value <= known[i - 1]);
+        // Equal ranks can be produced by additive SQL modules. Compare the actual
+        // key order rather than rewriting every tied row during an unchanged flush.
+        const knownKeys=entries.filter(([key])=>existing.has(key)).map(([key])=>key);
+        const selected=new Set(knownKeys),original=[...existing.keys()].filter(key=>selected.has(key));
+        const reordered=knownKeys.some((key,i)=>key!==original[i]);
         if (reordered) {
             entries.forEach(([key], i) => orders.set(key, low + i));
             continue;
@@ -367,7 +372,7 @@ export async function flushState(tx: Transaction, loaded: LoadedState) {
         await tx.batch(writes);
     if (deletes.length)
         await tx.batch(deletes);
-    if ((after.get('audit_logs')?.size ?? 0) > (loaded.baseline.get('audit_logs')?.size ?? 0))
+    if (!loaded.retainExistingAuditRows && (after.get('audit_logs')?.size ?? 0) > (loaded.baseline.get('audit_logs')?.size ?? 0))
         await tx.execute('DELETE FROM audit_logs WHERE id IN (SELECT id FROM audit_logs ORDER BY timestamp DESC,sort_order LIMIT -1 OFFSET 500)');
     loaded.baseline = after;
     for (const spec of tables)

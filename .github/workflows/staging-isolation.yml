@@ -28,4 +28,6 @@ jobs:
           test ! -e /opt/hostel2-staging
           sudo install -d -o "$USER" -g "$(id -gn)" /opt/hostel2-staging
       - name: Real isolated staging server and HTTPS proxy
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
         run: node scripts/staging-smoke.mjs
