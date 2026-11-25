@@ -1,0 +1,38 @@
+export const defaultDemoCounts = {
+  managers: 10,
+  hostels: 15,
+  roomTypes: 60,
+  travelers: 30,
+  rentals: 20,
+  rentalInquiries: 30,
+  employers: 15,
+  applicants: 40,
+  jobs: 30,
+  jobApplications: 80,
+  tourProviders: 10,
+  tours: 20,
+  tourBookings: 40,
+  services: 40,
+  serviceRequests: 30,
+  reservations: 60,
+  articles: 20,
+  reviews: 40,
+  coupons: 10,
+};
+export type Counts = typeof defaultDemoCounts;
+export const demoGroups = {
+  stays: [
+    "managers",
+    "hostels",
+    "roomTypes",
+    "travelers",
+    "reservations",
+    "reviews",
+  ],
+  rentals: ["rentals", "rentalInquiries"],
+  jobs: ["employers", "applicants", "jobs", "jobApplications"],
+  tours: ["tourProviders", "tours", "tourBookings"],
+  services: ["services", "serviceRequests"],
+  articles: ["articles"],
+  coupons: ["coupons"],
+} as const;

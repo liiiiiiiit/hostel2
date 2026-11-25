@@ -27,7 +27,12 @@
     "test:services": "node --import tsx scripts/services-browser-smoke.mjs",
     "test:header": "node scripts/header-layout-smoke.mjs",
     "test:built": "node scripts/built-client-smoke.mjs",
-    "test:isolation": "APP_ENV=testing node --import tsx --test server/environment.test.ts"
+    "test:isolation": "APP_ENV=testing node --import tsx --test server/environment.test.ts",
+    "demo:generate": "node --import tsx scripts/demo.ts generate",
+    "demo:validate": "node --import tsx scripts/demo.ts validate",
+    "demo:seed": "node --import tsx scripts/demo.ts seed",
+    "demo:status": "node --import tsx scripts/demo.ts status",
+    "demo:cleanup": "node --import tsx scripts/demo.ts cleanup"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

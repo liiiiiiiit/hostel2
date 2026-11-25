@@ -128,24 +128,25 @@ function record(
   b: Booking,
   action: string,
   reason: string,
+  now = new Date(),
 ) {
   b.history ??= [];
   b.history.push({
     id: crypto.randomUUID(),
-    at: new Date().toISOString(),
+    at: now.toISOString(),
     actorId: state.currentUser?.id ?? "guest",
     action,
     reason,
   });
-  b.updatedAt = new Date().toISOString();
+  b.updatedAt = now.toISOString();
   if (!action.startsWith("finance_")) b.versionToken = crypto.randomUUID();
 }
-function assertDates(from: string, to: string, earliest=addCalendarDays(yerevanToday(),-1)) {
+function assertDates(from: string, to: string, earliest:string|undefined=undefined,today=yerevanToday()) {
   if (
     calculateNights(from, to) < 1 ||
     calculateNights(from, to) > 90 ||
-    from < earliest ||
-    to > addCalendarDays(yerevanToday(), 89)
+    from < (earliest??addCalendarDays(today,-1)) ||
+    to > addCalendarDays(today, 89)
   )
     throw new Error("تاریخ اقامت معتبر نیست.");
 }
@@ -192,6 +193,7 @@ export async function operate(
   action: keyof typeof operationSchemas,
   args: unknown[],
 ): Promise<ActionResult> {
+  const clock=store.now(),today=yerevanToday(clock);
   const state = store.getState();
   const actor = state.currentUser;
   if (action === "updatePlatformSettings") {
@@ -219,7 +221,7 @@ export async function operate(
     if (!b || (b.travelerUserId && b.travelerUserId !== actor.id))
       return deny();
     b.travelerUserId = actor.id;
-    record(state, b, "claimed", "Private tracking token and verified account");
+    record(state, b, "claimed", "Private tracking token and verified account",clock);
     return { success: true };
   }
   if (action === "recordExternalBooking") {
@@ -227,7 +229,7 @@ export async function operate(
       typeof operationSchemas.recordExternalBooking
     >[0];
     if (!manages(state, input.hostelId)) return deny();
-    assertDates(input.checkIn, input.checkOut);
+    assertDates(input.checkIn, input.checkOut,undefined,today);
     const created = store.createBooking(input);
     if (!created.success || !created.booking)
       throw new Error(created.error ?? "درخواست انجام نشد.");
@@ -239,13 +241,13 @@ export async function operate(
     );
     if (!confirmed.success)
       throw new Error(confirmed.error ?? "ظرفیت کافی نیست.");
-    record(state, created.booking, "external", input.reason);
+    record(state, created.booking, "external", input.reason,clock);
     return created;
   }
   if (action === "blockUnits") {
     const input = args[0] as z.infer<typeof operationSchemas.blockUnits>[0];
     if (!manages(state, input.hostelId)) return deny();
-    assertDates(input.from, input.to);
+    assertDates(input.from, input.to,undefined,today);
     const mock = {
       hostelId: input.hostelId,
       roomTypeId: input.roomTypeId,
@@ -266,15 +268,15 @@ export async function operate(
       throw new Error("ظرفیت مسدودسازی با رزروهای موجود سازگار نیست.");
     state.unitBlocks!.push({
       ...input,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      id: store.uuid(),
+      createdAt: clock.toISOString(),
     });
     return { success: true };
   }
   if (action === "releaseUnitBlock") {
     const block = state.unitBlocks!.find((b) => b.id === args[0]);
     if (!block || !manages(state, block.hostelId)) return deny();
-    block.releasedAt = new Date().toISOString();
+    block.releasedAt = clock.toISOString();
     block.reason += " / " + args[1];
     return { success: true };
   }
@@ -285,23 +287,23 @@ export async function operate(
     if (action === "assignUnits") {
       unitsAvailable(state, b, args[1] as string[]);
       b.assignedUnitIds = args[1] as string[];
-      record(state, b, "assigned", "Physical units assigned");
+      record(state, b, "assigned", "Physical units assigned",clock);
       return { success: true };
     }
     const event = String(args[1]);
     if (event === "check_in") {
       if (
-        b.checkIn > yerevanToday() ||
-        b.checkOut <= yerevanToday() ||
+        b.checkIn > today ||
+        b.checkOut <= today ||
         b.checkedInAt
       )
         throw new Error("تاریخ یا وضعیت ورود معتبر نیست.");
       unitsAvailable(state, b, b.assignedUnitIds ?? [], b.checkIn, b.checkOut, true);
-      b.checkedInAt = new Date().toISOString();
+      b.checkedInAt = clock.toISOString();
     } else if (event === "check_out") {
       if (!b.checkedInAt || b.checkedOutAt)
         throw new Error("ابتدا ورود مهمان را ثبت کنید.");
-      b.checkedOutAt = new Date().toISOString();
+      b.checkedOutAt = clock.toISOString();
       const changed = store.updateBookingStatus(
         b.id,
         "completed",
@@ -309,7 +311,7 @@ export async function operate(
       );
       if (!changed.success) throw new Error(changed.error);
     } else {
-      if (b.checkedInAt || b.checkIn > yerevanToday())
+      if (b.checkedInAt || b.checkIn > today)
         throw new Error("وضعیت عدم حضور معتبر نیست.");
       const changed = store.updateBookingStatus(
         b.id,
@@ -318,7 +320,7 @@ export async function operate(
       );
       if (!changed.success) throw new Error(changed.error);
     }
-    record(state, b, event, String(args[2]));
+    record(state, b, event, String(args[2]),clock);
     return { success: true };
   }
   if (action === "requestBookingChange") {
@@ -328,7 +330,7 @@ export async function operate(
     >[1];
     if (!["pending", "confirmed"].includes(b.status))
       throw new Error("رزرو فعال نیست.");
-    assertDates(input.checkIn,input.checkOut,input.checkIn===b.checkIn?b.checkIn:undefined);
+    assertDates(input.checkIn,input.checkOut,input.checkIn===b.checkIn?b.checkIn:undefined,today);
     const hostel = state.hostels.find((h) => h.id === b.hostelId)!,
       room = hostel.roomTypes.find((r) => r.id === b.roomTypeId)!;
     const quantity=input.quantity??(input.guestsCount===b.guestsCount?b.quantity:requiredUnits(room,input.guestsCount));
@@ -388,7 +390,7 @@ export async function operate(
     if (!quote.isValidDates || !b.agreement)
       throw new Error("برای این رزرو امکان محاسبه تغییر وجود ندارد.");
     const proposal = {
-      id: crypto.randomUUID(),
+      id: store.uuid(),
       bookingId: b.id,
       ...input,
       quantity,
@@ -412,7 +414,7 @@ export async function operate(
       bookingVersion: b.versionToken ?? b.updatedAt,
       propertyVersion: hostel.updatedAt,
       requestedBy: actor?.id ?? "guest",
-      createdAt: new Date().toISOString(),
+      createdAt: clock.toISOString(),
       status: "proposed" as const,
     };
     state.bookingChanges!.push(proposal);
@@ -437,7 +439,7 @@ export async function operate(
       if (proposal.status !== "proposed")
         throw new Error("وضعیت پیشنهاد معتبر نیست.");
       proposal.status = "accepted";
-      proposal.guestAcceptedAt = new Date().toISOString();
+      proposal.guestAcceptedAt = clock.toISOString();
       return { success: true };
     }
     if (!manages(state, b.hostelId)) return deny();
@@ -445,7 +447,7 @@ export async function operate(
       if (["applied", "rejected"].includes(proposal.status))
         throw new Error("وضعیت پیشنهاد معتبر نیست.");
       proposal.status = "rejected";
-      record(state, b, "change_rejected", String(args[1]));
+      record(state, b, "change_rejected", String(args[1]),clock);
       return { success: true };
     }
     const hostel = state.hostels.find((h) => h.id === b.hostelId)!;
@@ -500,7 +502,7 @@ export async function operate(
     b.agreement = structuredClone(proposal.pricing);
     b.agreement.acceptedAt = proposal.guestAcceptedAt!;
     proposal.status = "applied";
-    record(state, b, "change_applied", String(args[1]));
+    record(state, b, "change_applied", String(args[1]),clock);
     return { success: true };
   }
   if (action === "recordFinanceEntry") {
@@ -537,7 +539,7 @@ export async function operate(
     )
       throw new Error("مبلغ معتبر نیست.");
     state.financeEntries!.push({
-      id: crypto.randomUUID(),
+      id: store.uuid(),
       bookingId: b.id,
       hostelId: b.hostelId,
       kind: args[1] as "property_payment" | "settlement" | "adjustment",
@@ -545,22 +547,22 @@ export async function operate(
       reason: String(args[3]),
       requestId: String(args[4]),
       actorId: actor!.id,
-      createdAt: new Date().toISOString(),
+      createdAt: clock.toISOString(),
     });
-    record(state, b, "finance_" + args[1], String(args[3]));
+    record(state, b, "finance_" + args[1], String(args[3]),clock);
     return { success: true };
   }
   if (action === "createSupportThread") {
     const b = authorizedBooking(state, String(args[0]));
-    const now = new Date().toISOString();
+    const now = clock.toISOString();
     const thread = {
-      id: crypto.randomUUID(),
+      id: store.uuid(),
       bookingId: b.id,
       category: args[1] as "arrival" | "change" | "question",
       status: "open" as const,
       messages: [
         {
-          id: crypto.randomUUID(),
+          id: store.uuid(),
           at: now,
           actorId: actor?.id ?? "guest",
           role: actor?.role ?? "guest",
@@ -582,10 +584,10 @@ export async function operate(
     if (!thread) throw new Error("درخواست یافت نشد.");
     const b = authorizedBooking(state, String(args[1]));
     if (b.id !== thread.bookingId) return deny();
-    const now = new Date().toISOString();
+    const now = clock.toISOString();
     if (action === "replySupportThread") {
       thread.messages.push({
-        id: crypto.randomUUID(),
+        id: store.uuid(),
         at: now,
         actorId: actor?.id ?? "guest",
         role: actor?.role ?? "guest",
@@ -597,7 +599,7 @@ export async function operate(
       if (thread.category === "arrival")
         b.entranceIssueReported = state.supportThreads!.some(item=>item.bookingId===b.id&&item.category==="arrival"&&item.status==="open");
       thread.messages.push({
-        id: crypto.randomUUID(),
+        id: store.uuid(),
         at: now,
         actorId: actor!.id,
         role: actor!.role,

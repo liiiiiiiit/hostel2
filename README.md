@@ -94,3 +94,9 @@ Task 02 extends the existing encrypted backup/restore implementation with atomic
 - Reviewed templates/manual-only copy tool: [ops/persistence](ops/persistence).
 - Focused regression checks: `node --import tsx --test server/persistence.test.ts server/backups.test.ts`.
 - Fixed production-path installation/rebuild/restart smoke: `scripts/persistence-smoke.mjs`, restricted to a **fresh disposable GitHub Actions runner**, never a VPS.
+
+### Staging synthetic data manager (Task 03)
+
+The opt-in staging-only admin tab and `demo:generate`, `demo:validate`, `demo:seed`, `demo:status`, `demo:cleanup` commands create persistent, interconnected synthetic fixtures through existing business services. Production/development/remote targets and external delivery credentials are refused. Imports are atomic and replay-safe; selected-batch cleanup protects edited/unowned data. Private test credentials live outside Git/app.
+
+Read [DEMO_DATA_MANAGER_FA.md](DEMO_DATA_MANAGER_FA.md) for exact staging/sandbox commands, counts, protected manifests and supported roles. [DEMO_DATA_VERIFICATION.md](DEMO_DATA_VERIFICATION.md) records actual persisted counts and executed tests. Never run the disposable fixed-path CI fixture on a VPS.

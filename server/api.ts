@@ -1,3 +1,4 @@
+import {mountDemoRoutes} from './demo/routes.js';
 import {assertRuntimeEnvironment,applicationEnvironment} from './environment.js';
 import { mountServiceRoutes } from './service-routes.js';
 import { ServiceError, serviceActionSchemas, serviceAction } from './services.js';
@@ -80,7 +81,7 @@ const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(
 export function createApi(database: Database) {
   assertRuntimeEnvironment();
   const app = express();
-  app.get('/api/environment',(_req,res)=>res.set('Cache-Control','no-store').json({environment:applicationEnvironment()}));
+  app.get('/api/environment',(_req,res)=>res.set('Cache-Control','no-store').json({environment:applicationEnvironment(),demoTools:applicationEnvironment()==='staging'&&process.env.DEMO_TOOLS_ENABLED==='true'}));
   app.disable('x-powered-by');
   if (process.env.VERCEL) app.set('trust proxy', 1);
   else if (process.env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
@@ -94,6 +95,7 @@ export function createApi(database: Database) {
     return sessionUser(tx,digest(token));
   };
   mountServiceRoutes(app,database,session);
+  mountDemoRoutes(app,database,session);
   app.get(paths, async (req, res, next) => {
     if (!req.query.media) { next(); return; }
     if (typeof req.query.media !== 'string' || !/^[a-f0-9-]{36}$/.test(req.query.media)) { res.sendStatus(404); return; }
