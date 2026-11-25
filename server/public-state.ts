@@ -1,7 +1,7 @@
 import type { AppStoreState } from "./domain.js";
 import type { ClientState, User } from "../src/types/index.js";
 import { addCalendarDays, yerevanToday } from "../src/utils/dates.js";
-import { peakBookedQuantity } from "../src/utils/pricing.js";
+import { peakBookedQuantity,inventoryBookings } from "../src/utils/pricing.js";
 
 export function publicState(
   state: AppStoreState,
@@ -80,12 +80,12 @@ export function publicState(
         const booked = peakBookedQuantity(
           date,
           addCalendarDays(date, 1),
-          state.bookings.filter(
+          inventoryBookings(state.bookings.filter(
             (b) =>
               b.hostelId === hostel.id &&
               b.roomTypeId === room.id &&
               b.status === "confirmed",
-          ),
+          )),
         );
         availability.push({
           hostelId: hostel.id,

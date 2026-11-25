@@ -14,7 +14,8 @@
       "codex/property-management-workflow": false,
       "codex/01-staging-environment": false,
       "codex/02-persistence-backup-recovery": false,
-      "codex/03-demo-data-manager": false
+      "codex/03-demo-data-manager": false,
+      "codex/04-full-platform-qa": false
     }
   },
   "rewrites": [

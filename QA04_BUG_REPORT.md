@@ -1,0 +1,21 @@
+# Task 04 — confirmed defects and remediation
+
+Baseline inspection: actual GitHub default branch `codex/fix-menu-desktop-site-20261124`, commit `fe1a6b3f7e55f71e51dfb23a694248826b434aa1`. Task 04 is deliberately stacked on Task 03 (`1fe522f87c9079ac4742c7245fb4420d7e853bbb`), because Tasks 01–03 provide the isolated environment, recovery tools and persistent synthetic data and are not merged into the default branch. Review/merge these prerequisites in order. Branch: `codex/04-full-platform-qa`. No production resources were inspected through SSH or modified.
+
+Architecture reviewed: React 19/TypeScript/Vite/Tailwind, Express action API, SQLite/libSQL relational/scoped transactions, scrypt passwords and hashed database sessions. Base roles admin/hostel_manager/traveler; job_provider/tour_provider are supported provider profiles. There is no invented job-seeker, rental-owner or service-provider role. Existing modules include listings, reservations, rental inquiries, jobs/applications, tours/bookings, services/requests, articles, reviews, coupons, media, notifications and demo provenance. See inherited audit and Tasks 01–03 reports for architecture and deployment history.
+
+| ID | Severity | Reproduction / root cause | Implemented correction | Regression |
+| --- | --- | --- | --- | --- |
+| QA04-01 | P1 | An occupied room with an overdue checked-in booking and no recorded checkout was reported free today. Inventory used only contractual checkout dates, including SQL public availability; confirming another booking and lowering capacity could ignore the guest. | `src/utils/pricing.ts` supplies effective inventory dates only; `server/domain.ts`, `server/public-state.ts`, `server/repository.ts` consistently reserve today's capacity until checkout. Financial and agreement dates remain unchanged. | Historical checked-in stay blocks today's search, booking and capacity reduction; recording checkout releases capacity. |
+| QA04-02 | P1 | A hostel manager's unused reset/verification token survived disable/re-enable. Account disabling revoked sessions but omitted auth tokens. | `server/api.ts` invalidates unused auth tokens in the same transaction as disabling the manager. | Reset issued before disable cannot reset password after re-enable. |
+| QA04-03 | P1 | Injected SQL commit failure after media deletion restored metadata but not the already unlinked file. Filesystem deletion cannot roll back with SQL. | New `server/media-cleanup.ts` commits logical removal and a durable deletion intent atomically. API/worker drain only committed intents. Restore-specific storage scope prevents copies deleting source assets; reattached assets cancel intent and restore metadata. | Failed logical commit preserves bytes; failed cleanup commit retries safely; reattachment cancels; separate-target restore cannot unlink originals; additive migration requires verified backup. |
+
+Evidence: first reproduction run against the baseline failed exactly the three defect cases and passed the existing malformed/oversized JSON case. Post-fix focused suite passed 8/8; full suite passed 212/212. Malformed JSON handling was already correct and is not reported as a new fix.
+
+## Scope and operational constraints
+
+Inventory policy is conservative for the current Yerevan day. It does not extend financial agreements or automatically resolve pre-existing future reservations conflicting with an overstay. Staff must record checkout or resolve those conflicts. Pending unconfirmed bookings follow existing inventory policy; confirmation arbitrates availability.
+
+Media schema upgrade is additive (`media_deletions`, module marker `media-cleanup-v1`). Existing assets, content, IDs, password hashes and agreements are retained. Managed persistence requires a verified pre-migration backup. Queue scopes include database identity, media path and credential identity; path/token rotation or restore quarantines old-scope intents rather than deleting unrelated storage. Review retained intents manually after such changes; do not rewrite scopes blindly. Actual production storage/credentials are not available to this audit.
+
+No claim of complete security or complete device coverage. See QA04_TEST_RESULTS.md and QA04_SECURITY_REPORT.md for executed checks and limits.

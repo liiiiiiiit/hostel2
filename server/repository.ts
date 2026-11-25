@@ -223,11 +223,11 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         const group = ids.slice(offset, offset + 200);
         const rows = (await tx.execute({ sql: `WITH RECURSIVE dates(day,n) AS (SELECT ?,0 UNION ALL SELECT date(day,'+1 day'),n+1 FROM dates WHERE n<90)
       SELECT r.hostel_id,r.id AS room_type_id,d.day AS date,COALESCE(c.capacity,r.total_beds_or_rooms) AS capacity,
-        (SELECT COALESCE(SUM(b.quantity),0) FROM bookings b WHERE b.hostel_id=r.hostel_id AND b.room_type_id=r.id AND b.status='confirmed' AND b.check_in<=d.day AND b.check_out>d.day) AS booked,
+        (SELECT COALESCE(SUM(b.quantity),0) FROM bookings b WHERE b.hostel_id=r.hostel_id AND b.room_type_id=r.id AND b.status='confirmed' AND b.check_in<=d.day AND (b.check_out>d.day OR (b.checked_in_at IS NOT NULL AND b.checked_out_at IS NULL AND d.day=?))) AS booked,
         (SELECT COALESCE(SUM((SELECT COUNT(*) FROM unit_block_units bu WHERE bu.block_id=u.id)),0) FROM unit_blocks u WHERE u.hostel_id=r.hostel_id AND u.room_type_id=r.id AND u.released_at IS NULL AND u."from"<=d.day AND u."to">d.day) AS blocked
       FROM room_types r JOIN properties p ON p.kind='hostel' AND p.id=r.hostel_id CROSS JOIN dates d
       LEFT JOIN capacity_overrides c ON c.hostel_id=r.hostel_id AND c.room_type_id=r.id AND c.date=d.day
-      WHERE COALESCE(p.public_preview,0)=0 AND r.hostel_id IN (${group.map(() => '?').join(',')}) ORDER BY p.sort_order,r.sort_order,d.day`, args: [addCalendarDays(yerevanToday(), -1), ...group] })).rows;
+      WHERE COALESCE(p.public_preview,0)=0 AND r.hostel_id IN (${group.map(() => '?').join(',')}) ORDER BY p.sort_order,r.sort_order,d.day`, args: [addCalendarDays(yerevanToday(), -1),yerevanToday(), ...group] })).rows;
         for (const row of rows)
             availability.push({ hostelId: String(row.hostel_id), roomTypeId: String(row.room_type_id), date: String(row.date), capacity: Number(row.capacity), booked: Number(row.booked), available: Math.max(0, Number(row.capacity) - Number(row.booked) - Number(row.blocked)) });
     }
