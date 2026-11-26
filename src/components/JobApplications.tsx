@@ -15,12 +15,13 @@ export function ApplyForJob({job,onApplied}: {job: JobPosting;onApplied?:()=>voi
   const [open,setOpen] = useState(false), [busy,setBusy] = useState(false);
   const [reference,setReference] = useState(''), [error,setError] = useState('');
   const user=appStore.getCurrentUser(), st=seekerText[currentLang];
-  const [seeker,setSeeker]=useState<SeekerState|null>(null);
-  useEffect(()=>{let live=true;setSeeker(null);if(open&&user)loadSeeker().then(data=>{if(live)setSeeker(data);}).catch(()=>{if(live)setError(st.error);});return()=>{live=false;};},[open,user?.id,st.error]);
+  const [seeker,setSeeker]=useState<SeekerState|null>(null),[loadFailed,setLoadFailed]=useState(false);
+  useEffect(()=>{let live=true;setSeeker(null);setLoadFailed(false);if(open&&user)loadSeeker().then(data=>{if(live)setSeeker(data);}).catch(()=>{if(live){setLoadFailed(true);setError(st.error);}});return()=>{live=false;};},[open,user?.id,st.error]);
+  const preparing=Boolean(open&&user&&!seeker&&!loadFailed);
   const attempt = useRef({body:'',id:''});
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || preparing) return;
     const form = new FormData(event.currentTarget);
     const contact = String(form.get('contact')).trim();
     if (!isTourPhone(contact) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) {
@@ -38,9 +39,10 @@ export function ApplyForJob({job,onApplied}: {job: JobPosting;onApplied?:()=>voi
   }
   if (reference) return <div role="status" className="rounded-xl border p-4"><p>{t.success}</p>
     <p>{t.reference} · <code className="select-all break-all" dir="ltr">{reference}</code></p></div>;
-  if (!open) return <button type="button" className="button-primary" onClick={()=>setOpen(true)}>{t.apply}</button>;
+  if (!open) return <button type="button" className="button-primary" onClick={()=>{setLoadFailed(false);setOpen(true);}}>{t.apply}</button>;
   return <form onSubmit={submit} className="space-y-3 border-t pt-4">
-    <fieldset disabled={busy} className="grid gap-3">
+    {preparing&&<p role="status">{st.loading}</p>}
+    <fieldset disabled={busy||preparing} className="grid gap-3 min-w-0">
       <label>{t.name}<input className="field w-full" key={seeker?.profile.fullName??''} defaultValue={seeker?.profile.fullName??user?.name??''} name="name" required maxLength={120} autoComplete="name"/></label>
       <label>{t.contact}<input className="field w-full" key={seeker?.profile.contact??''} defaultValue={seeker?.profile.contact??user?.email??''} name="contact" required maxLength={250} dir="auto"/></label>
       <label>{t.message}<textarea className="field w-full" name="message" maxLength={3000} rows={4}/></label>
@@ -49,7 +51,7 @@ export function ApplyForJob({job,onApplied}: {job: JobPosting;onApplied?:()=>voi
       <label className="flex items-start gap-2"><input type="checkbox" required name="consent"/>{st.consent}</label>
     </fieldset>
     {error && <p role="alert">{error}</p>}
-    <div className="flex flex-wrap gap-2"><button className="button-primary" disabled={busy}>{t.send}</button>
+    <div className="flex flex-wrap gap-2"><button className="button-primary" disabled={busy||preparing}>{t.send}</button>
       <button type="button" className="button-secondary" disabled={busy} onClick={()=>{setOpen(false);setError('');}}>{jobsText[currentLang].cancel}</button></div>
   </form>;
 }

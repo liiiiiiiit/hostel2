@@ -81,7 +81,7 @@ export function JobsView({ mode, jobId }: {
           <p>{t.salary} · <strong>{job.salary === null ? t.negotiable : job.salary.toLocaleString(currentLang) + ' / ' + t[job.period]}</strong></p>
           <p dir="auto">{job.schedule}</p><p className="whitespace-pre-line" dir="auto">{job.description}</p>
           <p><strong>{t.contact}</strong> · <bdi>{job.contact}</bdi></p>
-          {!managing && <ApplyForJob job={job} />}
+          {!managing && <ApplyForJob key={state.currentUser?.id??'guest'} job={job} />}
           {managing && <JobApplicants applications={(state.jobApplications ?? []).filter(item => item.jobId === job.id)} />}
           {managing && job.approved===false && <p>{p.waiting}</p>}
           {managing && <button className="button-secondary" onClick={() => edit(job)}>{t.edit}</button>}
