@@ -68,3 +68,16 @@ Existing header/login, admin Jobs section, cards, controls, themes and four loca
 Demo recipe v3 adds organization profiles, private notes, shortlist stages, publication variants and fictional proposed interviews. Recipes v1/v2 remain byte-identical and existing imported batches are not silently enriched. Historical base dates do not force illegal past interview proposals: only future proposals passing the normal service rules are generated. All fixtures remain staging/testing-only, offline, reserved-domain and persist through the existing provenance/backup system. No fictional production records.
 
 Known limits: CV remains Task06 simple PDF-only (2 MiB, three/account), no antivirus certification, no candidate RSVP/automated notification, no realtime push and no real-device/screen-reader certification. Backup JSON size cap must be monitored as resumes/events grow. Rollback to old code against an in-use new database is unsafe because old code ignores stages/expiration and cannot audit correctly; follow separate-target recovery and reconciliation instructions. No production deployment or data change was performed.
+
+## Changed-file inventory
+
+- New native module and regressions: `server/recruitment-storage.ts`, `server/recruitment.ts`, `server/recruitment.test.ts`.
+- Authorization, API, migration and persistence integration: `server/action-authorization.ts`, `server/api.ts`, `server/database.ts`, `server/persistence.ts`, `server/repository.ts`, `scripts/database.ts`.
+- Existing business workflows: `server/job-postings.ts`, `server/job-applications.ts`, `server/job-seekers.ts`, `server/job-seeker-routes.ts`, `server/provider-accounts.ts`.
+- Fixtures/provenance: `server/demo/fixtures.ts`, `server/demo/manager.ts`, `server/demo/materialize.ts`, `server/demo.test.ts`.
+- UI/shared policy/types/locales: `src/views/RecruitmentView.tsx`, `src/views/JobsView.tsx`, `src/views/JobSeekerView.tsx`, `src/components/JobApplications.tsx`, `src/utils/recruitment.ts`, `src/types/recruitment.ts`, `src/types/index.ts`, `src/types/jobSeeker.ts`, `src/i18n/recruitment.ts`, `src/i18n/jobApplications.ts`.
+- Actual browser regressions: `scripts/recruitment-browser-smoke.mjs`, `scripts/provider-browser-smoke.mjs`, `scripts/staging-smoke.mjs`.
+- Preview deployment guard: `server/environment.ts`, `vercel.json`.
+- Review/operations documentation: the five `EMPLOYER_RECRUITMENT_*.md` files.
+
+The refresh regression prevents sequential mutations from using the preceding job/application version while the dashboard reloads. Mutation controls remain disabled until fresh data arrives; native optimistic checks remain authoritative. The existing provider browser assertion is scoped to the job card because the new publication filter has an identically translated option. No authorization assertion was removed.

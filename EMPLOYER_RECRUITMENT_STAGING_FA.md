@@ -1,6 +1,6 @@
 # استقرار امن TASK 07 در staging اوبونتو
 
-این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. کد تأییدشدهٔ این تسک `TASK07_REVIEWED_SOURCE` است؛ نتایج واقعی workflow آن پس از اجرا ثبت می‌شود؛ لینک نتایج در `EMPLOYER_RECRUITMENT_TEST_RESULTS.md` آمده است. نسخهٔ Task 06 مبنا `94cbb677b41255d0fae0383cbb6a573c72361d15` است و PR آن هنوز merge نشده است. شاخهٔ Task 07 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
+این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. کد تأییدشدهٔ این تسک `61417fbf74a7b74f2a4f8528ca6bab3159b3d753` است؛ تست staging واقعی آن موفق شده است؛ لینک نتایج در `EMPLOYER_RECRUITMENT_TEST_RESULTS.md` آمده است. نسخهٔ Task 06 مبنا `94cbb677b41255d0fae0383cbb6a573c72361d15` است و PR آن هنوز merge نشده است. شاخهٔ Task 07 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
 
 ## بررسی پیش‌نیازها
 
@@ -27,7 +27,7 @@ set -euo pipefail
 export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 git fetch origin refs/heads/codex/07-employer-recruitment-dashboard
-git checkout --detach TASK07_REVIEWED_SOURCE
+git checkout --detach 61417fbf74a7b74f2a4f8528ca6bab3159b3d753
 npm ci --include=dev
 npm run lint
 npm run build
@@ -74,7 +74,7 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/07-employer-recruitment-dashboard
-git switch --detach TASK07_REVIEWED_SOURCE
+git switch --detach 61417fbf74a7b74f2a4f8528ca6bab3159b3d753
 npm ci --include=dev
 npm run lint
 npm run build
@@ -136,7 +136,7 @@ SH
 
 ## بکاپ، ظرفیت و rollback
 
-زمان‌بندی بکاپ موجود را نگه دارید. رزومهٔ PDF داخل بکاپ رمزگذاری‌شده می‌آید. سقف فعلی `BACKUP_MAX_BYTES` پیش‌فرض 64 MiB از JSON سریال‌شده است؛ با رشد رزومه‌ها اندازهٔ واقعی بکاپ را پایش کنید، محدودیت و فضای دیسک را آگاهانه تنظیم کنید و موفقیت verification را بررسی کنید. فایل/کلید بکاپ را عمومی نکنید. کد بازیابی این تسک اصلاح شده تا ایندکس‌های FK پیش از درج رکوردها وجود داشته باشند.
+زمان‌بندی بکاپ موجود را نگه دارید. رزومهٔ PDF داخل بکاپ رمزگذاری‌شده می‌آید. سقف فعلی `BACKUP_MAX_BYTES` پیش‌فرض 64 MiB از JSON سریال‌شده است؛ با رشد رزومه‌ها اندازهٔ واقعی بکاپ را پایش کنید، محدودیت و فضای دیسک را آگاهانه تنظیم کنید و موفقیت verification را بررسی کنید. فایل/کلید بکاپ را عمومی نکنید. کد بازیابی موجود در مبنای Task 06، ایندکس‌های FK را پیش از درج رکوردها می‌سازد؛ تست بازیابی این تسک نیز از همان مسیر استفاده می‌کند.
 
 در شکست migration، سرویس خاموش بماند؛ تراکنش شکست‌خورده تغییرات جدید را rollback می‌کند. دیتابیس را پاک نکنید. برای بازیابی فقط به مقصد خالی و جداگانه:
 
