@@ -40,7 +40,7 @@ export const HomeView: React.FC<Props> = ({ currentLang, hostels, rentals, artic
   const text = publicSiteText(currentLang);
   const ux = homeExperience(currentLang);
   const listings = homeListings[currentLang], jobCopy = jobsText[currentLang], tourCopy = toursText[currentLang];
-  const featuredJobs = jobs.filter(job => job.status === 'open' && job.approved !== false).slice(0,6);
+  const featuredJobs = jobs.filter(job => job.status === 'open' && job.approved !== false && job.acceptingApplications !== false).slice(0,6);
   const featuredTours = tours.filter(tour => tour.published && !tour.hidden && tour.approved !== false).slice(0,6);
   const serviceCopy=servicesText[currentLang];
   const featuredServices=services.filter(s=>s.isActive&&serviceCategories.some(c=>c.id===s.categoryId&&c.isActive)).sort((a,b)=>Number(b.isFeatured)-Number(a.isFeatured)||b.updatedAt.localeCompare(a.updatedAt)).slice(0,6);

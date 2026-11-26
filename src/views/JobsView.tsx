@@ -28,7 +28,7 @@ export function JobsView({ mode, jobId }: {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const managing = mode !== 'public';
-  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open' && job.approved!==false);
+  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open' && job.approved!==false && job.acceptingApplications!==false);
   function edit(job?: JobPosting) {
     setMessage('');
     setDraft(job ? { ...job } : fresh());

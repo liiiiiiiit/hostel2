@@ -244,4 +244,11 @@ test('live sessions and employer resource ownership gate private downloads and c
     assert.equal((await a.c.action('saveSeekerJob', [job.id, true])).status, 403);
     await f.db.client.execute({ sql: 'UPDATE users SET is_active=0 WHERE id=?', args: [ids[0]] });
     assert.equal((await one.request('/api/job-applications/' + ref + '/resume')).status, 403);
+    const managed=(await f.admin.get('/api/app')).data.state.jobs.find((j:{id:string})=>j.id===job.id);assert.equal(managed.manageable,true);assert.equal(managed.acceptingApplications,false,'An inactive employer listing remains manageable but cannot be offered to job seekers');
+    assert(!(await f.client().get('/api/app')).data.state.jobs.some((j:{id:string})=>j.id===job.id));
+    assert.equal((await f.client().action('applyForJob',[f.input(job.id,{version:2})])).status,400);
+    await f.db.client.execute({sql:'UPDATE users SET is_active=1 WHERE id=?',args:[ids[0]]});
+    assert.equal((await f.admin.get('/api/app')).data.state.jobs.find((j:{id:string})=>j.id===job.id).acceptingApplications,true);
+    await f.db.sqlTransaction(tx=>saveJob(tx,f.adminUser,{...job,version:2,approved:false}));
+    assert.equal((await f.admin.get('/api/app')).data.state.jobs.find((j:{id:string})=>j.id===job.id).acceptingApplications,false);
 });

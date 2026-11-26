@@ -389,6 +389,8 @@ export interface JobApplication {
 }
 
 export interface JobPosting {
+  /** Server-derived public eligibility; management visibility does not imply availability. */
+  acceptingApplications?:boolean;
   approved?:boolean;
   id: string; version: number; manageable: boolean;
   title: string; company: string; location: string; schedule: string; description: string; contact: string;
