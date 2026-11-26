@@ -36,7 +36,7 @@ The new UI suite checks nine widths (320/360/390/430/640/768/820/1024/1366), fou
 
 No real Android/iPad hardware run, screen-reader audit, antivirus service or uncontrolled load test. PDF validation deliberately restricts supported formats and is not malware certification. No historical guest application claim feature. Minimum-salary filter does not normalize daily/monthly/hourly salaries. Consent is necessary for authenticated submissions; legacy guest API payloads remain compatible. Existing backup size cap requires operational monitoring as private resumes accumulate. No live deployment executed.
 
-## Completed GitHub Actions evidence
+## Completed GitHub Actions evidence — initial delivery
 
 All three workflows completed successfully for verified source commit **`6390486f81130a60323a9f26c4160c98991ea516`**:
 
@@ -47,3 +47,25 @@ All three workflows completed successfully for verified source commit **`6390486
 | [Persistence and recovery](https://github.com/liiiiiiiit/hostel2/actions/runs/45767304588) | Success: 17 targeted tests and real managed-path WAL-safe relocation, credential/media preservation, guarded offline migration, installation/rebuild/restart, login/session/media, encrypted backup and separate-target recovery/schema health. |
 
 The documentation completion commit after this source changes only reports/deployment text, with no source/config/test changes. Deployment instructions intentionally pin the source commit above. The local browser launch failure remains recorded honestly; browser success comes from the actual completed CI jobs, not from the local build. No live VPS deployment, real device validation, public certificate issuance or production database manipulation was performed.
+
+## Task06 requirement recheck
+
+Rechecked the complete prompt against code, schema, ownership/consent rules, UI, seed recipes, API/operational docs and actual CI. The original documentation head `36b14ed2abf3d92e6f97454ba2d519ddc6414200` also completed all three workflows successfully (runs 45767952733, 45767952842, 45767952757). Success did not cover every UI interaction: the recheck found P2 unsaved-skills loss across tab changes.
+
+Reproduction commit `c9b45a511d9f9d6c289fd204d0f4d82fdb547e04` adds a browser regression before the fix. [Staging run 45768862928](https://github.com/liiiiiiiit/hostel2/actions/runs/45768862928) failed as expected on `Unsaved skills must survive switching dashboard tabs`: actual `''`, expected `'Hospitality, Teamwork'`. The native 233 tests/lint/build passed on that reproduction, demonstrating why those checks alone were insufficient.
+
+Fix `cba6c720e66f1cfc0a21e52d2564c9c19eb91871` moves the editable skills string into React state and parses it on profile save. No DB/API/auth/dependency changes. Locally reran lint, all 233 tests and build successfully after the fix. Full requirement-by-requirement Persian assessment: `JOB_SEEKER_REQUIREMENTS_RECHECK_FA.md`. Final browser/CI evidence follows after actual execution.
+
+A second P2 consistency defect was reproduced in the isolated API test: admin management state contains an inactive employer's approved/open job, but public job seeker/home/catalog filters previously could not distinguish that record from an accepting listing. The API already refused its applications. Added a server-derived `acceptingApplications` response field and matching display filters; management visibility remains intact. The regression checks inactive ownership, guest invisibility, refused applications, reactivation and unpublication. `node --import tsx --test server/job-seekers.test.ts`: before correction six passed/one failed on missing false eligibility; after correction seven passed/zero failed. Final local lint, all 233 tests and build passed. No schema/permission/dependency/env changes.
+
+## Final recheck evidence — source 5801342
+
+Verified source: **`5801342ad516575e840bdd8a362bb4c25aacfc4b`**. All three workflows completed successfully:
+
+| Workflow | Actual result |
+|---|---|
+| [Browser / responsive / WebKit](https://github.com/liiiiiiiit/hostel2/actions/runs/45842248791) | Success: all six jobs including browser/provider/services/header/hero/schema checks, all four responsive locales and iPad WebKit. |
+| [Isolated staging and job seeker regression](https://github.com/liiiiiiiit/hostel2/actions/runs/45842248793) | Success: 233 tests, real protected staging, seeded ecosystem, restart/recovery, and actual job seeker browser flow including the previously failing unsaved-skills tab round trip and 112 layouts. |
+| [Managed persistence and recovery](https://github.com/liiiiiiiit/hostel2/actions/runs/45842248683) | Success: targeted tests and managed-path migration, rebuild/restart, encrypted backup and separate-target recovery. |
+
+The post-fix source includes the inactive-employer eligibility API assertions; all 233 tests passed both locally and in CI. Deployment documentation now pins this source, superseding the earlier 6390486 release pin. The subsequent commit only completes requirement/API/architecture/test/deployment documentation and adds the Persian recheck matrix; no functional code differs from the verified source. No production changes, automatic merge or deployment performed.

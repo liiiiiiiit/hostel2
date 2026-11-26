@@ -64,14 +64,16 @@ Disabled/revoked/expired sessions fail server-side. No historical claim API exis
 
 ## Changed-file inventory
 
-39 intentional files; no dependency lockfile, database, media, credential manifest or secret changes.
+42 intentional files; no dependency lockfile, database, media, credential manifest or secret changes.
 
 | Area | Files |
 |---|---|
 | Native model/routes and regression fixtures | `server/job-seekers.ts`, `server/job-seeker-routes.ts`, `server/job-seekers.test.ts`, `server/resume-fixtures.ts` |
-| API, authorization and persistence integration | `server/api.ts`, `server/action-authorization.ts`, `server/database.ts`, `server/persistence.ts`, `server/repository.ts`, `server/job-applications.ts`, `server/backups.ts`, `server/locale.ts`, `scripts/database.ts` |
+| API, authorization and persistence integration | `server/api.ts`, `server/action-authorization.ts`, `server/database.ts`, `server/persistence.ts`, `server/repository.ts`, `server/job-applications.ts`, `server/job-postings.ts`, `server/backups.ts`, `server/locale.ts`, `scripts/database.ts` |
 | Synthetic compatibility and materialization | `server/demo/fixtures.ts`, `server/demo/manager.ts`, `server/demo/materialize.ts`, `server/demo.test.ts` |
 | Frontend workspace | `src/views/JobSeekerView.tsx`, `src/services/jobSeeker.ts`, `src/services/jobSeeker.test.ts`, `src/types/jobSeeker.ts`, `src/i18n/jobSeeker.ts` |
-| Existing frontend integration | `src/App.tsx`, `src/components/Header.tsx`, `src/components/JobApplications.tsx`, `src/views/JobsView.tsx`, `src/utils/navigation.ts`, `src/types/index.ts`, `src/i18n/jobApplications.ts` |
+| Existing frontend integration | `src/App.tsx`, `src/components/Header.tsx`, `src/components/JobApplications.tsx`, `src/views/JobsView.tsx`, `src/views/HomeView.tsx`, `src/utils/navigation.ts`, `src/types/index.ts`, `src/i18n/jobApplications.ts` |
 | Browser/CI entry points and preview prevention | `scripts/job-seeker-browser-smoke.mjs`, `scripts/staging-smoke.mjs`, `scripts/provider-browser-smoke.mjs`, `server/environment.ts`, `vercel.json` |
-| Delivery documents | `JOB_SEEKER_ARCHITECTURE.md`, `JOB_SEEKER_API.md`, `JOB_SEEKER_GUIDE_FA.md`, `JOB_SEEKER_STAGING_DEPLOYMENT_FA.md`, `JOB_SEEKER_TEST_RESULTS.md` |
+| Delivery documents | `JOB_SEEKER_ARCHITECTURE.md`, `JOB_SEEKER_API.md`, `JOB_SEEKER_GUIDE_FA.md`, `JOB_SEEKER_STAGING_DEPLOYMENT_FA.md`, `JOB_SEEKER_TEST_RESULTS.md`, `JOB_SEEKER_REQUIREMENTS_RECHECK_FA.md` |
+
+The requirement recheck also identified unsaved skills being held only in an unmounted DOM input; their draft now lives in React state. Job responses now include optional server-derived `acceptingApplications`: admin management visibility does not imply that an inactive employer listing can be offered on job seeker/public/home views. The backend already rejected such applications; the new flag aligns those displays with the existing application rule. Neither recheck fix changes schema, roles, dependencies or environment variables.

@@ -1,6 +1,6 @@
 # استقرار امن TASK 06 در staging اوبونتو
 
-این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. کد تأییدشدهٔ این تسک `6390486f81130a60323a9f26c4160c98991ea516` است؛ هر سه workflow آن موفق‌اند و لینک نتایج در `JOB_SEEKER_TEST_RESULTS.md` آمده است. نسخهٔ Task 05 مبنا `76868bd62899aed959e75d5d410fc68ba41c2b31` است و PR آن هنوز merge نشده است. شاخهٔ Task 06 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
+این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. کد تأییدشدهٔ این تسک `5801342ad516575e840bdd8a362bb4c25aacfc4b` است؛ هر سه workflow آن موفق‌اند و لینک نتایج در `JOB_SEEKER_TEST_RESULTS.md` آمده است. نسخهٔ Task 05 مبنا `76868bd62899aed959e75d5d410fc68ba41c2b31` است و PR آن هنوز merge نشده است. شاخهٔ Task 06 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
 
 ## بررسی پیش‌نیازها
 
@@ -27,7 +27,7 @@ set -euo pipefail
 export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 git fetch origin refs/heads/codex/06-job-seeker-dashboard
-git checkout --detach 6390486f81130a60323a9f26c4160c98991ea516
+git checkout --detach 5801342ad516575e840bdd8a362bb4c25aacfc4b
 npm ci --include=dev
 npm run lint
 npm run build
@@ -74,7 +74,7 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/06-job-seeker-dashboard
-git switch --detach 6390486f81130a60323a9f26c4160c98991ea516
+git switch --detach 5801342ad516575e840bdd8a362bb4c25aacfc4b
 npm ci --include=dev
 npm run lint
 npm run build
