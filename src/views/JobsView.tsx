@@ -1,3 +1,4 @@
+import {seekerText} from '../i18n/jobSeeker';
 import {can} from '../utils/authorization';
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
@@ -52,6 +53,7 @@ export function JobsView({ mode, jobId }: {
   const Heading = mode === 'admin' ? 'h2' : 'h1';
   return <section className={mode === 'admin' ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
+      {mode==='public'&&<a className="button-secondary" href="#/job-seeker">{seekerText[currentLang].panel}</a>}
       <Heading className="text-2xl font-bold">{mode === 'public' ? t.jobs : mode === 'admin' ? t.manage : t.employer}</Heading>
       {managing && state.currentUser && !draft && <button className="button-primary" onClick={() => edit()}>{t.add}</button>}
     </header>

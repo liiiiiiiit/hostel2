@@ -16,7 +16,8 @@
       "codex/02-persistence-backup-recovery": false,
       "codex/03-demo-data-manager": false,
       "codex/04-full-platform-qa": false,
-      "codex/05-rbac-authorization": false
+      "codex/05-rbac-authorization": false,
+      "codex/06-job-seeker-dashboard": false
     }
   },
   "rewrites": [

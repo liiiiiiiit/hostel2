@@ -225,6 +225,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     provider_accounts: 25,
     job_postings: 30,
     job_applications: 80,
+    job_seeker_profiles:30, job_seeker_skills:60,job_seeker_languages:60,job_seeker_experience:30,job_seeker_education:30,job_seeker_documents:3,saved_jobs:60,account_job_applications:30,
     tour_listings: 20,
     tour_bookings: 40,
     service_listings: 40,

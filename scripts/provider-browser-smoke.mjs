@@ -59,6 +59,7 @@ try{
   await navigate(guest,'jobs');const job=guest.locator('article').filter({hasText:'Browser audited job'});
   await job.getByRole('button',{name:'Apply for this job',exact:true}).click();
   await job.locator('input[name="name"]').fill('Browser applicant');await job.locator('input[name="contact"]').fill('applicant@audit.test');await job.locator('textarea').fill('Available immediately');
+  await job.locator('input[name="consent"]').check();
   const application=await mutation(guest,'applyForJob',()=>job.locator('form button[type="submit"], form button:not([type])').first().click());
   assert(application.applicationReference);await employer.reload();await employer.locator('article details summary').click();
   await employer.getByRole('heading',{name:'Browser applicant'}).waitFor();

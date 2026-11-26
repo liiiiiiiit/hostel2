@@ -160,8 +160,8 @@ async function getBatch(tx: Transaction, id: string) {
   if (!row) throw Error("Unknown synthetic batch.");
   const plan = JSON.parse(String(row.plan_json)) as DemoPlan;
   if (
-    planHash(plan) !== row.recipe_hash ||
-    planHash(generatePlan(plan.config)) !== row.recipe_hash
+    ![1,2].includes(plan.version)||planHash(plan) !== row.recipe_hash ||
+    planHash(generatePlan(plan.config,plan.version)) !== row.recipe_hash
   )
     throw Error("Stored batch recipe is invalid.");
   return { row, plan };
