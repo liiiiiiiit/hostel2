@@ -46,8 +46,21 @@ Explicit role changes update the existing role/profile model. Removing a provide
 
 ## Synthetic fixtures and rollback limits
 
-The generator already provisions providers through native saveProvider and managers through supported services; no new synthetic roles are needed. Their creation now produces tracked security audit rows. The old API legacy-listing fixture now explicitly models pre-upgrade migration, rather than expecting new ownership to create privileges after migration. Existing provenance validation, idempotent import and conservative cleanup remain tested. Explicit account/role edits make an imported batch changed; do not force-clean it.
+The generator already provisions providers through native saveProvider and managers through supported services; no new synthetic roles are needed. Provider creation now produces tracked security events; manager creation retains its native audit and API creation also records a security event. The old API legacy-listing fixture now explicitly models pre-upgrade migration, rather than expecting new ownership to create privileges after migration. Existing provenance validation, idempotent import and conservative cleanup remain tested. Explicit account/role edits make an imported batch changed; do not force-clean it.
 
 Do not drop the new tables/marker or roll back to code that re-infers privileges from ownership: revoked historical provider access could reappear. A safe rollback must retain this security behavior (forward patch), or remain offline until compatible code is prepared. Restoring an old database over current records is not a code rollback. Keep verified backups and restore only to separate targets for investigation.
 
 No new environment variables or npm commands. New API action/GET route and administrator UI only. Existing `db:migrate`, `db:check`, backup/restore and demo tools handle the additive module.
+
+## Intentional changed-file map
+
+- Shared policy/types: `src/utils/authorization.ts`, `src/types/index.ts`.
+- SQL policy/migration/assignment/audit and exhaustive API policies: `server/authorization.ts`, `server/action-authorization.ts`, `server/api.ts`.
+- Native and read-scope integration: `server/provider-accounts.ts`, `job-postings.ts`, `job-applications.ts`, `tours.ts`, `tour-bookings.ts`, `services.ts`, `service-routes.ts`, `repository.ts`, `public-state.ts`, `domain.ts`, `operations.ts`.
+- Initialization/upgrade/health: `server/database.ts`, `server/persistence.ts`, `scripts/database.ts`.
+- Admin/localized UI and protected navigation: `src/components/AccountAccessManager.tsx`, `src/i18n/authorization.ts`, `src/views/AdminPanelView.tsx`, `JobsView.tsx`, `ToursView.tsx`, `src/App.tsx`, `src/components/Header.tsx`; localized server feedback in `server/locale.ts`.
+- Tests: `server/authorization.test.ts`, historical migration fixture in `server/api.test.ts`, `scripts/rbac-browser-smoke.mjs`, integration in `scripts/staging-smoke.mjs`.
+- Hosted-preview guard: `vercel.json`, `server/environment.ts`.
+- Reports/instructions: this document, `RBAC_ADMIN_FA.md`, `RBAC_STAGING_DEPLOYMENT_FA.md`, `RBAC_TEST_RESULTS.md`, `README.md`. No database, media or secret manifest is committed.
+
+The existing provider profile editor accepts bounded historical account IDs as well as UUIDs. This is needed when an existing traveler/manager is explicitly converted to a provider; it does not loosen the live-admin or existing-profile ownership checks. A regression test preserves the converted identity and password verifier while editing organization details through the existing endpoint.

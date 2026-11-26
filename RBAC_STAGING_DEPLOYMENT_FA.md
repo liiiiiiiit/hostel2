@@ -6,6 +6,26 @@
 
 راهنمای `STAGING_SETUP_FA.md` را با شاخهٔ `codex/05-rbac-authorization` و commit بررسی‌شدهٔ همین PR اجرا کنید؛ به‌جای شاخهٔ مرحلهٔ ۱، کد مرحلهٔ ۵ را بگیرید. Node مستقل 24، پورت 127.0.0.1:3002، DNS/HTTPS و Basic Auth مخصوص test.yerevanhub.ir، کاربر hostel2-staging، فایروال UID، env جدید بدون credential تولید و داده در `/opt/hostel2-staging` را حفظ کنید. از کپی `.env` یا دیتابیس production استفاده نکنید. دیتابیس تازه در شروع علامت staging می‌گیرد. برای دادهٔ تازه فقط پس از نصب کامل، راهنمای `DEMO_DATA_MANAGER_FA.md` را اجرا کنید. VPS با دادهٔ واقعی، هدف نصب اولیهٔ خالی نیست.
 
+### بلوک دریافت کد برای staging تازه
+
+در نصب نخست، بعد از ساخت کاربر/مسیرها/Node مستقل طبق بخش ۱ راهنمای staging، بلوک دریافت کد بخش ۲ را دقیقاً با این جایگزین کنید؛ پوشهٔ app باید هنوز وجود نداشته باشد:
+
+```bash
+sudo -u hostel2-staging -H bash <<'SH'
+set -euo pipefail
+export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
+test ! -e /opt/hostel2-staging/app
+git clone --no-checkout --single-branch --branch codex/05-rbac-authorization https://github.com/liiiiiiiit/hostel2.git /opt/hostel2-staging/app
+cd /opt/hostel2-staging/app
+git checkout --detach a44498d2a3de50678e70aaafe0c4772cd48d3751
+npm ci --include=dev
+npm run lint
+npm run build
+SH
+```
+
+سپس بخش‌های ۳ تا ۶ `STAGING_SETUP_FA.md` را برای env جدید، سرویس و egress و HTTPS/Basic Auth اجرا کنید. برای فعال‌کردن مدیریت دمو، طبق `DEMO_DATA_MANAGER_FA.md` پوشهٔ خصوصی `/opt/hostel2-staging/demo` را با مالکیت hostel2-staging و مجوز 0700 بسازید و DEMO_TOOLS_ENABLED=true را در env مستقل فعال کنید. از دستور smoke مختص CI روی VPS استفاده نکنید. این مرحله به ساخت یا کپی دیتابیس production نیاز ندارد.
+
 ## ارتقای staging موجود
 
 اول فقط بررسی کنید:
@@ -50,7 +70,7 @@ SH
 sudo systemctl stop hostel2-staging-egress.service
 ```
 
-کد باید به SHA نهاییِ تست‌شده در PR پین شود؛ دستور دقیق SHA پس از اجرای CI در انتهای این سند درج می‌شود. دستورهای مشترک دریافت/build:
+کد زیر به نسخهٔ مشخص `a44498d2a3de50678e70aaafe0c4772cd48d3751` پین می‌شود. هر سه workflow این نسخه موفق‌اند؛ پیوند نتایج در `RBAC_TEST_RESULTS.md` است. پس از بازبینی مالک، بلوک دریافت/build:
 
 ```bash
 sudo -u hostel2-staging -H bash <<'SH'
@@ -59,11 +79,14 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/05-rbac-authorization
-# Checkout the exact verified SHA recorded below; do not start the app yet.
+git switch --detach a44498d2a3de50678e70aaafe0c4772cd48d3751
+npm ci --include=dev
+npm run lint
+npm run build
 SH
 ```
 
-بعد از checkout، در همین پوشه با همین کاربر `npm ci --include=dev`، `npm run lint` و `npm run build` اجرا کنید. اگر دانلود/build شکست خورد، محافظ را دوباره فعال کنید و برنامه خاموش بماند:
+اگر دانلود/build شکست خورد، محافظ را دوباره فعال کنید و برنامه خاموش بماند:
 
 ```bash
 sudo systemctl start hostel2-staging-egress.service

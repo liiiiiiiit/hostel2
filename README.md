@@ -105,4 +105,4 @@ Task 04 isolated platform QA: [confirmed fixes](QA04_BUG_REPORT.md), [executed t
 
 ### Task 05 authorization
 
-[Architecture, migration and role matrix](RBAC_ARCHITECTURE.md), [actual verification evidence](RBAC_TEST_RESULTS.md), and [راهنمای مدیر](RBAC_ADMIN_FA.md). This is an additive, review-only change; no automatic deployment. Existing identities and dedicated provider profiles remain compatible; unsupported future roles are not enabled.
+[Architecture, migration and role matrix](RBAC_ARCHITECTURE.md), [actual verification evidence](RBAC_TEST_RESULTS.md), and [راهنمای مدیر](RBAC_ADMIN_FA.md), and [ارتقای staging و rollback](RBAC_STAGING_DEPLOYMENT_FA.md). This is an additive, review-only change; no automatic deployment. Existing identities and dedicated provider profiles remain compatible; unsupported future roles are not enabled.
