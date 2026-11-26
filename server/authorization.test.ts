@@ -786,3 +786,45 @@ test("two administrators racing to demote each other cannot remove the last acti
     1,
   );
 });
+
+test("a converted legacy identity can still edit its provider profile without changing ID or password", async (t) => {
+  const f = await fixture(t),
+    a = await f.traveler();
+  assert.match(a.user.id, /^user-traveler-/);
+  const credentials = (
+    await f.db.client.execute({
+      sql: "SELECT hash,salt FROM user_credentials WHERE user_id=?",
+      args: [a.user.id],
+    })
+  ).rows;
+  assert.equal(
+    (await f.change(a.user.id, { role: "job_provider" })).data.success,
+    true,
+  );
+  const edited = await f.admin.action("saveProvider", [
+    {
+      id: a.user.id,
+      name: "Updated legacy provider",
+      email: a.email,
+      phone: "",
+      organization: "Synthetic organization",
+      role: "job_provider",
+      isActive: true,
+      password: "",
+    },
+  ]);
+  assert.equal(edited.data.success, true, edited.data.error);
+  assert.deepEqual(
+    (
+      await f.db.client.execute({
+        sql: "SELECT hash,salt FROM user_credentials WHERE user_id=?",
+        args: [a.user.id],
+      })
+    ).rows,
+    credentials,
+  );
+  const user = (await a.c.login(a.email)).state.currentUser;
+  assert.equal(user.id, a.user.id);
+  assert.equal(user.role, "job_provider");
+  assert.equal(user.organization, "Synthetic organization");
+});

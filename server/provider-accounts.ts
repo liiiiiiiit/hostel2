@@ -7,7 +7,7 @@ import { createPasswordCredential } from './passwords.js';
 import type { User } from '../src/types/index.js';
 
 export const providerInput = z.object({
-  id:z.uuid().optional(),name:z.string().trim().min(1).max(120),email:z.email().transform(v=>v.toLowerCase()),
+  id:z.string().min(1).max(500).optional(),name:z.string().trim().min(1).max(120),email:z.email().transform(v=>v.toLowerCase()),
   phone:z.string().trim().max(50),organization:z.string().trim().max(160),
   role:z.enum(['job_provider','tour_provider']),isActive:z.boolean(),password:z.string().max(128),
 });

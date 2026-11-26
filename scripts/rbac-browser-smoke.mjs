@@ -129,6 +129,25 @@ export async function verifyAuthorizationUI({
     await panel
       .getByText("Synthetic browser role assignment", { exact: false })
       .waitFor();
+    // Converted traveler/manager IDs are historical strings, not bare UUIDs.
+    // The existing provider editor must accept them without changing identity.
+    await p.getByTestId("workspace-tab-providers").click();
+    await p
+      .getByRole("article")
+      .filter({ hasText: email })
+      .getByRole("button", { name: "Edit", exact: true })
+      .click();
+    await p
+      .getByLabel("Organization", { exact: true })
+      .fill("Updated synthetic organization");
+    const edited = p.waitForResponse(
+      (r) =>
+        r.url() === origin + "/api/app" &&
+        r.request().postDataJSON()?.action === "saveProvider",
+    );
+    await p.getByRole("button", { name: "Save", exact: true }).click();
+    assert.equal((await (await edited).json()).success, true);
+    await p.getByTestId("workspace-tab-access").click();
     const account = await context();
     await account.p.goto(origin + "/en/");
     await account.p.locator("#site-preloader").waitFor({ state: "detached" });
@@ -209,7 +228,7 @@ export async function verifyAuthorizationUI({
         }
     assert.deepEqual(errors, []);
     console.log(
-      "PASS RBAC admin browser: manager hostel assignment, role assignment, unified provider login, old-session revocation, provider role change, sensitive events, " +
+      "PASS RBAC admin browser: manager hostel assignment, role assignment, legacy provider profile edit, unified provider login, old-session revocation, provider role change, sensitive events, " +
         layouts +
         " permission-editor layouts (four languages/two themes/three widths).",
     );
