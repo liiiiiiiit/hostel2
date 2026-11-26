@@ -1,3 +1,4 @@
+import {seekerText} from './i18n/jobSeeker';
 import {can} from './utils/authorization';
 import { servicesText } from './i18n/services';
 import {TranslatorView} from './views/TranslatorView';
@@ -29,6 +30,7 @@ const RentalTrackingView = lazy(() => import('./views/RentalTrackingView').then(
 const GuideView = lazy(() => import('./views/GuideView').then(module => ({ default: module.GuideView })));
 const ArticleDetailView = lazy(() => import('./views/ArticleDetailView').then(module => ({ default: module.ArticleDetailView })));
 const ToursView = lazy(() => import('./views/ToursView').then(m => ({ default: m.ToursView })));
+const JobSeekerView=lazy(()=>import('./views/JobSeekerView').then(m=>({default:m.JobSeekerView})));
 const JobsView = lazy(() => import('./views/JobsView').then(m => ({ default: m.JobsView })));
 const AdminPanelView = lazy(() => import('./views/AdminPanelView').then(module => ({ default: module.AdminPanelView })));
 const ManagerPanelView = lazy(() => import('./views/ManagerPanelView').then(module => ({ default: module.ManagerPanelView })));
@@ -140,6 +142,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
       case 'service-detail':return <ServiceDetailView key={String(viewParams.slug)} slug={String(viewParams.slug)} onNavigate={handleNavigate}/>;
       case 'tours': return <ToursView key="public-tours" mode="public" tourId={String(viewParams.tourId??'')} />;
       case 'tour-organizer': return <ToursView key={currentUser?.id ?? 'guest'} mode="organizer" />;
+      case 'job-seeker': return can(currentUser,'account.self')?<JobSeekerView key={currentUser!.id}/>:<section className="page-shell py-8"><p>{seekerText[currentLang].signIn}</p></section>;
       case 'jobs': return <JobsView key="public-jobs" mode="public" jobId={String(viewParams.jobId??'')} />;
       case 'employer': return <JobsView key={currentUser?.id ?? 'guest'} mode="employer" />;
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;

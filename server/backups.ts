@@ -172,6 +172,13 @@ export async function restoreSnapshot(
         throw new Error("Invalid backup schema");
       await tx.execute(table.sql);
     }
+    // Unique parent indexes are part of the FK schema and must exist before
+    // preparing any child INSERT, even with deferred constraint enforcement.
+    for(const index of snapshot.indexes??[]) {
+      identifier(index.name);
+      if(!/^CREATE (UNIQUE )?INDEX\s/i.test(index.sql)||/;\s*\S/.test(index.sql))throw new Error('Invalid backup index');
+      await tx.execute(index.sql);
+    }
     // Create every parent table before inserting children. FK constraints remain
     // deferred only until this restore transaction commits, never disabled globally.
     await tx.execute('PRAGMA defer_foreign_keys=ON');
@@ -191,11 +198,6 @@ export async function restoreSnapshot(
       }
     }
     if(snapshot.sequences?.length){await tx.execute('DELETE FROM sqlite_sequence');for(const sequence of snapshot.sequences){identifier(sequence.name);await tx.execute({sql:'INSERT INTO sqlite_sequence(name,seq) VALUES(?,?)',args:[sequence.name,decodeSQLValue(sequence.value) as number]});}}
-    for(const index of snapshot.indexes??[]) {
-      identifier(index.name);
-      if(!/^CREATE (UNIQUE )?INDEX\s/i.test(index.sql)||/;\s*\S/.test(index.sql))throw new Error('Invalid backup index');
-      await tx.execute(index.sql);
-    }
     if((await tx.execute('PRAGMA foreign_key_check')).rows.length)throw new Error('Backup contains inconsistent references');
     if (!storage)
       for (const asset of snapshot.assets) {

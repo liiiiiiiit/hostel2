@@ -1,3 +1,5 @@
+import {seekerActionSchemas,seekerAction} from './job-seekers.js';
+import {mountJobSeekerRoutes} from './job-seeker-routes.js';
 import {authorizeAction,actionPolicies} from './action-authorization.js';
 import {accessInput,setAccountAccess,authorizationAccounts,authorizationUser,auditAuthorization,revokeAuthorizationSessions} from './authorization.js';
 import {requirePermission} from '../src/utils/authorization.js';
@@ -25,7 +27,7 @@ import { Store } from './domain.js';
 import { verifyPassword } from './passwords.js';
 import { bookingInput, bookTour, trackTour, changeTourBooking, tourBookingStatus } from './tour-bookings.js';
 import { saveTour, deleteTour, tourInput } from './tours.js';
-import { applyForJob, applicationInput, applicationProgress, applicationStatus, reviewApplication } from './job-applications.js';
+import { applyForJob, applicationInput, applicationProgress, applicationReviewStatus, reviewApplication } from './job-applications.js';
 import { saveProvider, providerInput, providerUser } from './provider-accounts.js';
 import { deleteJob, saveJob, jobInput } from './job-postings.js';
 import { visibleState, sessionUser, imageIsReferenced } from './repository.js';
@@ -45,6 +47,7 @@ const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z
 export const schemas = {
   setAccountAccess:z.tuple([accessInput]),
   ...serviceActionSchemas,
+  ...seekerActionSchemas,
   bookTour: z.tuple([bookingInput]),
   trackTour: z.tuple([z.uuid()]),
   changeTourBooking: z.tuple([z.uuid(),tourBookingStatus,tourBookingStatus]),
@@ -52,7 +55,7 @@ export const schemas = {
   deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
   applyForJob: z.tuple([applicationInput]),
   trackApplication: z.tuple([z.uuid()]),
-  reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
+  reviewApplication: z.tuple([z.uuid(),applicationReviewStatus,applicationReviewStatus]),
   saveProvider: z.tuple([providerInput]),
   deleteJob: z.tuple([z.uuid(),z.number().int().positive()]),
   saveJob: z.tuple([jobInput]),
@@ -101,6 +104,7 @@ export function createApi(database: Database) {
     return sessionUser(tx,digest(token));
   };
   app.get('/api/admin/account-access',async(req,res,next)=>{try{res.json(await database.sqlTransaction(async tx=>{const accounts=await authorizationAccounts(tx,await session(req,tx));const events=(await tx.execute('SELECT id,target_id,reason,created_at FROM authorization_events ORDER BY created_at DESC,id LIMIT 100')).rows;return {accounts,events};},'read'));}catch(e){next(e);}});
+  mountJobSeekerRoutes(app,database,session);
   mountServiceRoutes(app,database,session);
   mountDemoRoutes(app,database,session);
   app.get(paths, async (req, res, next) => {
@@ -211,6 +215,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if (envelope.action in seekerActionSchemas) {
+          actionResult = await seekerAction(tx,actor,envelope.action as keyof typeof seekerActionSchemas,args);
         } else if (envelope.action in serviceActionSchemas) {
           actionResult = await serviceAction(tx,actor,envelope.action as keyof typeof serviceActionSchemas,args);
         } else if (envelope.action === 'bookTour') {
@@ -224,11 +230,11 @@ export function createApi(database: Database) {
         } else if (envelope.action === 'deleteTour') {
           await deleteTour(tx, actor, args[0] as string, args[1] as number);
         } else if (envelope.action === 'applyForJob') {
-          actionResult.applicationReference = await applyForJob(tx, args[0] as z.infer<typeof applicationInput>);
+          actionResult.applicationReference = await applyForJob(tx, args[0] as z.infer<typeof applicationInput>,actor);
         } else if (envelope.action === 'trackApplication') {
           actionResult.applicationStatus = await applicationProgress(tx, String(args[0]));
         } else if (envelope.action === 'reviewApplication') {
-          await reviewApplication(tx, actor, String(args[0]), applicationStatus.parse(args[1]), applicationStatus.parse(args[2]));
+          await reviewApplication(tx, actor, String(args[0]), applicationReviewStatus.parse(args[1]), applicationReviewStatus.parse(args[2]));
         } else if (envelope.action === 'saveProvider') {
           await saveProvider(tx,actor,args[0] as z.infer<typeof providerInput>);
         } else if (envelope.action === 'deleteJob') {

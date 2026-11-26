@@ -37,3 +37,5 @@ export function authorizeAction(user: User | null, action: string) {
   if (!policy) throw new Error("دسترسی مجاز نیست.");
   if (policy !== "public") requirePermission(user, policy);
 }
+
+group('account.self','saveSeekerProfile saveSeekerJob withdrawJobApplication revokeApplicationSharing deleteSeekerDocument deleteSeekerProfile');

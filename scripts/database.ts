@@ -1,3 +1,4 @@
+import {jobSeekersReady} from '../server/job-seekers.js';
 import {authorizationReady} from '../server/authorization.js';
 import {mediaCleanupReady} from '../server/media-cleanup.js';
 import {requireCurrentRecovery,assertPersistentConfiguration} from '../server/persistence.js';
@@ -59,8 +60,9 @@ try {
                     Object.assign(counts,providers.counts,services.counts);
                     const mediaCleanup=await mediaCleanupReady(tx);
                     const authorization=await authorizationReady(tx);
-                    const schemaReady = authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
-                    console.log(JSON.stringify({ versions, schemaReady, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
+                    const jobSeekers=await jobSeekersReady(tx);
+                    const schemaReady = jobSeekers && authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
+                    console.log(JSON.stringify({ versions, schemaReady, jobSeekers, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
                     if (violations.length || integrity?.some(row => row.integrity_check !== 'ok') || (command === 'check' && !schemaReady))
                         process.exitCode = 1;
                     await tx.commit();

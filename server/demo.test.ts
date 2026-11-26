@@ -16,7 +16,7 @@ import { once } from "node:events";
 import { Database } from "./database.js";
 import { DemoManager } from "./demo/manager.js";
 import { demoPaths } from "./demo/safety.js";
-import { generatePlan, defaults } from "./demo/fixtures.js";
+import { generatePlan, planHash, defaults } from "./demo/fixtures.js";
 import { capture } from "./demo/provenance.js";
 import { createApi } from "./api.js";
 import { verifyPassword } from "./passwords.js";
@@ -225,6 +225,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     provider_accounts: 25,
     job_postings: 30,
     job_applications: 80,
+    job_seeker_profiles:30, job_seeker_skills:60,job_seeker_languages:60,job_seeker_experience:30,job_seeker_education:30,job_seeker_documents:3,saved_jobs:60,account_job_applications:30,
     tour_listings: 20,
     tour_bookings: 40,
     service_listings: 40,
@@ -603,3 +604,5 @@ test("real API authenticates generated roles, isolates dashboards/owners, blocks
     process.env.APP_ENV = old;
   }
 });
+
+test('legacy Task05 demo recipe retains its exact output and new recipes have distinct provenance',()=>{const config={baseDate:'2026-11-26'};assert.equal(planHash(generatePlan(config,1)),'b37800cfc38155e0b9aba5c91c5e4f0593efd4aab0527c6bf124c82193958589');assert.notEqual(generatePlan(config,1).id,generatePlan(config,2).id);});

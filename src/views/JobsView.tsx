@@ -1,3 +1,4 @@
+import {seekerText} from '../i18n/jobSeeker';
 import {can} from '../utils/authorization';
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
@@ -27,7 +28,7 @@ export function JobsView({ mode, jobId }: {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const managing = mode !== 'public';
-  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open' && job.approved!==false);
+  const postings = (state.jobs ?? []).filter(job => managing ? job.manageable : job.status === 'open' && job.approved!==false && job.acceptingApplications!==false);
   function edit(job?: JobPosting) {
     setMessage('');
     setDraft(job ? { ...job } : fresh());
@@ -52,6 +53,7 @@ export function JobsView({ mode, jobId }: {
   const Heading = mode === 'admin' ? 'h2' : 'h1';
   return <section className={mode === 'admin' ? 'space-y-5' : 'page-shell py-8 space-y-5'}>
     <header className="flex flex-wrap items-center justify-between gap-3">
+      {mode==='public'&&<a className="button-secondary" href="#/job-seeker">{seekerText[currentLang].panel}</a>}
       <Heading className="text-2xl font-bold">{mode === 'public' ? t.jobs : mode === 'admin' ? t.manage : t.employer}</Heading>
       {managing && state.currentUser && !draft && <button className="button-primary" onClick={() => edit()}>{t.add}</button>}
     </header>
@@ -79,7 +81,7 @@ export function JobsView({ mode, jobId }: {
           <p>{t.salary} · <strong>{job.salary === null ? t.negotiable : job.salary.toLocaleString(currentLang) + ' / ' + t[job.period]}</strong></p>
           <p dir="auto">{job.schedule}</p><p className="whitespace-pre-line" dir="auto">{job.description}</p>
           <p><strong>{t.contact}</strong> · <bdi>{job.contact}</bdi></p>
-          {!managing && <ApplyForJob job={job} />}
+          {!managing && <ApplyForJob key={state.currentUser?.id??'guest'} job={job} />}
           {managing && <JobApplicants applications={(state.jobApplications ?? []).filter(item => item.jobId === job.id)} />}
           {managing && job.approved===false && <p>{p.waiting}</p>}
           {managing && <button className="button-secondary" onClick={() => edit(job)}>{t.edit}</button>}

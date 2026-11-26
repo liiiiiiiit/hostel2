@@ -1,3 +1,5 @@
+import {emptySeekerProfile,saveSeekerProfile,uploadResume,seekerAction} from '../job-seekers.js';
+import {syntheticResume} from '../resume-fixtures.js';
 import type { Transaction } from "@libsql/client";
 import type { Database } from "../database.js";
 import type { AppStoreState } from "../domain.js";
@@ -276,9 +278,17 @@ export async function materialize(
       jobInput.parse({ ...job, version: 1, approved: true }),
     );
   }
+  const seekers=new Map<string,User>(),resumes=new Map<string,string>();
+  if(plan.version===2&&c.jobs>0)for(const [i,person]of plan.travelers.entries()){
+    const user=state.users.find(u=>u.id===person.id)!;seekers.set(user.id,user);
+    await saveSeekerProfile(tx,user,{...emptySeekerProfile(user),headline:'SYNTHETIC Hospitality professional',city:'Yerevan',about:'SYNTHETIC applicant — fictional experience only.',desiredRole:'Guest services',preferredLocation:'Yerevan',minimumSalary:180000,employmentTypes:['full_time'],remote:i%2===0,skills:['Customer service','Teamwork'],languages:[{code:'en',proficiency:'fluent'},{code:'fa',proficiency:'native'}],experience:[{id:uuid(plan.id,'experience:'+i),title:'SYNTHETIC Receptionist',organization:'Fictional agency',startDate:'2024-01',endDate:'2025-12',description:'Fictional guest support experience.'}],education:[{id:uuid(plan.id,'education:'+i),institution:'Fictional institute',qualification:'Hospitality certificate',startDate:'2022-09',endDate:'2023-06',description:'SYNTHETIC education.'}]});
+    if(i<3)resumes.set(user.id,(await uploadResume(tx,user,syntheticResume('SYNTHETIC applicant '+i),'synthetic-resume.pdf','application/pdf')).id);
+    for(const job of plan.jobs.slice(0,2))await seekerAction(tx,user,'saveSeekerJob',[job.id,true]);
+  }
   for (let i = 0; i < c.jobApplications; i++) {
     const job = plan.jobs[i % c.jobs],
       person = plan.applicants[i % c.applicants];
+    const applicant=plan.version===2&&i<c.applicants&&person.applicantUserId?seekers.get(person.applicantUserId)??null:null;
     const reference = await applyForJob(
       tx,
       applicationInput.parse({
@@ -288,7 +298,8 @@ export async function materialize(
         name: person.name,
         contact: person.email,
         message: "SYNTHETIC experience — no real application",
-      }),
+        ...(applicant?{consent:true,shareProfile:i%2===0,...(resumes.has(applicant.id)?{documentId:resumes.get(applicant.id)}:{})}:{}),
+      }),applicant,
     );
     const status = (["received", "reviewing", "accepted", "declined"] as const)[
       i % 4

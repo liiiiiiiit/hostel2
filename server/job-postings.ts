@@ -44,6 +44,7 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
   const admin = Number(can(actor,'platform.admin'));
   const { rows } = await tx.execute({
     sql: `SELECT id,title,company,location,schedule,description,contact,salary,period,status,version,approved,
+      (status='open' AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)) AS accepting_applications,
       (owner_id=? OR ?=1) AS manageable FROM job_postings
       WHERE (status='open' AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)) OR owner_id=? OR ?=1 ORDER BY created_at DESC,id`,
     args: [owner, admin, owner, admin],
@@ -52,7 +53,7 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
     id: String(row.id), title: String(row.title), company: String(row.company), location: String(row.location),
     schedule: String(row.schedule), description: String(row.description), contact: String(row.contact),
     salary: row.salary === null ? null : Number(row.salary), period: row.period as JobPosting['period'],
-    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable), approved:Boolean(row.approved),
+    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable), approved:Boolean(row.approved), acceptingApplications:Boolean(row.accepting_applications),
   }));
 }
 

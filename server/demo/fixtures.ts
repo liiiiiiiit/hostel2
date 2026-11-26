@@ -138,10 +138,10 @@ export function normalizeConfig(value: unknown): DemoConfig {
     throw Error("Maximum 10000 primary records per batch.");
   return { ...parsed, counts } as DemoConfig;
 }
-export function generatePlan(input: unknown) {
+export function generatePlan(input: unknown,recipeVersion:1|2=2) {
   const config = normalizeConfig(input),
     key = JSON.stringify(config),
-    id = uuid("yh-demo-v1", key),
+    id = uuid("yh-demo-v"+recipeVersion, key),
     c = config.counts;
   const uid = (kind: string, i = 0) => uuid(id, kind + ":" + i),
     stamp = config.baseDate + "T08:00:00.000Z";
@@ -277,6 +277,7 @@ export function generatePlan(input: unknown) {
       email: email(kind, i),
       index: i,
     }));
+  const travelers=people("traveler",c.travelers);
   const jobs = list(c.jobs, (i) =>
     jobInput.parse({
       id: uid("job", i),
@@ -388,7 +389,7 @@ export function generatePlan(input: unknown) {
     }),
   );
   return {
-    version: 1 as const,
+    version: recipeVersion,
     id,
     config,
     imageId,
@@ -399,9 +400,9 @@ export function generatePlan(input: unknown) {
     services,
     articles,
     managers: people("manager", c.managers),
-    travelers: people("traveler", c.travelers),
+    travelers,
     employers: people("employer", c.employers),
-    applicants: people("applicant", c.applicants),
+    applicants: people("applicant", c.applicants).map((person,i)=>recipeVersion===2&&i<c.travelers?{...travelers[i],applicantUserId:uid("traveler",i)}:person as typeof person & {applicantUserId?:string}),
     tourProviders: people("organizer", c.tourProviders),
     coupons: list(c.coupons, (i) => ({
       code: `DEMO-${id.slice(0, 8)}-${i + 1}`.toUpperCase(),
