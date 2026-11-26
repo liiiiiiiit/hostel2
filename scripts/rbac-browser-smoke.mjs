@@ -59,7 +59,7 @@ export async function verifyAuthorizationUI({
       { lang, theme },
     );
     await c.route("**/*", (r) =>
-      r.request().url().startsWith(origin) ? r.continue() : r.abort(),
+      new URL(r.request().url()).origin === origin ? r.continue() : r.abort(),
     );
     const p = await c.newPage();
     p.setDefaultTimeout(20000);
@@ -163,8 +163,13 @@ export async function verifyAuthorizationUI({
       .getByRole("button", { name: "Save access", exact: true })
       .click();
     assert.equal((await (await changed).json()).success, true);
-    const revoked = await account.c.request.get(origin + "/api/app");
-    assert.equal((await revoked.json()).state.currentUser, null);
+    // Browser fetch honors Chromium's loopback resolver and route guard.
+    // APIRequestContext has independent DNS and must never target a live host.
+    const revoked = await account.p.evaluate(
+      async () =>
+        await (await fetch("/api/app", { credentials: "same-origin" })).json(),
+    );
+    assert.equal(revoked.state.currentUser, null);
     await account.c.close();
     await c.close();
     let layouts = 0;
