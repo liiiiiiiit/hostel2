@@ -1,3 +1,4 @@
+import {can} from '../utils/authorization';
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { ApplyForJob, JobApplicants } from '../components/JobApplications';
@@ -46,7 +47,7 @@ export function JobsView({ mode, jobId }: {
     if (mode !== 'public' || !selectedListingAvailable || !jobId) return;
     document.getElementById('job-' + jobId)?.scrollIntoView({block:'start'});
   }, [mode, jobId, selectedListingAvailable]);
-  const authorized = state.currentUser?.role==='admin'||state.currentUser?.role==='job_provider'||postings.some(job=>job.manageable);
+  const authorized = can(state.currentUser,'jobs.manage');
   if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = mode === 'admin' ? 'h2' : 'h1';
   return <section className={mode === 'admin' ? 'space-y-5' : 'page-shell py-8 space-y-5'}>

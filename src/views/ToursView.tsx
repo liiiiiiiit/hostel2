@@ -1,3 +1,4 @@
+import {can} from '../utils/authorization';
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
 import { AdminTourBookings, TourBookingForm } from '../components/TourBookings';
@@ -57,7 +58,7 @@ export function ToursView({ mode, tourId }: {
     if (mode !== 'public' || !selectedListingAvailable || !tourId) return;
     document.getElementById('tour-' + tourId)?.scrollIntoView({block:'start'});
   }, [mode, tourId, selectedListingAvailable]);
-  const authorized = admin||state.currentUser?.role==='tour_provider'||tours.some(tour=>tour.owned);
+  const authorized = can(state.currentUser,'tours.manage');
   if(managing&&!authorized)return <section className="page-shell py-8"><p role="status">{p.menuLogin}</p></section>;
   const Heading = admin ? 'h2' : 'h1';
   return <section className={admin ? 'space-y-5' : 'page-shell py-8 space-y-5'}>

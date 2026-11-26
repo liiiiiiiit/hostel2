@@ -1,3 +1,4 @@
+import {requirePermission} from '../src/utils/authorization.js';
 import type express from 'express';
 import type { Database } from './database.js';
 import type { User } from '../src/types/index.js';
@@ -9,7 +10,7 @@ export function mountServiceRoutes(app:express.Express,database:Database,session
  app.get('/api/services',async(req,res,next)=>{try{const query=serviceQuery.parse(req.query);res.json(await database.sqlTransaction(tx=>searchServices(tx,query),'read'));}catch(e){next(e);}});
  app.get('/api/services/:slug',async(req,res,next)=>{try{if(req.params.slug.length>160)throw new ServiceError('missing',404);res.json({service:await database.sqlTransaction(tx=>getService(tx,req.params.slug),'read')});}catch(e){next(e);}});
  for(const route of ['/api/admin/services','/api/admin/service-categories','/api/admin/service-requests'])app.get(route,async(req,res,next)=>{try{
-  res.json(await database.sqlTransaction(async tx=>{const actor=await session(req,tx);if(actor?.role!=='admin')throw new ServiceError('forbidden',403);return servicesState(tx,actor);},'read'));
+  res.json(await database.sqlTransaction(async tx=>{const actor=await session(req,tx);requirePermission(actor,'services.manage');return servicesState(tx,actor);},'read'));
  }catch(e){next(e);}});
  // Reuse the project's action validation, CSRF protection, durable rate limits and transactions.
  const alias=(action:string,args:(req:express.Request)=>unknown[]) => (req:express.Request,_res:express.Response,next:express.NextFunction)=>{req.body={action,args:args(req)};req.method='POST';req.url='/api/app';next();};

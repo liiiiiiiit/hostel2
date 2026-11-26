@@ -1,3 +1,6 @@
+import {authorizeAction,actionPolicies} from './action-authorization.js';
+import {accessInput,setAccountAccess,authorizationAccounts,authorizationUser,auditAuthorization,revokeAuthorizationSessions} from './authorization.js';
+import {requirePermission} from '../src/utils/authorization.js';
 import {queueMediaDeletion,drainMediaDeletions} from './media-cleanup.js';
 import {mountDemoRoutes} from './demo/routes.js';
 import {assertRuntimeEnvironment,applicationEnvironment} from './environment.js';
@@ -39,7 +42,8 @@ const status = z.enum(['pending','confirmed','rejected','cancelled','expired','c
 const scores = z.object({ cleanliness: z.number().int().min(1).max(5), safety: z.number().int().min(1).max(5), staff: z.number().int().min(1).max(5), location: z.number().int().min(1).max(5) });
 const coordinates = z.object({ lat: z.number().finite().min(-90).max(90), lng: z.number().finite().min(-180).max(180) });
 
-const schemas = {
+export const schemas = {
+  setAccountAccess:z.tuple([accessInput]),
   ...serviceActionSchemas,
   bookTour: z.tuple([bookingInput]),
   trackTour: z.tuple([z.uuid()]),
@@ -81,6 +85,7 @@ const parseCookies = (value = '') => Object.fromEntries(value.split(';').filter(
 
 export function createApi(database: Database) {
   assertRuntimeEnvironment();
+  for(const action of Object.keys(schemas))if(!actionPolicies[action])throw Error('Missing authorization policy: '+action);
   const app = express();
   app.get('/api/environment',(_req,res)=>res.set('Cache-Control','no-store').json({environment:applicationEnvironment(),demoTools:applicationEnvironment()==='staging'&&process.env.DEMO_TOOLS_ENABLED==='true'}));
   app.disable('x-powered-by');
@@ -95,6 +100,7 @@ export function createApi(database: Database) {
     if (!token) return null;
     return sessionUser(tx,digest(token));
   };
+  app.get('/api/admin/account-access',async(req,res,next)=>{try{res.json(await database.sqlTransaction(async tx=>{const accounts=await authorizationAccounts(tx,await session(req,tx));const events=(await tx.execute('SELECT id,target_id,reason,created_at FROM authorization_events ORDER BY created_at DESC,id LIMIT 100')).rows;return {accounts,events};},'read'));}catch(e){next(e);}});
   mountServiceRoutes(app,database,session);
   mountDemoRoutes(app,database,session);
   app.get(paths, async (req, res, next) => {
@@ -112,7 +118,7 @@ export function createApi(database: Database) {
       if (req.headers['x-requested-with'] !== 'YerevanHub' || req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) { res.sendStatus(403); return; }
       const actor = await database.sqlTransaction(async tx => {
         const user = await session(req,tx);
-        if (user?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+        requirePermission(user,'media.manage');
         const bucket = `media:${user.id}:${Math.floor(Date.now()/60000)}`;
         await tx.execute({sql:'INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1',args:[bucket,Date.now()+60000]});
         const rate = await tx.execute({sql:'SELECT count FROM rate_limits WHERE key=?',args:[bucket]});
@@ -122,7 +128,7 @@ export function createApi(database: Database) {
       if (req.query.deleteMedia) {
         const id = z.uuid().parse(req.query.deleteMedia);
         await database.sqlTransaction(async tx => {
-          if ((await session(req,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+          requirePermission(await session(req,tx),'media.manage');
           const asset = (await tx.execute({sql:'SELECT * FROM media_assets WHERE id=?',args:[id]})).rows[0];
           if (asset) {
             if(await imageIsReferenced(tx,String(asset.url)))throw new Error('ابتدا تصویر را از ملک جدا و تغییرات را ذخیره کنید.');
@@ -138,7 +144,7 @@ export function createApi(database: Database) {
       const stored = await storeImage(id,bytes);
       try {
         await database.sqlTransaction(async tx=> {
-          if ((await session(req,tx))?.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+          requirePermission(await session(req,tx),'media.manage');
           await tx.execute({sql:'INSERT INTO media_assets VALUES(?,?,?,?,?,?,?)',args:[id,stored.url,stored.key,stored.backend,bytes.length,actor.id,new Date().toISOString()]});
         });
       } catch(error) { await deleteStoredImage({backend:stored.backend,storage_key:stored.key}); throw error; }
@@ -182,11 +188,17 @@ export function createApi(database: Database) {
       const result = await database.transaction(async (state, tx) => {
         const now = Date.now();
         let actor = await session(req,tx);
+        authorizeAction(actor,envelope.action);
+        const accessBefore=envelope.action==='toggleManagerActive'?state.users.find(u=>u.id===args[0])?.isActive:undefined;
         const store = new Store(state, true); store.getState().currentUser = actor;
         const before = new Map(state.bookings.map(b => [b.id, b.status]));
         store.expirePendingBookings();
         let actionResult: ActionResult = { success: true };
-        if (envelope.action === 'login') {
+        if(envelope.action==='setAccountAccess'){
+          await setAccountAccess(tx,actor,args[0] as z.infer<typeof accessInput>);
+          actor=await session(req,tx);store.getState().currentUser=actor;
+          if(!actor)res.cookie(cookieName,'',{httpOnly:true,secure:secureCookie,sameSite:'lax',path:'/',maxAge:0});
+        } else if (envelope.action === 'login') {
           const [address, passwordValue] = args as [string, string];
           const user = state.users.find(user => user.email.toLowerCase() === address && user.isActive);
           // A dummy hash derivation makes nonexistent accounts take the same path.
@@ -268,7 +280,7 @@ export function createApi(database: Database) {
         Object.assign(state, store.getState());
         if (envelope.action === 'toggleManagerActive') {
           const user = state.users.find(user => user.id === args[0]);
-          if (user && !user.isActive) {await tx.execute({ sql: 'DELETE FROM sessions WHERE user_id=?', args: [user.id] });await tx.execute({sql:'UPDATE auth_tokens SET used_at=? WHERE user_id=? AND used_at IS NULL',args:[now,user.id]});}
+          if (user && accessBefore!==user.isActive) {await revokeAuthorizationSessions(tx,user.id);await auditAuthorization(tx,actor!.id,user.id,{isActive:accessBefore},{isActive:user.isActive},'manager_activation_changed');}
         }
         const additional=envelope.action==='reportEntranceIssue'?state.bookings.find(b=>b.privateToken===args[0]):['createSupportThread','replySupportThread','resolveSupportThread'].includes(envelope.action)&&actionResult.thread?state.bookings.find(b=>b.id===actionResult.thread!.bookingId):['requestBookingChange','applyBookingChange','rejectBookingChange'].includes(envelope.action)?state.bookings.find(b=>b.id===(actionResult.proposal?.bookingId??state.bookingChanges?.find(change=>change.id===args[0])?.bookingId)):undefined;
         if(additional)await enqueueBookingNotification(tx,state,additional,envelope.action.includes('Support')||envelope.action==='reportEntranceIssue'?'support':'change');
@@ -277,6 +289,8 @@ export function createApi(database: Database) {
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
         await database.flush(state,tx);
+        if(envelope.action==='createHostelManager'&&actionResult.success){const created=state.users.find(u=>u.email.toLowerCase()===String((args[0] as {email:string}).email).toLowerCase());if(created)await auditAuthorization(tx,actor!.id,created.id,null,{role:created.role,assignedHostelIds:created.assignedHostelIds,isActive:created.isActive},'manager_created');}
+        actor=await authorizationUser(tx,actor);
         const responseState = await visibleState(tx, actor, database.demo, bookingToken, inquiryToken);
         // Use the same redaction for action payloads and state, including retries
         // that return an existing booking with staff and finance history.

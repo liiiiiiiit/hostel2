@@ -1,3 +1,4 @@
+import {managesHostel,requirePermission} from '../src/utils/authorization.js';
 import { z } from "zod";
 import type { Store, AppStoreState } from "./domain.js";
 import type { Booking, ActionResult } from "../src/types/index.js";
@@ -102,11 +103,7 @@ export const operationSchemas = {
 const deny = () => {
   throw new Error("دسترسی مجاز نیست.");
 };
-export const manages = (state: AppStoreState, hostelId: string) =>
-  !!state.currentUser?.isActive &&
-  (state.currentUser.role === "admin" ||
-    (state.currentUser.role === "hostel_manager" &&
-      !!state.currentUser.assignedHostelIds?.includes(hostelId)));
+export const manages = (state: AppStoreState,hostelId:string) => managesHostel(state.currentUser,hostelId);
 export function authorizedBooking(state: AppStoreState, identifier: string) {
   const booking = state.bookings.find(
     (b) => b.id === identifier || b.privateToken === identifier,
@@ -197,7 +194,7 @@ export async function operate(
   const state = store.getState();
   const actor = state.currentUser;
   if (action === "updatePlatformSettings") {
-    if (actor?.role !== "admin") return deny();
+    requirePermission(actor,'platform.admin');
     Object.assign(state.settings, args[0]);
     state.settings.supportWorkingHoursFa =
       state.settings.supportHours?.fa ?? "";

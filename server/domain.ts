@@ -1,3 +1,4 @@
+import {managesHostel,requirePermission} from '../src/utils/authorization.js';
 import {inventoryBookings} from '../src/utils/pricing.js';
 import { rentalScheduleIsValid } from '../src/utils/rental-inquiries.js';
 import { createHash } from 'node:crypto';
@@ -574,12 +575,11 @@ export class Store {
 
   private canManageHostel(hostelId: string): boolean {
     const user = this.state.currentUser;
-    return Boolean(user?.isActive && (user.role === 'admin' ||
-      (user.role === 'hostel_manager' && user.assignedHostelIds?.includes(hostelId))));
+    return managesHostel(user,hostelId);
   }
 
   private requireAdmin() {
-    if (!this.state.currentUser?.isActive || this.state.currentUser.role !== 'admin') throw new Error('دسترسی مجاز نیست.');
+    requirePermission(this.state.currentUser,'platform.admin');
   }
 
   private transitionBookingStatus(

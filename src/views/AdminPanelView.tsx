@@ -1,3 +1,5 @@
+import {AccountAccessManager} from '../components/AccountAccessManager';
+import {authorizationText} from '../i18n/authorization';
 import {DemoDataManager} from '../components/DemoDataManager';
 import {demoText} from '../i18n/demo';
 import { ServicesAdmin } from '../components/ServicesAdmin';
@@ -74,6 +76,7 @@ type Section =
   | "rentals"
   | "services"
   | "tours"
+  | "access"
   | "providers"
   | "jobs"
   | "articles"
@@ -199,6 +202,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     ...(demoAvailable?[{id:"demo" as const,label:demoText[currentLang].nav,icon:<Activity size={17}/>}]:[]),
     { id: "services", label: servicesText[currentLang].nav, icon: <Compass size={17}/> },
     { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
+    { id: "access", label: authorizationText[currentLang].nav, icon: <Users size={17}/> },
     { id: "providers", label: providerWords[currentLang].title, icon: <Users size={17} /> },
     { id: "jobs", label: jobsText[currentLang].jobs, icon: <BriefcaseBusiness size={17} /> },
     { id: "articles", label: t.articles, icon: <BookOpen size={17} /> },
@@ -232,7 +236,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       label: admin.contentGroup,
       ids: ["rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
-    { label: admin.system, ids: ["audit", "profile",...(demoAvailable?["demo"]:[])] },
+    { label: admin.system, ids: ["access", "audit", "profile",...(demoAvailable?["demo"]:[])] },
   ];
   const organizedNav = navigationGroups.flatMap((group) =>
     group.ids.flatMap((id) => {
@@ -940,6 +944,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         {section === "services" && <ServicesAdmin />}
         {section === "tours" && <ToursView mode="admin" />}
         {section === "providers" && <ProviderAccounts />}
+        {section === "access" && <AccountAccessManager />}
         {section === "jobs" && <JobsView mode="admin" />}
         {section === "articles" && (
           <AdminArticles onNavigate={onNavigate} initiallyOpen={showForm} />

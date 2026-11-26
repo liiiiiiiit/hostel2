@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import { servicesState, serviceActionSchemas } from './services.js';
 import { providerUser, providerAccounts } from './provider-accounts.js';
 import { adminTourBookings } from './tour-bookings.js';
@@ -33,7 +34,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     const base = emptyScope();
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
-    const accountActions = ['saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
+    const accountActions = ['setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
     if (accountActions.includes(action) || action in serviceActionSchemas) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
@@ -201,15 +202,16 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
 }
 export async function visibleState(tx: Transaction, actor: User | null, demo: boolean, bookingToken = '', inquiryToken = '') {
     let scope: Scope;
-    if (actor?.role === 'admin')
+    if (can(actor,'platform.admin'))
         scope = { user_credentials: none, audit_logs: { sql: 'id IN (SELECT id FROM audit_logs ORDER BY timestamp DESC LIMIT 500)' } };
     else {
         const userId = actor?.id ?? '';
-        const bookings = where('(traveler_user_id=? AND traveler_user_id<>\'\') OR (private_token=? AND private_token<>\'\') OR hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId, bookingToken, userId);
-        const properties = where("(kind='hostel' AND (is_published=1 OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published')", userId, userId, bookingToken);
+        const managerId=can(actor,'hostels.manage')?userId:'';
+        const bookings = where('(traveler_user_id=? AND traveler_user_id<>\'\') OR (private_token=? AND private_token<>\'\') OR hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId, bookingToken, managerId);
+        const properties = where("(kind='hostel' AND (is_published=1 OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published')", managerId, userId, bookingToken);
         scope = { ...emptyScope(), app_settings: { sql: '1' }, users: where('id=?', userId), properties, bookings,
             rental_inquiries: where("private_token=? AND private_token<>''", inquiryToken), coupons: none, reviews: where("status='approved'"), articles: where("status='published'"), phrases: { sql: '1' }, saved_places: where('user_id=?', userId),
-            capacity_overrides: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId), unit_blocks: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId), finance_entries: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId),
+            capacity_overrides: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), unit_blocks: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), finance_entries: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId),
             booking_changes: where(`booking_id IN (SELECT id FROM bookings WHERE ${bookings.sql})`, ...(bookings.args ?? [])), support_threads: where(`booking_id IN (SELECT id FROM bookings WHERE ${bookings.sql})`, ...(bookings.args ?? [])),
         };
     }

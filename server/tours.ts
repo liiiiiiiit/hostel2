@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
 import { z } from 'zod';
@@ -19,7 +20,7 @@ export const tourInput = z.object({
 });
 
 export async function saveTour(tx: Transaction, actor: User | null, tour: z.infer<typeof tourInput>) {
-  await requireProvider(tx,actor,'tour_provider');
+  actor=await requireProvider(tx,actor,'tour_provider');
   if (!actor) throw new Error('دسترسی مجاز نیست.');
   const admin = Number(actor.role === 'admin');
   const values = [tour.title, tour.organizer, tour.destination, tour.departure, tour.schedule, tour.duration,
@@ -47,14 +48,14 @@ export async function saveTour(tx: Transaction, actor: User | null, tour: z.infe
 }
 
 export async function deleteTour(tx: Transaction, actor: User | null, id: string, version: number) {
-  await requireProvider(tx,actor,'tour_provider');
+  actor=await requireProvider(tx,actor,'tour_provider');
   const result = await tx.execute({ sql: 'DELETE FROM tour_listings WHERE id=? AND version=? AND (owner_id=? OR ?=1) AND NOT EXISTS(SELECT 1 FROM tour_bookings WHERE tour_id=?)', args: [id, version,actor!.id,Number(actor!.role==='admin'),id] });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
 }
 
 export async function readTours(tx: Transaction, actor: User | null): Promise<Tour[]> {
-  const id = actor?.id ?? '';
-  const admin = Number(actor?.role === 'admin');
+  const id = can(actor,'tours.manage')?actor!.id:'';
+  const admin = Number(can(actor,'platform.admin'));
   const { rows } = await tx.execute({
     sql: `SELECT id,title,organizer,destination,departure,schedule,duration,description,contact,price,published,hidden,version,approved,capacity,
       owner_id=? AS owned FROM tour_listings

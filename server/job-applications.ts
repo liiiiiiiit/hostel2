@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Transaction } from '@libsql/client';
@@ -43,24 +44,23 @@ export async function applicationProgress(tx: Transaction, reference: string) {
 }
 
 export async function reviewApplication(tx: Transaction, actor: User | null, reference: string, previous: JobApplication['status'], next: JobApplication['status']) {
-  await requireProvider(tx,actor,'job_provider');
+  actor=await requireProvider(tx,actor,'job_provider');
   if (!actor) throw new Error('دسترسی مجاز نیست.');
   const result = await tx.execute({
     sql: `UPDATE job_applications SET status=? WHERE reference=? AND status=?
           AND job_id IN (SELECT id FROM job_postings WHERE owner_id=? OR ?=1)`,
-    args:[next,reference,previous,actor.id,Number(actor.role==='admin')],
+    args:[next,reference,previous,actor!.id,Number(actor!.role==='admin')],
   });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
 }
 
 export async function readApplications(tx: Transaction, actor: User | null): Promise<JobApplication[]> {
-  if (!actor) return [];
-  if(actor.role==='tour_provider')return [];
+  if (!can(actor,'jobs.manage')) return [];
   const {rows} = await tx.execute({
     sql: `SELECT a.reference,a.job_id,a.name,a.contact,a.message,a.status,a.submitted_at
           FROM job_postings j JOIN job_applications a ON a.job_id=j.id
           WHERE j.owner_id=? OR ?=1 ORDER BY a.submitted_at DESC,a.reference`,
-    args:[actor.id,Number(actor.role==='admin')],
+    args:[actor!.id,Number(actor!.role==='admin')],
   });
   return rows.map(row => ({ reference:String(row.reference), jobId:String(row.job_id), name:String(row.name),
     contact:String(row.contact), message:String(row.message), status:applicationStatus.parse(row.status), submittedAt:String(row.submitted_at) }));

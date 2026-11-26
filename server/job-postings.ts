@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
 import { z } from 'zod';
@@ -19,7 +20,7 @@ export const jobInput = z.object({
 });
 
 export async function saveJob(tx: Transaction, actor: User | null, job: z.infer<typeof jobInput>) {
-  await requireProvider(tx,actor,'job_provider');
+  actor=await requireProvider(tx,actor,'job_provider');
   if (!actor) throw new Error('دسترسی مجاز نیست.');
   const fields = [job.title, job.company, job.location, job.schedule, job.description, job.contact, job.salary, job.period, job.status];
   if (job.version === 0) {
@@ -39,8 +40,8 @@ export async function saveJob(tx: Transaction, actor: User | null, job: z.infer<
 }
 
 export async function readJobs(tx: Transaction, actor: User | null): Promise<JobPosting[]> {
-  const owner = actor?.id ?? '';
-  const admin = Number(actor?.role === 'admin');
+  const owner = can(actor,'jobs.manage')?actor!.id:'';
+  const admin = Number(can(actor,'platform.admin'));
   const { rows } = await tx.execute({
     sql: `SELECT id,title,company,location,schedule,description,contact,salary,period,status,version,approved,
       (owner_id=? OR ?=1) AS manageable FROM job_postings
@@ -56,7 +57,7 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
 }
 
 export async function deleteJob(tx:Transaction,actor:User|null,id:string,version:number){
-  await requireProvider(tx,actor,'job_provider');
+  actor=await requireProvider(tx,actor,'job_provider');
   const result=await tx.execute({sql:'DELETE FROM job_postings WHERE id=? AND version=? AND (owner_id=? OR ?=1) AND NOT EXISTS(SELECT 1 FROM job_applications WHERE job_id=?)',args:[id,version,actor!.id,Number(actor!.role==='admin'),id]});
   if(!result.rowsAffected)throw new Error('برای حفظ درخواست‌ها، آگهی دارای درخواست را ببندید.');
 }

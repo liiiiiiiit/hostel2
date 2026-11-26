@@ -102,3 +102,7 @@ The opt-in staging-only admin tab and `demo:generate`, `demo:validate`, `demo:se
 Read [DEMO_DATA_MANAGER_FA.md](DEMO_DATA_MANAGER_FA.md) for exact staging/sandbox commands, counts, protected manifests and supported roles. [DEMO_DATA_VERIFICATION.md](DEMO_DATA_VERIFICATION.md) records actual persisted counts and executed tests. Never run the disposable fixed-path CI fixture on a VPS.
 
 Task 04 isolated platform QA: [confirmed fixes](QA04_BUG_REPORT.md), [executed tests and limits](QA04_TEST_RESULTS.md), [database integrity](QA04_DATABASE_INTEGRITY_REPORT.md), [security](QA04_SECURITY_REPORT.md), [راهنمای فارسی](QA04_RUNBOOK_FA.md).
+
+### Task 05 authorization
+
+[Architecture, migration and role matrix](RBAC_ARCHITECTURE.md), [actual verification evidence](RBAC_TEST_RESULTS.md), and [راهنمای مدیر](RBAC_ADMIN_FA.md), and [ارتقای staging و rollback](RBAC_STAGING_DEPLOYMENT_FA.md). This is an additive, review-only change; no automatic deployment. Existing identities and dedicated provider profiles remain compatible; unsupported future roles are not enabled.

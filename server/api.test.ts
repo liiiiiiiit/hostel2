@@ -1,3 +1,4 @@
+import {migrateAuthorization} from './authorization.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -1034,6 +1035,9 @@ async function seedLegacyListing(database:Database,owner:string,kind:'job'|'tour
     sql:'INSERT INTO tour_listings(id,owner_id,title,organizer,destination,departure,schedule,duration,description,contact,price,published,hidden,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     args:[input.id,owner,input.title,input.organizer,input.destination,input.departure,input.schedule,input.duration,input.description,input.contact,input.price,Number(input.published),Number(input.hidden),new Date().toISOString()],
   }));
+  // This helper models a pre-RBAC database: migrate its historical owners once.
+  await database.client.execute("DELETE FROM module_migrations WHERE name='authorization-v1'");
+  await migrateAuthorization(database.client);
 }
 
 test('admin-created providers use existing SQLite credentials, isolate roles and preserve requests across activation changes',async t=>{

@@ -1,3 +1,4 @@
+import {can} from './utils/authorization';
 import { servicesText } from './i18n/services';
 import {TranslatorView} from './views/TranslatorView';
 import {articleInLanguage} from './utils/article-language';
@@ -281,11 +282,11 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
         );
 
       case 'admin':
-        if (!currentUser?.isActive || currentUser.role !== 'admin') return unavailable();
+        if (!can(currentUser,'platform.admin')) return unavailable();
         return <AdminPanelView currentLang={currentLang} onNavigate={handleNavigate} />;
 
       case 'manager':
-        if (!currentUser?.isActive || currentUser.role !== 'hostel_manager') return unavailable();
+        if (!can(currentUser,'hostels.manage')) return unavailable();
         return <ManagerPanelView currentLang={currentLang} onNavigate={handleNavigate} />;
 
       case 'account':
