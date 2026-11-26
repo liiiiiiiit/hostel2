@@ -1,6 +1,6 @@
 # استقرار امن TASK 06 در staging اوبونتو
 
-این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. نسخهٔ Task 05 مبنا `76868bd62899aed959e75d5d410fc68ba41c2b31` است و PR آن هنوز merge نشده است. شاخهٔ Task 06 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
+این سند فقط برای `test.yerevanhub.ir` است؛ هیچ دستور آن سرویس یا دیتابیس production را تغییر نمی‌دهد. کد تأییدشدهٔ این تسک `6390486f81130a60323a9f26c4160c98991ea516` است؛ هر سه workflow آن موفق‌اند و لینک نتایج در `JOB_SEEKER_TEST_RESULTS.md` آمده است. نسخهٔ Task 05 مبنا `76868bd62899aed959e75d5d410fc68ba41c2b31` است و PR آن هنوز merge نشده است. شاخهٔ Task 06 همهٔ وابستگی‌های قبلی را در تاریخچه دارد. نصب روی شاخهٔ قدیمی default، قابلیت‌های جدید را فعال نمی‌کند.
 
 ## بررسی پیش‌نیازها
 
@@ -15,15 +15,19 @@ sudo ss -ltnp | grep -E ':3001\b|:3002\b'
 
 انتظار: کاربر `hostel2-staging`، برنامه `/opt/hostel2-staging/app`، تنظیمات `/etc/hostel2-staging/staging.env`، دیتابیس `/opt/hostel2-staging/data/staging.db`، رسانه `/opt/hostel2-staging/data/uploads`، بکاپ `/opt/hostel2-staging/backups` و پورت **3002**. پورت 3001 قبلاً برای production استفاده شده؛ آن را تصاحب نکنید. APP_ENV=staging، NODE_ENV=production، NOTIFICATION_DELIVERY=disabled، DELIVERY/secretهای خارجی خالی و egress فعال باید برقرار باشد. محتوای کامل env یا رمزها را چاپ نکنید.
 
-اگر staging اصلاً نصب نیست، مراحل ۱ تا ۶ [STAGING_SETUP_FA.md](STAGING_SETUP_FA.md) را با شاخهٔ این تسک انجام دهید. در مرحلهٔ دریافت کد، پس از ساخت مسیر/کاربر مستقل، به‌جای شاخهٔ قدیمی:
+اگر staging اصلاً نصب نیست، ابتدا مرحلهٔ ۱ [STAGING_SETUP_FA.md](STAGING_SETUP_FA.md) را برای ساخت کاربر، مسیرها و runtime مستقل انجام دهید. سپس به‌جای مرحلهٔ ۲ آن سند، این بلوک را اجرا کنید (فقط وقتی مسیر app هنوز ساخته نشده):
 
 ```bash
+sudo -u hostel2-staging -H git clone --single-branch \
+  --branch codex/06-job-seeker-dashboard \
+  https://github.com/liiiiiiiit/hostel2.git /opt/hostel2-staging/app
+
 sudo -u hostel2-staging -H bash <<'SH'
 set -euo pipefail
 export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 git fetch origin refs/heads/codex/06-job-seeker-dashboard
-git checkout --detach TASK06_REVIEWED_SOURCE
+git checkout --detach 6390486f81130a60323a9f26c4160c98991ea516
 npm ci --include=dev
 npm run lint
 npm run build
@@ -70,7 +74,7 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/06-job-seeker-dashboard
-git switch --detach TASK06_REVIEWED_SOURCE
+git switch --detach 6390486f81130a60323a9f26c4160c98991ea516
 npm ci --include=dev
 npm run lint
 npm run build

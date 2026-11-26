@@ -45,6 +45,8 @@ Fresh version-2 full batches add 30 private profiles, 30 work experiences, 30 ed
 
 Employment type preferences are structured, but legacy job schedules remain free text; search supports text, location, minimum salary and pay period without inventing missing job taxonomies. Minimum salary filtering applies to the selected pay period; no exchange/pay-period conversion. Open-only public listings remain moderated exactly as before. Unavailable saved jobs retain their saved public summary; applied job titles/company remain in history after closure.
 
+The private client rejects HTML fallback, malformed JSON, false-success envelopes and missing metadata instead of displaying an upload success. Application inputs stay disabled during profile prefill so a delayed response cannot overwrite typing; identity changes remount the public application form.
+
 The private React view is lazy loaded at `/#/job-seeker`, linked from the header account menus and Jobs page. Four dictionaries cover Persian, English, Russian, Armenian. Hash routes retain the existing noindex treatment. Existing booking dashboard, roles, navigation design, mobile behavior and themes are preserved.
 
 ## Permission matrix
@@ -59,3 +61,17 @@ The private React view is lazy loaded at `/#/job-seeker`, linked from the header
 | Browse unshared applicant profile | No | No | No | No |
 
 Disabled/revoked/expired sessions fail server-side. No historical claim API exists. New source files are `server/job-seekers.ts`, `server/job-seeker-routes.ts`, `server/resume-fixtures.ts`, `src/types/jobSeeker.ts`, `src/i18n/jobSeeker.ts`, `src/services/jobSeeker.ts`, `src/views/JobSeekerView.tsx`; integrations and tests are enumerated in the PR diff. See API, test results, Persian user guide and staging deployment documents alongside this report.
+
+## Changed-file inventory
+
+39 intentional files; no dependency lockfile, database, media, credential manifest or secret changes.
+
+| Area | Files |
+|---|---|
+| Native model/routes and regression fixtures | `server/job-seekers.ts`, `server/job-seeker-routes.ts`, `server/job-seekers.test.ts`, `server/resume-fixtures.ts` |
+| API, authorization and persistence integration | `server/api.ts`, `server/action-authorization.ts`, `server/database.ts`, `server/persistence.ts`, `server/repository.ts`, `server/job-applications.ts`, `server/backups.ts`, `server/locale.ts`, `scripts/database.ts` |
+| Synthetic compatibility and materialization | `server/demo/fixtures.ts`, `server/demo/manager.ts`, `server/demo/materialize.ts`, `server/demo.test.ts` |
+| Frontend workspace | `src/views/JobSeekerView.tsx`, `src/services/jobSeeker.ts`, `src/services/jobSeeker.test.ts`, `src/types/jobSeeker.ts`, `src/i18n/jobSeeker.ts` |
+| Existing frontend integration | `src/App.tsx`, `src/components/Header.tsx`, `src/components/JobApplications.tsx`, `src/views/JobsView.tsx`, `src/utils/navigation.ts`, `src/types/index.ts`, `src/i18n/jobApplications.ts` |
+| Browser/CI entry points and preview prevention | `scripts/job-seeker-browser-smoke.mjs`, `scripts/staging-smoke.mjs`, `scripts/provider-browser-smoke.mjs`, `server/environment.ts`, `vercel.json` |
+| Delivery documents | `JOB_SEEKER_ARCHITECTURE.md`, `JOB_SEEKER_API.md`, `JOB_SEEKER_GUIDE_FA.md`, `JOB_SEEKER_STAGING_DEPLOYMENT_FA.md`, `JOB_SEEKER_TEST_RESULTS.md` |
