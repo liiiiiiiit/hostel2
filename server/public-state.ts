@@ -1,3 +1,4 @@
+import {can,managesHostel} from '../src/utils/authorization.js';
 import type { AppStoreState } from "./domain.js";
 import type { ClientState, User } from "../src/types/index.js";
 import { addCalendarDays, yerevanToday } from "../src/utils/dates.js";
@@ -11,10 +12,8 @@ export function publicState(
   inquiryToken = "",
   suppliedAvailability?: ClientState["availability"],
 ): ClientState {
-  const admin = actor?.role === "admin";
-  const manages = (id: string) =>
-    admin ||
-    (actor?.role === "hostel_manager" && actor.assignedHostelIds?.includes(id));
+  const admin = can(actor,"platform.admin");
+  const manages = (id:string) => managesHostel(actor,id);
   const bookings = state.bookings.filter(
     (b) =>
       manages(b.hostelId) ||

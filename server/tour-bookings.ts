@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
 import { randomUUID, createHash } from 'node:crypto';
@@ -45,15 +46,15 @@ export async function trackTour(tx: Transaction, reference: string) {
 }
 
 export async function changeTourBooking(tx: Transaction, actor: User | null, reference: string, previous: TourBooking['status'], next: TourBooking['status']) {
-  await requireProvider(tx,actor,'tour_provider');
+  actor=await requireProvider(tx,actor,'tour_provider');
   if(next!=='cancelled'&&(await tx.execute({sql:"SELECT 1 FROM tour_bookings b JOIN tour_listings t ON b.tour_id=t.id WHERE b.reference=? AND t.capacity < b.guests + (SELECT COALESCE(SUM(guests),0) FROM tour_bookings o WHERE o.tour_id=b.tour_id AND o.travel_date=b.travel_date AND o.reference<>b.reference AND o.status IN ('pending','confirmed'))",args:[reference]})).rows.length)throw new Error('ظرفیت کافی نیست.');
   const result = await tx.execute({sql:'UPDATE tour_bookings SET status=? WHERE reference=? AND status=? AND tour_id IN (SELECT id FROM tour_listings WHERE owner_id=? OR ?=1)',args:[next,reference,previous,actor!.id,Number(actor!.role==='admin')]});
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
 }
 
 export async function adminTourBookings(tx: Transaction, actor: User | null): Promise<TourBooking[]> {
-  if (!actor||actor.role==='job_provider') return [];
-  const {rows} = await tx.execute({sql:'SELECT reference,status,tour_id,title,organizer,price,name,contact,travel_date,guests,notes,created_at FROM tour_bookings WHERE tour_id IN (SELECT id FROM tour_listings WHERE owner_id=? OR ?=1) ORDER BY created_at DESC,reference',args:[actor.id,Number(actor.role==='admin')]});
+  if (!can(actor,'tours.manage')) return [];
+  const {rows} = await tx.execute({sql:'SELECT reference,status,tour_id,title,organizer,price,name,contact,travel_date,guests,notes,created_at FROM tour_bookings WHERE tour_id IN (SELECT id FROM tour_listings WHERE owner_id=? OR ?=1) ORDER BY created_at DESC,reference',args:[actor!.id,Number(actor!.role==='admin')]});
   return rows.map(row => ({
     reference:String(row.reference),status:tourBookingStatus.parse(row.status),tourId:String(row.tour_id),title:String(row.title),
     organizer:String(row.organizer),price:row.price===null?null:Number(row.price),name:String(row.name),contact:String(row.contact),

@@ -1,3 +1,4 @@
+import {can} from '../src/utils/authorization.js';
 import type { Client, Transaction } from '@libsql/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -53,7 +54,7 @@ export async function migrateServices(client:Client){
   await tx.commit();
  }catch(e){await tx.rollback();throw e;}finally{tx.close();}
 }
-function requireAdmin(actor:User|null){if(actor?.role!=='admin'||!actor.isActive)throw new ServiceError('forbidden',403);}
+function requireAdmin(actor:User|null){if(!can(actor,'services.manage'))throw new ServiceError('forbidden',403);}
 const parse=<T>(value:unknown)=>JSON.parse(String(value)) as T;
 function listing(row:Record<string,unknown>):ServiceListing{return {
  id:String(row.id),slug:String(row.slug),categoryId:String(row.category_id),version:Number(row.version),isActive:!!row.is_active,isFeatured:!!row.is_featured,isVerified:!!row.is_verified,allowBookingRequest:!!row.allow_booking_request,
@@ -81,7 +82,7 @@ export async function getService(tx:Transaction,slugOrId:string):Promise<Service
 }
 export async function serviceCities(tx:Transaction){return(await tx.execute('SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 ORDER BY s.city')).rows.map(r=>String(r.city));}
 export async function servicesState(tx:Transaction,actor:User|null){
- const admin=actor?.role==='admin';
+ const admin=can(actor,'services.manage');
  const services=admin?(await tx.execute('SELECT * FROM service_listings ORDER BY updated_at DESC,id')).rows.map(listing):(await searchServices(tx,{page:1,pageSize:6})).items;
  const serviceRequests:ServiceRequest[]=admin?(await tx.execute('SELECT * FROM service_requests ORDER BY created_at DESC,reference')).rows.map(r=>({reference:String(r.reference),serviceId:String(r.service_id),serviceTitle:parse(r.title_json),name:String(r.name),contact:String(r.contact),preferredDate:String(r.preferred_date),note:String(r.note),status:r.status as ServiceRequest['status'],createdAt:String(r.created_at)})):[];
  return {services,serviceCategories:await serviceCategories(tx,admin),serviceRequests};

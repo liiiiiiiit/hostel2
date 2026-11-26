@@ -1,3 +1,5 @@
+import {can} from '../src/utils/authorization.js';
+import {authorizationUser,requireLivePermission,revokeAuthorizationSessions,auditAuthorization} from './authorization.js';
 import type { Client, Transaction } from '@libsql/client';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -32,18 +34,18 @@ export async function migrateProviderTables(tx:Transaction) {
     await tx.execute("CREATE INDEX IF NOT EXISTS tour_bookings_capacity ON tour_bookings(tour_id,travel_date,status)");
 }
 export async function providerUser(tx:Transaction,user:User|null):Promise<User|null>{
-  if(!user)return null;
-  const profile=(await tx.execute({sql:'SELECT provider_role,organization FROM provider_accounts WHERE user_id=?',args:[user.id]})).rows[0];
-  return profile?{...user,role:profile.provider_role as User['role'],organization:String(profile.organization)}:user;
+  return authorizationUser(tx,user);
 }
 export async function providerAccounts(tx:Transaction,actor:User|null){
-  if(actor?.role!=='admin')return [];
+  if(!can(actor,'accounts.assign'))return [];
+  await requireLivePermission(tx,actor,'accounts.assign');
   const rows=(await tx.execute('SELECT u.id,u.name,u.email,u.phone,u.is_active,p.provider_role,p.organization FROM users u JOIN provider_accounts p ON p.user_id=u.id ORDER BY u.name,u.id')).rows;
   return rows.map(r=>({id:String(r.id),name:String(r.name),email:String(r.email),phone:String(r.phone??''),isActive:!!r.is_active,role:r.provider_role as 'job_provider'|'tour_provider',organization:String(r.organization)}));
 }
 export async function saveProvider(tx:Transaction,actor:User|null,input:z.infer<typeof providerInput>,createId:()=>string=randomUUID){
-  if(actor?.role!=='admin')throw new Error('دسترسی مجاز نیست.');
+  await requireLivePermission(tx,actor,'accounts.assign');
   const id=input.id??createId();
+  const before=input.id?(await tx.execute({sql:'SELECT u.role,u.is_active,p.provider_role,p.organization FROM users u JOIN provider_accounts p ON p.user_id=u.id WHERE u.id=?',args:[id]})).rows[0]:null;
   if(input.id&&!(await tx.execute({sql:'SELECT user_id FROM provider_accounts WHERE user_id=?',args:[id]})).rows.length)throw new Error('دسترسی مجاز نیست.');
   if((!input.id||input.password)&&input.password.length<12)throw new Error('رمز عبور باید حداقل ۱۲ نویسه باشد.');
   if((await tx.execute({sql:'SELECT id FROM users WHERE email=? COLLATE NOCASE AND id<>?',args:[input.email,id]})).rows.length)throw new Error('این ایمیل قبلاً ثبت‌نام شده است.');
@@ -60,12 +62,9 @@ export async function saveProvider(tx:Transaction,actor:User|null,input:z.infer<
   // A superseded recovery/verification link must never undo an administrative reset.
   if(invalidateTokens)await tx.execute({sql:'UPDATE auth_tokens SET used_at=? WHERE user_id=? AND used_at IS NULL',args:[Date.now(),id]});
   await tx.execute({sql:'DELETE FROM sessions WHERE user_id=?',args:[id]});
+  await auditAuthorization(tx,actor!.id,id,before??null,{role:input.role,isActive:input.isActive,organization:input.organization,passwordReset:!!input.password},'provider_account_saved');
 }
 /** Preserve historical owners' access while new provider accounts are strictly role scoped. */
 export async function requireProvider(tx:Transaction,actor:User|null,role:'job_provider'|'tour_provider'){
-  if(!actor)throw new Error('دسترسی مجاز نیست.');
-  if(actor.role==='admin'||actor.role===role)return;
-  if(actor.role==='job_provider'||actor.role==='tour_provider')throw new Error('دسترسی مجاز نیست.');
-  const table=role==='job_provider'?'job_postings':'tour_listings';
-  if(!(await tx.execute({sql:'SELECT id FROM '+table+' WHERE owner_id=? LIMIT 1',args:[actor.id]})).rows.length)throw new Error('دسترسی مجاز نیست.');
+  return requireLivePermission(tx,actor,role==='job_provider'?'jobs.manage':'tours.manage');
 }

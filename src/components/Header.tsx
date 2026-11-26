@@ -192,6 +192,7 @@ export const Header: React.FC<Props> = ({
                     <LayoutDashboard className="size-4" />
                     {accountLabel}
                   </button>
+                  {(currentUser.legacyProviderRoles??[]).map(role=><button key={role} type="button" onClick={()=>navigate(role==='job_provider'?'employer':'tour-organizer')} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm font-semibold text-[#142f2a] hover:bg-slate-50"><LayoutDashboard className="size-4"/>{role==='job_provider'?jobsText[currentLang].employer:toursText[currentLang].panel}</button>)}
                   <button
                     type="button"
                     onClick={() => {
@@ -296,7 +297,7 @@ export const Header: React.FC<Props> = ({
               {text.saved}
               <span>{saved.length}</span>
             </button>
-            <div className="mt-2 flex gap-2 border-t border-[#142f2a]/10 pt-3">
+            <div className="mt-2 flex flex-wrap gap-2 border-t border-[#142f2a]/10 pt-3">
               {currentUser ? (
                 <>
                   <button
@@ -307,6 +308,7 @@ export const Header: React.FC<Props> = ({
                     <LayoutDashboard className="size-4" />
                     {accountLabel}
                   </button>
+                  {(currentUser.legacyProviderRoles??[]).map(role=><button key={role} type="button" onClick={()=>navigate(role==='job_provider'?'employer':'tour-organizer')} className="flex w-full items-center gap-3 rounded-xl p-3 text-start text-sm font-semibold text-[#142f2a] hover:bg-slate-50"><LayoutDashboard className="size-4"/>{role==='job_provider'?jobsText[currentLang].employer:toursText[currentLang].panel}</button>)}
                   <button
                     type="button"
                     onClick={() => {
