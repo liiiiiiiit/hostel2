@@ -1,0 +1,24 @@
+# Recruitment API contracts
+
+Existing authenticated cookie and CSRF/origin enforcement are reused. For mutations send `POST /api/app`, JSON `{action,args}`, `X-Requested-With: YerevanHub`, `X-App-Language: fa|en|ru|hy`. Never trust client role/ownership flags. Success is `{success:true,state,...}` only after transaction commit. Validation/stale/state conflicts: 400; forbidden: 403; limits: 429; unexpected failures sanitized. All new actions require live `jobs.manage`; approval additionally requires admin.
+
+`GET /api/recruitment` accepts: `search`, `applicantSearch` (≤120), `publication=all|draft|pending|approved|rejected|expired|closed`, `status=all|received|reviewing|shortlisted|interview_scheduled|accepted|declined|withdrawn`, `jobId` UUID or empty, `ownerId` (admin only except own), `page`, `jobPage`, `historyPage` (integers 1..100000). Unknown query keys reject. Response: `organization`, `organizations` selector summaries, `jobs`, `applications`, `history`, `stats`. Each page has `{items,total,page,pages}`; pages clamp to actual last page. Jobs/applicants ten per page; history twenty. Stats cover the owner scope, not just the current page/search. Search covers title/company/city or applicant name/contact/message/consented profile; private notes are not a public search index. Unicode case handling occurs on authorized records server-side. Organization filters apply to jobs, applications, stats and history.
+
+| Action | Args / constraints |
+|---|---|
+| `saveEmployerOrganization` | `[{ownerId,version,name,description,website,phone,city}]`. Version 0 first save; later use read version. Name required ≤160, description ≤3000, HTTP(S) URL or empty ≤500, phone ≤100, city ≤160. Owner only or admin. Does not change roles/credentials. |
+| `saveRecruitmentJob` | `[{job,publication,expiresAt,moderationNote}]`. Job follows existing DTO. Draft needs title and bounded remaining fields (empty allowed); pending/approved requires complete existing validation. Expiration null or future UTC/offset ISO within 366 days. Providers only draft/pending and empty moderation reason. Admin rejection requires nonempty reason ≤2000. Existing job version is mandatory. |
+| `closeRecruitmentJob` | `[jobUUID,version]`; own/admin; preserves applications/history. |
+| `renewRecruitmentJob` | `[jobUUID,version,futureExpiryISO]`; preserves ID/history; employer renewal becomes pending. |
+| `saveRecruitmentNote` | `[referenceUUID,noteVersion,note]`; note ≤5000; version 0 first note/stage record. Own job/admin, reject withdrawn or stale version. Never returned to applicants/public. |
+| `scheduleRecruitmentInterview` | `[{reference,previousStatus,previousId,startsAt,minutes,kind,location}]`; previousId null first proposal, otherwise exact active UUID; future UTC/offset ISO ≤366 days, 15..240 minutes, video/phone/in_person, required location/connection text ≤500. Proposal only, no confirmation/notification. |
+| `finishRecruitmentInterview` | `[interviewUUID,'cancelled'|'completed',true]`; exact active proposal, completion no earlier than start. Explicit employer record, no automatic outcome. |
+| `reviewApplication` | Existing `[reference,previous,next]`, now enforces the documented finite state machine. Cannot fabricate interview_scheduled without a stored proposal or reopen terminal outcomes. |
+
+`saveJob`/`deleteJob` legacy endpoints remain supported with the existing full validation/ownership behavior. They now maintain moderation metadata and audit events; editing via legacy provider clients still resubmits for approval. The base SQL CHECK enums are not rebuilt. Public job DTO `acceptingApplications` includes expiration/draft checks; `publication`, `expiresAt`, `moderationNote` are returned for manageable listings only.
+
+Application read models preserve existing contact/message/snapshot/CV rules. `shortlisted` and `interview_scheduled` are overlay stages over the existing reviewing base status. Account history also includes its own interview records; guest reference tracking is still status-only. Withdrawal and sharing revocation remain Task06 owner actions and are audited; withdrawal cancels active proposals.
+
+`GET /api/job-applications/:reference/resume` retains protected attachment headers and live ownership/consent checks; successful authorization records `cv_download_authorized`. Owner-only `/api/job-seeker/documents/:id` remains separate. No public document URL or unrestricted profile lookup was added.
+
+Audit events contain owner/actor/job references, kind, target, timestamp and metadata such as transitions/length/proposal date, not note bodies, phone/contact copies, credentials or CV bytes. History is owner-scoped/admin-readable. See `src/types/recruitment.ts`, `server/recruitment.ts` and shared `recruitmentTransitions` for exact types/policies.

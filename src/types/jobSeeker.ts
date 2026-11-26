@@ -43,11 +43,12 @@ export interface SeekerDocument {
     createdAt: string;
 }
 export interface SeekerApplication {
+    interviews?:import('./recruitment.js').RecruitmentInterview[];
     reference: string;
     jobId: string;
     title: string;
     company: string;
-    status: 'received' | 'reviewing' | 'accepted' | 'declined' | 'withdrawn';
+    status: 'received' | 'reviewing' | 'shortlisted' | 'interview_scheduled' | 'accepted' | 'declined' | 'withdrawn';
     submittedAt: string;
     consentAt: string;
     profileShared: boolean;

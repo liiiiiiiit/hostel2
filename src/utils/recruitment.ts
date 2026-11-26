@@ -1,0 +1,3 @@
+import type { RecruitmentStatus } from '../types/recruitment.js';
+export const recruitmentTransitions: Record<RecruitmentStatus, readonly RecruitmentStatus[]> = { received: ['reviewing', 'shortlisted', 'interview_scheduled', 'accepted', 'declined'], reviewing: ['shortlisted', 'interview_scheduled', 'accepted', 'declined'], shortlisted: ['reviewing', 'interview_scheduled', 'accepted', 'declined'], interview_scheduled: ['reviewing', 'shortlisted', 'accepted', 'declined'], accepted: [], declined: [], withdrawn: [] };
+export function localDateInput(iso: string) { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }

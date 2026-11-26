@@ -1,3 +1,4 @@
+import {recruitmentEvent} from './recruitment-storage.js';
 import express from 'express';
 import { z } from 'zod';
 import type { Transaction } from '@libsql/client';
@@ -45,7 +46,7 @@ export function mountJobSeekerRoutes(app: express.Express, database: Database, s
         app.get(path, async (req, res, next) => {
             try {
                 const id = z.uuid().parse(req.params.id);
-                const row = await database.sqlTransaction(async (tx) => { const actor = await requireLivePermission(tx, await session(req, tx), owner ? 'account.self' : 'jobs.manage'); return (await tx.execute(owner ? { sql: 'SELECT name,content FROM job_seeker_documents WHERE id=? AND user_id=?', args: [id, actor.id] } : { sql: 'SELECT d.name,d.content FROM job_seeker_documents d JOIN account_job_applications l ON l.document_id=d.id AND l.user_id=d.user_id JOIN job_postings j ON j.id=l.job_id WHERE l.reference=? AND l.withdrawn_at IS NULL AND (j.owner_id=? OR ?=1)', args: [id, actor.id, Number(actor.role === 'admin')] })).rows[0]; }, 'read');
+                const row = await database.sqlTransaction(async (tx) => { const actor = await requireLivePermission(tx, await session(req, tx), owner ? 'account.self' : 'jobs.manage'); const result=(await tx.execute(owner ? { sql: 'SELECT name,content FROM job_seeker_documents WHERE id=? AND user_id=?', args: [id, actor.id] } : { sql: 'SELECT d.name,d.content,j.owner_id,j.id AS job_id FROM job_seeker_documents d JOIN account_job_applications l ON l.document_id=d.id AND l.user_id=d.user_id JOIN job_postings j ON j.id=l.job_id WHERE l.reference=? AND l.withdrawn_at IS NULL AND (j.owner_id=? OR ?=1)', args: [id, actor.id, Number(actor.role === 'admin')] })).rows[0];if(result&&!owner)await recruitmentEvent(tx,String(result.owner_id),actor.id,String(result.job_id),id,'cv_download_authorized');return result; }, owner?'read':'write');
                 if (!row) {
                     res.sendStatus(404);
                     return;

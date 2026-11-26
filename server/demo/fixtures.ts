@@ -138,7 +138,7 @@ export function normalizeConfig(value: unknown): DemoConfig {
     throw Error("Maximum 10000 primary records per batch.");
   return { ...parsed, counts } as DemoConfig;
 }
-export function generatePlan(input: unknown,recipeVersion:1|2=2) {
+export function generatePlan(input: unknown,recipeVersion:1|2|3=3) {
   const config = normalizeConfig(input),
     key = JSON.stringify(config),
     id = uuid("yh-demo-v"+recipeVersion, key),
@@ -402,7 +402,7 @@ export function generatePlan(input: unknown,recipeVersion:1|2=2) {
     managers: people("manager", c.managers),
     travelers,
     employers: people("employer", c.employers),
-    applicants: people("applicant", c.applicants).map((person,i)=>recipeVersion===2&&i<c.travelers?{...travelers[i],applicantUserId:uid("traveler",i)}:person as typeof person & {applicantUserId?:string}),
+    applicants: people("applicant", c.applicants).map((person,i)=>recipeVersion>=2&&i<c.travelers?{...travelers[i],applicantUserId:uid("traveler",i)}:person as typeof person & {applicantUserId?:string}),
     tourProviders: people("organizer", c.tourProviders),
     coupons: list(c.coupons, (i) => ({
       code: `DEMO-${id.slice(0, 8)}-${i + 1}`.toUpperCase(),
