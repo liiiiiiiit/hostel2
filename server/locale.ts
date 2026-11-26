@@ -1,6 +1,7 @@
 import {workflowErrors} from './workflow-errors.js';
 import type { AppLanguage } from '../src/types/index.js';
 const errors: Record<string,[string,string,string]>={
+  'دسترسی این حساب تغییر کرده است؛ دوباره بارگذاری کنید.':['This account access changed. Reload before saving.','Доступ к аккаунту изменился. Обновите данные перед сохранением.','Հաշվի հասանելիությունը փոխվել է։ Պահպանելուց առաջ թարմացրեք տվյալները։'],
   'آخرین مدیر فعال را نمی‌توان غیرفعال یا تغییر نقش داد.':['The last active administrator cannot be disabled or demoted.','Нельзя отключить или понизить последнего активного администратора.','Վերջին ակտիվ ադմինիստրատորին հնարավոր չէ անջատել կամ իջեցնել դերը։'],
   'حداقل یک هاستل انتخاب کنید.':['Select at least one hostel.','Выберите хотя бы один хостел.','Ընտրեք առնվազն մեկ հոսթել։'],
   'ابتدا خروج مهمان را از بخش پذیرش ثبت کنید.':['Record the guest checkout in Reception first.','Сначала зарегистрируйте выезд гостя в разделе приёма.','Նախ ընդունարանում գրանցեք հյուրի մեկնումը։'],

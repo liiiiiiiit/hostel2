@@ -87,6 +87,27 @@ export async function verifyAuthorizationUI({
     await panel.getByLabel("Account", { exact: true }).selectOption(userId);
     await panel
       .getByLabel("Role", { exact: true })
+      .selectOption("hostel_manager");
+    await panel
+      .getByRole("group", { name: "Assigned hostels", exact: true })
+      .getByRole("checkbox")
+      .first()
+      .check();
+    await panel
+      .getByLabel("Reason for change", { exact: true })
+      .fill("Synthetic manager assignment");
+    const managerResult = p.waitForResponse(
+      (r) =>
+        r.url() === origin + "/api/app" &&
+        r.request().postDataJSON()?.action === "setAccountAccess",
+    );
+    await panel
+      .getByRole("button", { name: "Save access", exact: true })
+      .click();
+    assert.equal((await (await managerResult).json()).success, true);
+    await panel.getByLabel("Account", { exact: true }).selectOption(userId);
+    await panel
+      .getByLabel("Role", { exact: true })
       .selectOption("job_provider");
     await panel
       .getByLabel("Reason for change", { exact: true })
@@ -157,6 +178,11 @@ export async function verifyAuthorizationUI({
             .locator("select")
             .first()
             .selectOption(userId);
+          await view.p
+            .getByTestId("account-access-manager")
+            .locator("select")
+            .nth(1)
+            .selectOption("hostel_manager");
           assert.equal(
             await view.p.getAttribute("html", "dir"),
             lang === "fa" ? "rtl" : "ltr",
@@ -178,7 +204,7 @@ export async function verifyAuthorizationUI({
         }
     assert.deepEqual(errors, []);
     console.log(
-      "PASS RBAC admin browser: role assignment, unified provider login, old-session revocation, provider role change, sensitive events, " +
+      "PASS RBAC admin browser: manager hostel assignment, role assignment, unified provider login, old-session revocation, provider role change, sensitive events, " +
         layouts +
         " permission-editor layouts (four languages/two themes/three widths).",
     );

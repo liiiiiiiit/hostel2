@@ -91,6 +91,7 @@ export function AccountAccessManager() {
       <label className="block">
         {t.account}
         <select
+          aria-label={t.account}
           className="field w-full"
           disabled={busy}
           value={draft?.id ?? ""}
@@ -114,6 +115,7 @@ export function AccountAccessManager() {
             <label className="block">
               {t.role}
               <select
+                aria-label={t.role}
                 className="field w-full"
                 value={draft.role}
                 onChange={(e) =>
@@ -190,6 +192,7 @@ export function AccountAccessManager() {
             <label className="block">
               {t.reason}
               <textarea
+                aria-label={t.reason}
                 required
                 minLength={3}
                 maxLength={1000}

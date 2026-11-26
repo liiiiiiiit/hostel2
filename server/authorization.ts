@@ -237,7 +237,7 @@ export async function setAccountAccess(
   const admin = await requireLivePermission(tx, actor, "accounts.assign"),
     before = await access(tx, input.id);
   if (input.version !== version(before))
-    throw new Error("اطلاعات واردشده معتبر نیست.");
+    throw new Error("دسترسی این حساب تغییر کرده است؛ دوباره بارگذاری کنید.");
   if (
     before.role === "admin" &&
     before.isActive &&

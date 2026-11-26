@@ -20,6 +20,7 @@ import {
 } from "./authorization.js";
 import { completeHostel } from "./property-fixtures.js";
 import { pendingMigrations, guardMigrations } from "./persistence.js";
+import { exportSnapshot } from "./backups.js";
 import { createVerifiedBackup } from "./backup-files.js";
 import { saveJob } from "./job-postings.js";
 import { yerevanToday, addCalendarDays } from "../src/utils/dates.js";
@@ -457,6 +458,9 @@ test("historical owner privileges are migrated once, preserved across reopen, ex
       "SELECT id,hash,salt FROM users JOIN user_credentials ON users.id=user_credentials.user_id ORDER BY id",
     )
   ).rows;
+  const oldTables = (await exportSnapshot(f.db.client)).tables.filter(
+    (t) => t.name !== "module_migrations",
+  );
   const archive = await createVerifiedBackup(
     f.db.client,
     f.root + "/backups",
@@ -468,6 +472,13 @@ test("historical owner privileges are migrated once, preserved across reopen, ex
   });
   await migrateAuthorization(f.db.client);
   assert.equal(await pendingMigrations(f.db.client), false);
+  const migrated = (await exportSnapshot(f.db.client)).tables;
+  for (const table of oldTables)
+    assert.deepEqual(
+      migrated.find((t) => t.name === table.name),
+      table,
+      table.name,
+    );
   assert.deepEqual(
     (
       await f.db.client.execute(
@@ -743,5 +754,35 @@ test("legacy grants enforce uniqueness and foreign keys; user-controlled extras 
   assert.equal(
     (await f.db.client.execute("PRAGMA foreign_key_check")).rows.length,
     0,
+  );
+});
+
+test("two administrators racing to demote each other cannot remove the last active administrator", async (t) => {
+  const f = await fixture(t),
+    second = await f.traveler();
+  await f.change(second.user.id, { role: "admin" });
+  await second.c.login(second.email);
+  const original = await f.access(f.adminUser.id),
+    other = await f.access(second.user.id);
+  const payload = (a: typeof original) => ({
+    id: a.id,
+    version: a.version,
+    role: "traveler",
+    isActive: true,
+    assignedHostelIds: [],
+    reason: "Concurrent administrator change",
+  });
+  const results = await Promise.all([
+    f.admin.action("setAccountAccess", [payload(other)]),
+    second.c.action("setAccountAccess", [payload(original)]),
+  ]);
+  assert.equal(results.filter((r) => r.data.success).length, 1);
+  assert.equal(
+    (
+      await f.db.client.execute(
+        "SELECT COUNT(*) AS n FROM users WHERE role='admin' AND is_active=1",
+      )
+    ).rows[0].n,
+    1,
   );
 });
