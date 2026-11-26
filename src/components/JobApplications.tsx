@@ -57,7 +57,7 @@ export function ApplyForJob({job,onApplied}: {job: JobPosting;onApplied?:()=>voi
   </form>;
 }
 
-export function JobApplicants({applications,onUpdated}: {applications: JobApplication[];onUpdated?:()=>void}) {
+export function JobApplicants({applications,onUpdated,disabled=false}: {applications: JobApplication[];onUpdated?:()=>void;disabled?:boolean}) {
   const {currentLang} = useLanguage(), t = applicationText[currentLang], st=seekerText[currentLang];
   const [busy,setBusy] = useState(false), [error,setError] = useState('');
   async function update(item: JobApplication, next:JobApplication['status']) {
@@ -75,7 +75,7 @@ export function JobApplicants({applications,onUpdated}: {applications: JobApplic
       <time dateTime={item.submittedAt}>{new Date(item.submittedAt).toLocaleString(currentLang,{timeZone:'Asia/Yerevan'})}</time>
       {item.sharedProfile&&<details><summary>{st.profile}</summary><p dir="auto">{item.sharedProfile.headline}</p><p dir="auto">{item.sharedProfile.about}</p><p dir="auto">{item.sharedProfile.city} · {item.sharedProfile.contact}</p><p dir="auto">{item.sharedProfile.desiredRole} · {item.sharedProfile.preferredLocation}</p><p>{st.minimumSalary}: {item.sharedProfile.minimumSalary??'—'}</p><p>{item.sharedProfile.employmentTypes.map(x=>st[x]).join(' · ')} {item.sharedProfile.remote?st.remote:''}</p><p dir="auto">{item.sharedProfile.skills.join(' · ')}</p><p>{item.sharedProfile.languages.map(l=>l.code+' · '+st[l.proficiency]).join(', ')}</p>{item.sharedProfile.experience.map(x=><p key={x.id} dir="auto">{x.title} · {x.organization} · {x.startDate} — {x.endDate}<br/>{x.description}</p>)}{item.sharedProfile.education.map(x=><p key={x.id} dir="auto">{x.qualification} · {x.institution} · {x.startDate} — {x.endDate}<br/>{x.description}</p>)}</details>}
       {item.resume&&<a className="button-secondary" href={'/api/job-applications/'+item.reference+'/resume'}>{st.download} · {item.resume.name}</a>}
-      {item.status==='withdrawn'?<p>{t.withdrawn}</p>:<label className="block">{t.status}<select aria-label={t.status} className="field w-full" disabled={busy||!recruitmentTransitions[item.status].length} value={item.status} onChange={e=>void update(item,e.target.value as JobApplication['status'])}>
+      {item.status==='withdrawn'?<p>{t.withdrawn}</p>:<label className="block">{t.status}<select aria-label={t.status} className="field w-full" disabled={busy||disabled||!recruitmentTransitions[item.status].length} value={item.status} onChange={e=>void update(item,e.target.value as JobApplication['status'])}>
         {[item.status,...recruitmentTransitions[item.status].filter(s=>s!=='interview_scheduled')].map(status=><option key={status} value={status}>{t[status]}</option>)}
       </select></label>}
     </section>)}

@@ -50,7 +50,7 @@ try{
   await employer.getByRole('button',{name:'Post a job',exact:true}).click();
   for(const [label,value] of [['Job title','Browser audited job'],['Employer or company','Audit team'],['City and workplace','Yerevan'],['Employment type and hours','Daily'],['Responsibilities and requirements','Relevant experience'],['How to apply','employer@audit.test']])await employer.getByLabel(label,{exact:true}).fill(value);
   await mutation(employer,'saveRecruitmentJob',()=>employer.getByRole('button',{name:'Save listing',exact:true}).click());
-  await employer.getByText('Awaiting admin approval',{exact:true}).waitFor();
+  await employer.getByRole('article').filter({hasText:'Browser audited job'}).getByText('Awaiting admin approval',{exact:true}).waitFor();
   await navigate(guest,'jobs');assert.equal(await guest.getByRole('heading',{name:'Browser audited job'}).count(),0);
   await tab(admin,'jobs');await admin.reload();await tab(admin,'jobs');
   await admin.getByRole('article').filter({hasText:'Browser audited job'}).getByRole('button',{name:'Edit listing',exact:true}).click();
