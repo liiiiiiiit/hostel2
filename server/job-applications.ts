@@ -1,3 +1,4 @@
+import {publicJobEligibility,effectiveApplicationStatus,transitions,recruitmentEvent,cancelProposedInterviews} from './recruitment-storage.js';
 import {requireLivePermission} from './authorization.js';
 import {readSeekerProfile,sharedProfile,documentMetadata} from './job-seekers.js';
 import {can} from '../src/utils/authorization.js';
@@ -15,7 +16,7 @@ export const applicationTable = `CREATE TABLE IF NOT EXISTS job_applications (
   CHECK(status IN ('received','reviewing','accepted','declined'))
 )`;
 export const applicationReviewStatus = z.enum(['received', 'reviewing', 'accepted', 'declined']);
-export const applicationStatus = z.enum(['received','reviewing','accepted','declined','withdrawn']);
+export const applicationStatus = z.enum(['received','reviewing','shortlisted','interview_scheduled','accepted','declined','withdrawn']);
 export const applicationInput = z.object({
   requestId: z.uuid(), jobId: z.uuid(), version: z.number().int().positive(),
   name: z.string().trim().min(1).max(120),
@@ -40,39 +41,43 @@ export async function applyForJob(tx: Transaction, input: z.infer<typeof applica
   const reference = randomUUID();
   const result = await tx.execute({
     sql: `INSERT INTO job_applications(reference,request_id,fingerprint,name,contact,message,submitted_at,job_id)
-          SELECT ?,?,?,?,?,?,?,id FROM job_postings WHERE id=? AND version=? AND status='open' AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)`,
+          SELECT ?,?,?,?,?,?,?,id FROM job_postings j WHERE id=? AND version=? AND ${publicJobEligibility('j')}`,
     args:[reference,input.requestId,fingerprint,input.name,input.contact,input.message,new Date().toISOString(),input.jobId,input.version],
   });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
   if(actor)await tx.execute({sql:'INSERT INTO account_job_applications(reference,job_id,user_id,document_id,profile_snapshot_json,consent_at,job_title,company) SELECT ?,id,?,?,?,?,title,company FROM job_postings WHERE id=?',args:[reference,actor.id,input.documentId??null,snapshot,new Date().toISOString(),input.jobId]});
+  const job=(await tx.execute({sql:'SELECT owner_id FROM job_postings WHERE id=?',args:[input.jobId]})).rows[0];await recruitmentEvent(tx,String(job.owner_id),actor?.id??null,input.jobId,reference,'application_received');
   return reference;
 }
 
 export async function applicationProgress(tx: Transaction, reference: string) {
-  const row = (await tx.execute({sql:"SELECT CASE WHEN l.withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE a.status END AS status FROM job_applications a LEFT JOIN account_job_applications l ON l.reference=a.reference WHERE a.reference=?",args:[reference]})).rows[0];
+  const row = (await tx.execute({sql:`SELECT ${effectiveApplicationStatus()} AS status FROM job_applications a LEFT JOIN account_job_applications l ON l.reference=a.reference LEFT JOIN recruitment_applications r ON r.reference=a.reference WHERE a.reference=?`,args:[reference]})).rows[0];
   if (!row) throw new Error('اطلاعات واردشده معتبر نیست.');
   return applicationStatus.parse(row.status);
 }
 
 export async function reviewApplication(tx: Transaction, actor: User | null, reference: string, previous: JobApplication['status'], next: JobApplication['status']) {
-  applicationReviewStatus.parse(previous);applicationReviewStatus.parse(next);
+  applicationStatus.parse(previous);applicationStatus.parse(next);
   actor=await requireProvider(tx,actor,'job_provider');
-  if (!actor) throw new Error('دسترسی مجاز نیست.');
-  const result = await tx.execute({
-    sql: `UPDATE job_applications SET status=? WHERE reference=? AND status=?
-          AND job_id IN (SELECT id FROM job_postings WHERE owner_id=? OR ?=1)
-          AND NOT EXISTS(SELECT 1 FROM account_job_applications l WHERE l.reference=job_applications.reference AND l.withdrawn_at IS NOT NULL)`,
-    args:[next,reference,previous,actor!.id,Number(actor!.role==='admin')],
-  });
-  if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
+  const row=(await tx.execute({sql:`SELECT a.status,j.owner_id,a.job_id,${effectiveApplicationStatus()} AS effective FROM job_applications a JOIN job_postings j ON j.id=a.job_id LEFT JOIN account_job_applications l ON l.reference=a.reference LEFT JOIN recruitment_applications r ON r.reference=a.reference WHERE a.reference=? AND (j.owner_id=? OR ?=1)`,args:[reference,actor!.id,Number(actor!.role==='admin')]})).rows[0];
+  if(!row||row.effective!==previous)throw Error('اطلاعات واردشده معتبر نیست.');
+  if(previous===next)return;
+  if(!transitions[previous].includes(next))throw Error('اطلاعات واردشده معتبر نیست.');
+  if(next==='interview_scheduled'&&!(await tx.execute({sql:"SELECT id FROM recruitment_interviews WHERE reference=? AND state='proposed'",args:[reference]})).rows.length)throw Error('اطلاعات واردشده معتبر نیست.');
+  const stage=['shortlisted','interview_scheduled'].includes(next)?next:null;
+  const baseStatus=applicationReviewStatus.parse(stage?'reviewing':next);
+  await tx.execute({sql:'UPDATE job_applications SET status=? WHERE reference=?',args:[baseStatus,reference]});
+  await tx.execute({sql:'INSERT INTO recruitment_applications(reference,stage) VALUES(?,?) ON CONFLICT(reference) DO UPDATE SET stage=excluded.stage,version=version+1',args:[reference,stage]});
+  if(next!=='interview_scheduled')await cancelProposedInterviews(tx,reference,String(row.owner_id),actor!.id,String(row.job_id),'pipeline_changed');
+  await recruitmentEvent(tx,String(row.owner_id),actor!.id,String(row.job_id),reference,'application_status_changed',{previous,next});
 }
 
 export async function readApplications(tx: Transaction, actor: User | null): Promise<JobApplication[]> {
   if (!can(actor,'jobs.manage')) return [];
   actor=await requireProvider(tx,actor,'job_provider');
   const {rows} = await tx.execute({
-    sql: `SELECT a.reference,a.job_id,a.name,a.contact,a.message,CASE WHEN l.withdrawn_at IS NOT NULL THEN 'withdrawn' ELSE a.status END AS status,a.submitted_at,l.profile_snapshot_json,d.id,d.name AS document_name,d.byte_size,d.created_at
-          FROM job_postings j JOIN job_applications a ON a.job_id=j.id LEFT JOIN account_job_applications l ON l.reference=a.reference LEFT JOIN job_seeker_documents d ON d.id=l.document_id AND d.user_id=l.user_id AND l.withdrawn_at IS NULL
+    sql: `SELECT a.reference,a.job_id,a.name,a.contact,a.message,${effectiveApplicationStatus()} AS status,a.submitted_at,l.profile_snapshot_json,d.id,d.name AS document_name,d.byte_size,d.created_at
+          FROM job_postings j JOIN job_applications a ON a.job_id=j.id LEFT JOIN account_job_applications l ON l.reference=a.reference LEFT JOIN recruitment_applications r ON r.reference=a.reference LEFT JOIN job_seeker_documents d ON d.id=l.document_id AND d.user_id=l.user_id AND l.withdrawn_at IS NULL
           WHERE j.owner_id=? OR ?=1 ORDER BY a.submitted_at DESC,a.reference`,
     args:[actor!.id,Number(actor!.role==='admin')],
   });

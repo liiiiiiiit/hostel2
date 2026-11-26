@@ -1,3 +1,4 @@
+import {recruitmentEvent} from './recruitment-storage.js';
 import {can} from '../src/utils/authorization.js';
 import {authorizationUser,requireLivePermission,revokeAuthorizationSessions,auditAuthorization} from './authorization.js';
 import type { Client, Transaction } from '@libsql/client';
@@ -58,6 +59,8 @@ export async function saveProvider(tx:Transaction,actor:User|null,input:z.infer<
     await tx.execute({sql:'UPDATE users SET name=?,email=?,phone=?,is_active=?,email_verified_at=CASE WHEN ?=1 THEN NULL ELSE email_verified_at END WHERE id=?',args:[input.name,input.email,input.phone,Number(input.isActive),Number(emailChanged),id]});
   } else await tx.execute({sql:"INSERT INTO users(id,name,email,phone,role,is_active,created_at) VALUES(?,?,?,?,'traveler',?,?)",args:[id,input.name,input.email,input.phone,Number(input.isActive),new Date().toISOString()]});
   await tx.execute({sql:'INSERT INTO provider_accounts(user_id,provider_role,organization) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET organization=excluded.organization',args:[id,input.role,input.organization]});
+  const org=(await tx.execute({sql:'SELECT name FROM employer_organizations WHERE user_id=?',args:[id]})).rows[0];
+  if(org&&input.organization&&String(org.name)!==input.organization){await tx.execute({sql:'UPDATE employer_organizations SET name=?,version=version+1,updated_at=? WHERE user_id=?',args:[input.organization,new Date().toISOString(),id]});await recruitmentEvent(tx,id,actor!.id,null,id,'organization_saved');}
   if(input.password){const credential=await createPasswordCredential(input.password);await tx.execute({sql:'INSERT INTO user_credentials(user_id,hash,salt) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET hash=excluded.hash,salt=excluded.salt',args:[id,credential.hash,credential.salt]});}
   // A superseded recovery/verification link must never undo an administrative reset.
   if(invalidateTokens)await tx.execute({sql:'UPDATE auth_tokens SET used_at=? WHERE user_id=? AND used_at IS NULL',args:[Date.now(),id]});

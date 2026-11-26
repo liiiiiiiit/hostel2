@@ -1,3 +1,4 @@
+import {migrateRecruitment} from './recruitment-storage.js';
 import {migrateJobSeekers} from './job-seekers.js';
 import {migrateAuthorization} from './authorization.js';
 import {migrateMediaCleanup} from './media-cleanup.js';
@@ -43,7 +44,7 @@ export class Database {
     this.demo = !['staging','production'].includes(applicationEnvironment()) && process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
     this.writeQueue = databaseWriteQueue(url ?? 'file:data/hostel.db');
-    this.ready = this.writeQueue.run(async () => { await guardMigrations(this.client,options.migrationBackup); await ensureDatabaseEnvironment(this.client); await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); await migrateMediaCleanup(this.client); await migrateAuthorization(this.client); await migrateJobSeekers(this.client); });
+    this.ready = this.writeQueue.run(async () => { await guardMigrations(this.client,options.migrationBackup); await ensureDatabaseEnvironment(this.client); await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); await migrateMediaCleanup(this.client); await migrateAuthorization(this.client); await migrateJobSeekers(this.client); await migrateRecruitment(this.client); });
     this.queue = this.ready.catch(() => {});
   }
   async waitUntilReady(): Promise<void> { await this.ready; }

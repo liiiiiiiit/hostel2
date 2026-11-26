@@ -39,3 +39,5 @@ export function authorizeAction(user: User | null, action: string) {
 }
 
 group('account.self','saveSeekerProfile saveSeekerJob withdrawJobApplication revokeApplicationSharing deleteSeekerDocument deleteSeekerProfile');
+
+group('jobs.manage','saveEmployerOrganization saveRecruitmentJob closeRecruitmentJob renewRecruitmentJob saveRecruitmentNote scheduleRecruitmentInterview finishRecruitmentInterview');

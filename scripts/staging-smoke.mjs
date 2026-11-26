@@ -47,5 +47,6 @@ try{
  const {verifyPlatform}=await import('./platform-qa-smoke.mjs');const verifyAfterRestart=await verifyPlatform({request,root,env,adminCookie:cookie,seedBatchId:generated.id,proxyPassword});await stop();await start();await verifyAfterRestart();
  const {verifyAuthorizationUI}=await import('./rbac-browser-smoke.mjs');await verifyAuthorizationUI({request,adminCookie:cookie,proxyPassword});
  const {verifyJobSeekerUI}=await import('./job-seeker-browser-smoke.mjs');await verifyJobSeekerUI({request,adminCookie:cookie,proxyPassword});
+ const {verifyRecruitmentUI}=await import('./recruitment-browser-smoke.mjs');await verifyRecruitmentUI({request,root,env,adminCookie:cookie,seedBatchId:generated.id,proxyPassword});
  console.log('PASS full requested synthetic ecosystem persisted through rebuild/restart and encrypted recovery; real staging startup, HTTPS/Basic Auth Nginx, noindex/banner, admin login and cookie isolation, persisted edit/session/upload after rebuild and restart, safe worker, encrypted backup/restoration to a separate target and schema integrity');
 }finally{if(nginx?.exitCode===null&&nginx.signalCode===null){nginx.kill();await new Promise(r=>nginx.once('exit',r));}await stop();await rm(dir,{recursive:true,force:true});}

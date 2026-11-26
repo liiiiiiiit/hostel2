@@ -606,3 +606,5 @@ test("real API authenticates generated roles, isolates dashboards/owners, blocks
 });
 
 test('legacy Task05 demo recipe retains its exact output and new recipes have distinct provenance',()=>{const config={baseDate:'2026-11-26'};assert.equal(planHash(generatePlan(config,1)),'b37800cfc38155e0b9aba5c91c5e4f0593efd4aab0527c6bf124c82193958589');assert.notEqual(generatePlan(config,1).id,generatePlan(config,2).id);});
+
+test('Task06 recipe v2 remains unchanged after recruitment fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},2)),'44470969294b41f7bc5982356532f4d020f503c35c8d31e374ebb2f69ab75453');});

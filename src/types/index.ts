@@ -384,12 +384,13 @@ export interface Tour {
 
 export interface JobApplication {
   reference: string; jobId: string; name: string; contact: string; message: string; submittedAt: string;
-  status: 'received' | 'reviewing' | 'accepted' | 'declined' | 'withdrawn';
+  status: 'received' | 'reviewing' | 'shortlisted' | 'interview_scheduled' | 'accepted' | 'declined' | 'withdrawn';
   sharedProfile?: import('./jobSeeker.js').SharedSeekerProfile; resume?: import('./jobSeeker.js').SeekerDocument;
 }
 
 export interface JobPosting {
   /** Server-derived public eligibility; management visibility does not imply availability. */
+  publication?:'draft'|'pending'|'approved'|'rejected'|'expired'|'closed'; expiresAt?:string|null; moderationNote?:string;
   acceptingApplications?:boolean;
   approved?:boolean;
   id: string; version: number; manageable: boolean;
