@@ -9,6 +9,7 @@ export const permissions = [
   "tours.manage",
   "services.manage",
   "media.manage",
+  "rentals.manage",
 ] as const;
 export type Permission = (typeof permissions)[number];
 export const rolePermissions: Record<UserRole, readonly Permission[]> = {
@@ -27,6 +28,7 @@ export function can(
   if (!user?.isActive) return false;
   return (
     !!rolePermissions[user.role]?.includes(permission) ||
+    (permission === "rentals.manage" && user.rentalOwnerAuthorized===true) ||
     (permission === "jobs.manage" &&
       !!user.legacyProviderRoles?.includes("job_provider")) ||
     (permission === "tours.manage" &&

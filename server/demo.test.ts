@@ -223,6 +223,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     reviews: 40,
     rental_inquiries: 30,
     provider_accounts: 25,
+    rental_owner_accounts: 10, rental_owner_properties: 20, rental_owner_inquiry_access: 15,
     job_postings: 30,
     job_applications: 80,
     job_seeker_profiles:30, job_seeker_skills:60,job_seeker_languages:60,job_seeker_experience:30,job_seeker_education:30,job_seeker_documents:3,saved_jobs:60,account_job_applications:30,
@@ -258,6 +259,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     await readFile(f.directory + "/demo/" + batch.manifest, "utf8"),
   );
   assert.equal(manifest.accounts.length, 65);
+  assert.equal(manifest.accounts.filter((a: {capabilities?: string[]})=>a.capabilities?.includes("rental_owner")).length,10);
   assert.equal(
     (await lstat(f.directory + "/demo/" + batch.manifest)).mode & 0o777,
     0o600,
@@ -615,3 +617,5 @@ test('legacy Task05 demo recipe retains its exact output and new recipes have di
 test('Task06 recipe v2 remains unchanged after recruitment fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},2)),'44470969294b41f7bc5982356532f4d020f503c35c8d31e374ebb2f69ab75453');});
 
 test('Task07 recipe v3 remains unchanged after moderation fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},3)),'ebf6f5a71339ba53f5a13aef8dfc40c991ab4c8cf53879046e59f6fe787ab44e');});
+
+test('Task08 recipe v4 remains byte-identical after owner fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},4)),'4309f5f0dfec202e8e0f342fd1d6551596781a32cb802065d9abf9d9143994d4');});

@@ -759,7 +759,7 @@ export class Store {
     desiredDurationText?: string;
     proposedVisitDate?: string;
     residentsCount?: number;
-    notes?: string;
+    notes?: string;shareWithOwner?:boolean;
   }): { success: boolean; inquiry?: RentalInquiry; error?: string } {
     const rental = this.state.rentals.find(r => r.id === data.propertyId);
     if (!rental || rental.status !== 'published') return { success: false, error: 'ملک یافت نشد.' };
@@ -812,7 +812,8 @@ export class Store {
 
   // Admin Rentals Management
   public saveRental(input: RentalProperty, expectedUpdatedAt?: string) {
-    this.requireAdmin();
+    const user=this.state.currentUser;
+    if(!user||!(user.role==='admin'||user.rentalOwnerAuthorized&&user.isActive&&(user.assignedRentalIds?.includes(input.id)||!this.state.rentals.some(r=>r.id===input.id))))throw new Error('دسترسی مجاز نیست.');
     const property = rentalSchema.parse(input) as RentalProperty;
     const previous = this.state.rentals.find(item => item.id === property.id);
     if(expectedUpdatedAt!==undefined&&(!previous||previous.updatedAt!==expectedUpdatedAt))throw new Error('اطلاعات یا قیمت تغییر کرده است؛ شرایط جدید را بررسی کنید.');

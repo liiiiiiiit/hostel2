@@ -43,3 +43,6 @@ group('account.self','saveSeekerProfile saveSeekerJob withdrawJobApplication rev
 group('jobs.manage','saveEmployerOrganization saveRecruitmentJob closeRecruitmentJob renewRecruitmentJob saveRecruitmentNote scheduleRecruitmentInterview finishRecruitmentInterview');
 
 group('platform.admin','moderateContent');
+
+group('accounts.assign','saveRentalOwnerAccount grantRentalOwner assignRentalOwner');
+group('rentals.manage','saveOwnerProfile saveOwnerRental setOwnerRentalAvailability updateOwnerInquiry');

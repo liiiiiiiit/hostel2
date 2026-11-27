@@ -1,3 +1,4 @@
+import {rentalOwnerVisible} from './rental-owner-storage.js';
 import {moderationVisible} from './moderation-storage.js';
 import {can} from '../src/utils/authorization.js';
 import { servicesState, serviceActionSchemas } from './services.js';
@@ -35,7 +36,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     const base = emptyScope();
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
-    const accountActions = ['moderateContent','saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
+    const accountActions = ['saveRentalOwnerAccount','grantRentalOwner','assignRentalOwner','saveOwnerProfile','saveOwnerRental','setOwnerRentalAvailability','updateOwnerInquiry','moderateContent','saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
     if (accountActions.includes(action) || action in serviceActionSchemas) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
@@ -209,7 +210,7 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         const userId = actor?.id ?? '';
         const managerId=can(actor,'hostels.manage')?userId:'';
         const bookings = where('(traveler_user_id=? AND traveler_user_id<>\'\') OR (private_token=? AND private_token<>\'\') OR hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId, bookingToken, managerId);
-        const properties = where(`(kind='hostel' AND ((is_published=1 AND ${moderationVisible('hostel','properties.id')}) OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published' AND ${moderationVisible('rental','properties.id')})`, managerId, userId, bookingToken);
+        const properties = where(`(kind='hostel' AND ((is_published=1 AND ${moderationVisible('hostel','properties.id')}) OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published' AND ${moderationVisible('rental','properties.id')} AND ${rentalOwnerVisible('properties.id')})`, managerId, userId, bookingToken);
         scope = { ...emptyScope(), app_settings: { sql: '1' }, users: where('id=?', userId), properties, bookings,
             rental_inquiries: where("private_token=? AND private_token<>''", inquiryToken), coupons: none, reviews: where(`status='approved' AND ${moderationVisible('review','reviews.id')}`), articles: where(`status='published' AND ${moderationVisible('article','articles.id')}`), phrases: { sql: '1' }, saved_places: where('user_id=?', userId),
             capacity_overrides: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), unit_blocks: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), finance_entries: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId),
@@ -234,7 +235,9 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         for (const row of rows)
             availability.push({ hostelId: String(row.hostel_id), roomTypeId: String(row.room_type_id), date: String(row.date), capacity: Number(row.capacity), booked: Number(row.booked), available: Math.max(0, Number(row.capacity) - Number(row.booked) - Number(row.blocked)) });
     }
-    return { ...publicState(state, actor, demo, bookingToken, inquiryToken, availability), ...await servicesState(tx,actor), jobs: await readJobs(tx, actor), jobApplications: await readApplications(tx, actor), tours: await readTours(tx, actor), tourBookings: await adminTourBookings(tx, actor), providerAccounts: await providerAccounts(tx,actor) };
+    const publicData=publicState(state, actor, demo, bookingToken, inquiryToken, availability);
+    for(const rental of publicData.rentals){const owner=(await tx.execute({sql:'SELECT owner_id,accepts_inquiries FROM rental_owner_properties WHERE property_id=?',args:[rental.id]})).rows[0];rental.ownerRequestsEnabled=!!owner?.owner_id;rental.acceptingInquiries=!owner||!!owner.accepts_inquiries;}
+    return { ...publicData, ...await servicesState(tx,actor), jobs: await readJobs(tx, actor), jobApplications: await readApplications(tx, actor), tours: await readTours(tx, actor), tourBookings: await adminTourBookings(tx, actor), providerAccounts: await providerAccounts(tx,actor) };
 }
 export async function imageIsReferenced(tx: Transaction, url: string) {
     return !!(await tx.execute({ sql: `SELECT 1 FROM service_listings WHERE cover_image=? UNION ALL SELECT 1 FROM service_listings s,json_each(s.gallery_json) g WHERE g.value=? UNION ALL SELECT 1 FROM property_photos WHERE url=? UNION ALL SELECT 1 FROM property_images WHERE url=? UNION ALL SELECT 1 FROM articles WHERE featured_image=? UNION ALL SELECT 1 FROM properties WHERE json_extract(extras_json,'$.entrancePhoto')=? LIMIT 1`, args: [url, url, url, url, url, url] })).rows.length;

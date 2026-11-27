@@ -143,7 +143,7 @@ export interface RentalProperty {
   id: string;
   slug: string;
   title: { fa: string; en: string; ru: string; hy: string };
-  propertyType: 'apartment' | 'house' | 'studio' | 'villa';
+  propertyType: 'apartment' | 'house' | 'studio' | 'villa' | 'room';
   rentalType: 'both' | 'short_term' | 'long_term';
   city: string;
   neighborhood: string;
