@@ -1,0 +1,2 @@
+import {rentalOwnerText} from '../i18n/rentalOwner';
+export async function rentalOwnerFetch<T>(path:string):Promise<T>{const language=document.documentElement.lang as keyof typeof rentalOwnerText;const r=await fetch(path,{credentials:'same-origin',headers:{'X-App-Language':language},signal:AbortSignal.timeout(20000)}),data=await r.json().catch(()=>null);if(!r.ok||!data)throw Error(data?.error||rentalOwnerText[language]?.error||rentalOwnerText.fa.error);return data as T;}

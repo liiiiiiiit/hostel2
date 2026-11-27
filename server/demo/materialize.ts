@@ -1,3 +1,6 @@
+import {rentalOwnerAction} from '../rental-owners.js';
+import {grantRentalInquiryAccess} from '../rental-owner-storage.js';
+import {authorizationUser} from '../authorization.js';
 import {moderationDetail,moderateContent} from '../moderation.js';
 import {contentModules,moderationStates,moderationTransitions,type ModerationStatus} from '../../src/types/moderation.js';
 import {recruitmentAction} from '../recruitment.js';
@@ -27,6 +30,7 @@ import { operate, operationSchemas } from "../operations.js";
 import { addCalendarDays, yerevanToday } from "../../src/utils/dates.js";
 import { uuid, type DemoPlan } from "./fixtures.js";
 export interface DemoAccount {
+  capabilities?:readonly ['rental_owner'];
   id: string;
   name: string;
   email: string;
@@ -198,6 +202,21 @@ export async function materialize(
       );
   }
   clock = new Date(base + "T08:00:00Z");
+  const sharedRentalInquiryIds:string[]=[];
+  if(plan.version>=5&&plan.rentalOwners?.length){
+    Object.assign(state,store.getState());state.currentUser=admin;await database.flush(state,tx);
+    for(const person of plan.rentalOwners){
+      await rentalOwnerAction(tx,admin,'grantRentalOwner',[{userId:person.userId,status:'active',reason:'SYNTHETIC owner authorization; not business verification.'}]);
+      const user=(await authorizationUser(tx,store.getState().users.find(u=>u.id===person.userId)!))!;
+      await rentalOwnerAction(tx,user,'saveOwnerProfile',[{version:1,organization:'SYNTHETIC rental owner',bio:'Fictional owner profile for isolated testing.',city:'Yerevan'}]);
+    }
+    for(const [index,rental]of plan.rentals.entries()){
+      const ownerId=plan.rentalOwners[index%plan.rentalOwners.length].userId;
+      await rentalOwnerAction(tx,admin,'assignRentalOwner',[{propertyId:rental.id,ownerId,version:0,reason:'SYNTHETIC explicit assignment of a newly generated property.'}]);
+      const current=await moderationDetail(tx,admin,'rental',rental.id);
+      await moderateContent(tx,admin,{targets:[{module:'rental',id:rental.id,version:current.version,contentVersion:current.contentVersion}],status:'published',note:'SYNTHETIC content review after assignment.',confirmed:true});
+    }
+  }
   for (let i = 0; i < c.rentalInquiries; i++) {
     as(null);
     const rental = plan.rentals[i % c.rentals],
@@ -221,6 +240,7 @@ export async function materialize(
     success(result);
     as(admin);
     if (!result.inquiry) throw Error("Missing rental inquiry");
+    if(plan.version>=5&&i%2===0)sharedRentalInquiryIds.push(result.inquiry.id);
     store.updateRentalInquiryStatus(
       result.inquiry.id,
       (
@@ -245,6 +265,7 @@ export async function materialize(
   Object.assign(state, store.getState());
   state.currentUser = null;
   await database.flush(state, tx);
+  for(const inquiryId of sharedRentalInquiryIds){if(await grantRentalInquiryAccess(tx,inquiryId,true)){const inquiry=state.rentalInquiries.find(i=>i.id===inquiryId);if(inquiry)inquiry.shareWithOwner=true;}}
   const providers = new Map<string, User>();
   for (const account of accounts.filter(
     (a) => a.role === "job_provider" || a.role === "tour_provider",

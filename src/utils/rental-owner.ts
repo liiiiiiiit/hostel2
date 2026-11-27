@@ -1,0 +1,2 @@
+import type {RentalInquiryStatus} from '../types/index.js';
+export const rentalInquiryTransitions:Record<RentalInquiryStatus,readonly RentalInquiryStatus[]>={pending_review:['coordinating','rejected','cancelled'],coordinating:['proposed_terms','rejected','cancelled'],proposed_terms:['coordinating','agreed','rejected','cancelled'],agreed:['completed','cancelled'],rejected:[],cancelled:[],completed:[]};

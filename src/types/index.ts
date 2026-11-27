@@ -6,6 +6,7 @@ export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 export type UserRole = 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
 
 export interface User {
+  rentalOwnerAuthorized?:boolean; assignedRentalIds?:string[];
   legacyProviderRoles?:('job_provider'|'tour_provider')[];
   organization?:string;
   emailVerifiedAt?:string;
@@ -207,6 +208,7 @@ export interface Booking {
 }
 
 export interface RentalProperty {
+  ownerRequestsEnabled?:boolean;acceptingInquiries?:boolean;
   description?: Record<AppLanguage, string>;
   media?: PropertyImage[];
   factsConfirmed?: boolean;
@@ -215,7 +217,7 @@ export interface RentalProperty {
   id: string;
   slug: string;
   title: Record<AppLanguage, string>;
-  propertyType: 'apartment' | 'house' | 'studio' | 'villa';
+  propertyType: 'apartment' | 'house' | 'studio' | 'villa' | 'room';
   rentalType: 'both' | 'short_term' | 'long_term';
   city: string;
   neighborhood: string;
@@ -280,6 +282,7 @@ export type RentalInquiryStatus =
   | 'completed';
 
 export interface RentalInquiry {
+  shareWithOwner?:boolean;
   id: string;
   trackingCode: string;
   privateToken: string;
@@ -418,4 +421,4 @@ export interface ClientState {
   settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
 export interface ActionResult {
-  serviceReference?: string; applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }
+  serviceReference?: string; applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; rental?:RentalProperty; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

@@ -1,3 +1,4 @@
+import {rentalOwnerText} from '../i18n/rentalOwner';
 import { PublicPreviewNotice } from '../components/PublicPreviewNotice';
 import { ListingDisclosure } from '../components/ListingDisclosure';
 import React, { useState } from 'react';
@@ -18,19 +19,19 @@ const COPY = {
   hy: { home:'Գլխավոր', overview:'Բնակարանի մասին', specs:'Բնութագրեր', area:'Մակերես', bedrooms:'Ննջասենյակներ', floor:'Հարկ', residents:'Բնակիչների առավելագույն թիվ', elevator:'Կա վերելակ', noElevator:'Առանց վերելակի', amenities:'Հարմարություններ', costs:'Վարձավճար և ծախսեր', nightly:'մեկ գիշեր', monthly:'ամսական', deposit:'Ավանդ', commission:'Միջնորդավճար', cleaning:'Մաքրում', terms:'Վարձակալության և ավանդի պայմաններ', utilities:'Կոմունալ ծառայություններ', included:'Ներառված է վարձի մեջ', tenant:'Վճարում է վարձակալը', meter:'Ըստ սպառման', electricity:'Էլեկտրաէներգիա', water:'Ջուր', gas:'Գազ', internet:'Ինտերնետ', maintenance:'Շենքի սպասարկում', minimum:'Նվազագույն ժամկետ', nights:'գիշեր', months:'ամիս', request:'Դիտման կամ վարձակալության հարցում', visit:'Դիտում', rent:'Վարձակալություն', name:'Անուն և ազգանուն', contact:'Հեռախոս կամ էլ. հասցե', visitDate:'Դիտման նախընտրելի ժամ', startDate:'Մուտքի ամսաթիվ', duration:'Վարձակալության ժամկետ', durationHint:'Օրինակ՝ 3 ամիս', people:'Բնակիչներ', notes:'Լրացուցիչ տեղեկություններ', optional:'ըստ ցանկության', submit:'Ուղարկել հարցումը', submitting:'Ուղարկվում է', disclaimer:'Հարցումը դիտարկելուց հետո կկապվենք ձեզ հետ։ Հարցումը չի հաստատում վարձակալությունը։', private:'Ճշգրիտ հասցեն տրվում է համաձայնեցումից հետո։', nameRequired:'Մուտքագրեք անունն ու ազգանունը։', contactRequired:'Մուտքագրեք հեռախոսը կամ էլ. հասցեն։', failed:'Հարցումը չուղարկվեց։ Փորձեք կրկին։', wifi:'Wi-Fi', ac:'Օդորակիչ', centralHeating:'Ջեռուցում', washingMachine:'Լվացքի մեքենա', dishwasher:'Սպասք լվացող մեքենա', balcony:'Պատշգամբ', parking:'Կայանատեղի', petFriendly:'Կենդանիները թույլատրվում են' },
 };
 export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavigate }) => {
-  const t=UI_TRANSLATIONS[currentLang]; const c=COPY[currentLang]; const title=getLocalized(rental.title,currentLang);
+  const ot=rentalOwnerText[currentLang];const t=UI_TRANSLATIONS[currentLang]; const c=COPY[currentLang]; const title=getLocalized(rental.title,currentLang);
   const Back=currentLang==='fa'?ArrowRight:ArrowLeft;
   const [requestType,setRequestType]=useState<'visit'|'rent'>('visit'); const [guestName,setGuestName]=useState(''); const [contact,setContact]=useState('');
   const [proposedVisitDate,setProposedVisitDate]=useState(()=>`${yerevanToday()}T17:00`); const [desiredStartDate,setDesiredStartDate]=useState(yerevanToday);
   const [desiredDurationText,setDesiredDurationText]=useState(''); const [residentsCount,setResidentsCount]=useState(1); const [notes,setNotes]=useState('');
-  const [isSubmitting,setIsSubmitting]=useState(false); const [formError,setFormError]=useState('');
+  const [shareWithOwner,setShareWithOwner]=useState(false);const [isSubmitting,setIsSubmitting]=useState(false); const [formError,setFormError]=useState('');
   const primaryPrice=rental.pricePerMonthAMD ?? rental.pricePerNightAMD;
   const onSubmit=async(event:React.FormEvent)=>{
     event.preventDefault();if(isSubmitting)return;setFormError('');
     if(!guestName.trim()){setFormError(c.nameRequired);return;}if(!contact.trim()){setFormError(c.contactRequired);return;}
     setIsSubmitting(true);
     try {
-      const result=await appStore.createRentalInquiry({propertyId:rental.id,guestName,contact,requestType,desiredStartDate:requestType==='rent'?desiredStartDate:undefined,desiredDurationText:requestType==='rent'?desiredDurationText:undefined,proposedVisitDate:requestType==='visit'?proposedVisitDate:undefined,residentsCount,notes});
+      const result=await appStore.createRentalInquiry({propertyId:rental.id,guestName,contact,requestType,desiredStartDate:requestType==='rent'?desiredStartDate:undefined,desiredDurationText:requestType==='rent'?desiredDurationText:undefined,proposedVisitDate:requestType==='visit'?proposedVisitDate:undefined,residentsCount,notes,shareWithOwner:!!rental.ownerRequestsEnabled&&shareWithOwner});
       if(result.success&&result.inquiry)onNavigate('rental-track',{token:result.inquiry.privateToken});else setFormError(result.error||c.failed);
     } catch {setFormError(c.failed);}finally{setIsSubmitting(false);}
   };
@@ -67,7 +68,7 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
       {rental.publicPreview ? <PublicPreviewNotice lang={currentLang}/> : <aside className="surface p-5 sm:p-6 lg:sticky lg:top-24 space-y-6" aria-label={c.request}>
         <div className="space-y-2 border-b border-slate-100 pb-5"><p className="text-3xl font-semibold tabular-nums">{primaryPrice?.toLocaleString(currentLang)??'—'} <span className="text-sm font-normal text-slate-500">AMD {rental.pricePerMonthAMD?c.monthly:c.nightly}</span></p><h2 className="text-lg font-medium">{c.request}</h2></div>
         {formError&&<div role="alert" className="p-3 rounded-xl bg-red-50 text-red-800 text-sm flex gap-2"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{formError}</div>}
-        <form onSubmit={onSubmit} className="space-y-4" aria-busy={isSubmitting}>
+        {rental.acceptingInquiries===false?<p role="status">{ot.unavailable}</p>:<form onSubmit={onSubmit} className="space-y-4" aria-busy={isSubmitting}>
           <fieldset className="grid grid-cols-2 gap-2"><legend className="sr-only">{c.request}</legend>{(['visit','rent'] as const).map(value=><button type="button" key={value} aria-pressed={requestType===value} disabled={isSubmitting} onClick={()=>setRequestType(value)} className={`rounded-xl py-3 text-sm font-medium border ${requestType===value?'bg-[#142f2a] border-[#142f2a] text-white':'border-slate-200 bg-white text-slate-600'}`}>{value==='visit'?c.visit:c.rent}</button>)}</fieldset>
           <div><label htmlFor="rental-name" className="block text-sm font-medium mb-1.5">{c.name}</label><input id="rental-name" name="name" autoComplete="name" required maxLength={200} value={guestName} onChange={e=>setGuestName(e.target.value)} className="field w-full" disabled={isSubmitting} /></div>
           <div><label htmlFor="rental-contact" className="block text-sm font-medium mb-1.5">{c.contact}</label><input id="rental-contact" name="contact" required maxLength={254} value={contact} onChange={e=>setContact(e.target.value)} className="field w-full ltr-isolate text-start" disabled={isSubmitting} /></div>
@@ -77,9 +78,10 @@ export const RentalDetailView: React.FC<Props> = ({ currentLang, rental, onNavig
           </>}
           <div><label htmlFor="rental-residents" className="block text-sm font-medium mb-1.5">{c.people}</label><select id="rental-residents" value={residentsCount} onChange={e=>setResidentsCount(Number(e.target.value))} className="field w-full" disabled={isSubmitting}>{Array.from({length:rental.maxResidents},(_,index)=>index+1).map(value=><option key={value} value={value}>{value.toLocaleString(currentLang)}</option>)}</select></div>
           <details className="text-sm"><summary className="cursor-pointer text-slate-600 py-1">{c.notes} · {c.optional}</summary><label className="sr-only" htmlFor="rental-notes">{c.notes}</label><textarea id="rental-notes" rows={3} maxLength={3000} value={notes} onChange={e=>setNotes(e.target.value)} className="field w-full mt-2" disabled={isSubmitting} /></details>
+          {rental.ownerRequestsEnabled&&<div className="space-y-2"><label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={shareWithOwner} disabled={isSubmitting} onChange={e=>setShareWithOwner(e.target.checked)}/><span>{ot.consent}</span></label><p className="text-xs">{ot.consentHint}</p></div>}
           <button type="submit" disabled={isSubmitting} className="button-primary w-full inline-flex items-center justify-center gap-2">{isSubmitting?<Loader2 className="w-4 h-4 animate-spin" />:<ArrowUpRight className="w-4 h-4" />}{isSubmitting?c.submitting:c.submit}</button>
           <p className="text-xs leading-6 text-slate-500">{c.disclaimer}</p>
-        </form>
+        </form>}
       </aside>}
     </div>
   </div>;

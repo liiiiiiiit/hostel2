@@ -1,3 +1,5 @@
+import {RentalOwnersAdmin} from '../components/RentalOwnersAdmin';
+import {rentalOwnerText} from '../i18n/rentalOwner';
 import {ModerationCenter} from '../components/ModerationCenter';
 import {moderationText} from '../i18n/moderation';
 import {AccountAccessManager} from '../components/AccountAccessManager';
@@ -68,6 +70,7 @@ interface Props {
   onNavigate: (view: string, params?: Record<string, string>) => void;
 }
 type Section =
+  | "rental-owners"
   | "moderation"
   | "demo"
   | "overview"
@@ -203,6 +206,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       count: inquiries.length,
     },
     ...(demoAvailable?[{id:"demo" as const,label:demoText[currentLang].nav,icon:<Activity size={17}/>}]:[]),
+    { id: "rental-owners", label:rentalOwnerText[currentLang].admin,icon:<House size={17}/> },
     { id: "moderation", label:moderationText[currentLang].nav,icon:<Activity size={17}/> },
     { id: "services", label: servicesText[currentLang].nav, icon: <Compass size={17}/> },
     { id: "tours", label: toursText[currentLang].nav, icon: <Compass size={17} /> },
@@ -238,7 +242,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.contentGroup,
-      ids: ["moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
+      ids: ["rental-owners", "moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
     { label: admin.system, ids: ["access", "audit", "profile",...(demoAvailable?["demo"]:[])] },
   ];
@@ -945,6 +949,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
           </>
         )}
         {section === "demo" && demoAvailable && <DemoDataManager language={currentLang}/> }
+        {section === "rental-owners" && <RentalOwnersAdmin />}
         {section === "moderation" && <ModerationCenter />}
         {section === "services" && <ServicesAdmin />}
         {section === "tours" && <ToursView mode="admin" />}

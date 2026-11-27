@@ -1,3 +1,6 @@
+import {ownerActionSchemas,rentalOwnerAction,ownerQuery,rentalOwnerState,rentalOwnerAdminState} from './rental-owners.js';
+import {assertRentalAccepting,grantRentalInquiryAccess} from './rental-owner-storage.js';
+import {mountRentalOwnerMedia} from './rental-owner-routes.js';
 import {moderationHistoryQuery,moderationHistory,moderationQuery,moderationPage,moderationInput,moderateContent} from './moderation.js';
 import {assertModerationVisible} from './moderation-storage.js';
 import {recruitmentActions,recruitmentAction,recruitmentQuery,recruitmentState} from './recruitment.js';
@@ -59,6 +62,7 @@ export const schemas = {
   deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
   applyForJob: z.tuple([applicationInput]),
   trackApplication: z.tuple([z.uuid()]),
+  ...ownerActionSchemas,
   moderateContent:z.tuple([moderationInput]),
   reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
   saveProvider: z.tuple([providerInput]),
@@ -72,7 +76,7 @@ export const schemas = {
   updateBookingStatus: z.tuple([text, status, optionalText]),
   cancelBookingByGuest: z.tuple([text, z.string().trim().min(1).max(1000)]), reportEntranceIssue: z.tuple([text, z.string().max(2000)]),
   submitReview: z.tuple([text, z.number().int().min(1).max(5), z.string().trim().min(1).max(3000), scores.optional()]),
-  createRentalInquiry: z.tuple([z.object({ propertyId: text, guestName: text, contact: text, requestType: z.enum(['rent','visit']), desiredStartDate: date.optional(), desiredDurationText: optionalText, proposedVisitDate: optionalText, residentsCount: positive, notes: optionalText }).refine(rentalScheduleIsValid, 'Invalid rental schedule')]),
+  createRentalInquiry: z.tuple([z.object({ shareWithOwner:z.boolean().optional(), propertyId: text, guestName: text, contact: text, requestType: z.enum(['rent','visit']), desiredStartDate: date.optional(), desiredDurationText: optionalText, proposedVisitDate: optionalText, residentsCount: positive, notes: optionalText }).refine(rentalScheduleIsValid, 'Invalid rental schedule')]),
   setCapacity: z.tuple([text, text, date, z.number().int().min(0).max(100)]),
   setVerification: z.tuple([z.enum(['hostel','rental']), text, z.boolean(), z.string().max(1000)]),
   checkCoupon: z.tuple([text, z.number().min(0)]),
@@ -111,7 +115,10 @@ export function createApi(database: Database) {
   app.get('/api/admin/account-access',async(req,res,next)=>{try{res.json(await database.sqlTransaction(async tx=>{const accounts=await authorizationAccounts(tx,await session(req,tx));const events=(await tx.execute('SELECT id,target_id,reason,created_at FROM authorization_events ORDER BY created_at DESC,id LIMIT 100')).rows;return {accounts,events};},'read'));}catch(e){next(e);}});
   app.get('/api/admin/moderation/history',async(req,res,next)=>{try{const query=moderationHistoryQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>moderationHistory(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
   app.get('/api/admin/moderation',async(req,res,next)=>{try{const query=moderationQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>moderationPage(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
+  app.get('/api/rental-owner',async(req,res,next)=>{try{const q=ownerQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>rentalOwnerState(tx,await session(req,tx),q),'read'));}catch(e){next(e);}});
+  app.get('/api/admin/rental-owners',async(req,res,next)=>{try{res.json(await database.sqlTransaction(async tx=>rentalOwnerAdminState(tx,await session(req,tx)),'read'));}catch(e){next(e);}});
   app.get('/api/recruitment',async(req,res,next)=>{try{const query=recruitmentQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>recruitmentState(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
+  mountRentalOwnerMedia(app,database,session);
   mountJobSeekerRoutes(app,database,session);
   mountServiceRoutes(app,database,session);
   mountDemoRoutes(app,database,session);
@@ -209,7 +216,7 @@ export function createApi(database: Database) {
           const input=args[0] as {hostelId:string;idempotencyKey:string};
           if(!(await tx.execute({sql:'SELECT id FROM bookings WHERE idempotency_key=?',args:[input.idempotencyKey]})).rows.length)await assertModerationVisible(tx,'hostel',input.hostelId);
         }
-        if(envelope.action==='createRentalInquiry')await assertModerationVisible(tx,'rental',String((args[0] as {propertyId:string}).propertyId));
+        if(envelope.action==='createRentalInquiry'){const propertyId=String((args[0] as {propertyId:string}).propertyId);await assertModerationVisible(tx,'rental',propertyId);await assertRentalAccepting(tx,propertyId);}
         let actionResult: ActionResult = { success: true };
         if(envelope.action==='setAccountAccess'){
           await setAccountAccess(tx,actor,args[0] as z.infer<typeof accessInput>);
@@ -228,6 +235,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action in ownerActionSchemas){
+          actionResult=await rentalOwnerAction(tx,actor,envelope.action as keyof typeof ownerActionSchemas,args);
         } else if(envelope.action==='moderateContent'){
           actionResult=await moderateContent(tx,actor,args[0]);
         } else if (envelope.action in recruitmentActions) {
@@ -312,6 +321,7 @@ export function createApi(database: Database) {
         const bookingToken = actionResult.booking?.privateToken ?? String(req.headers['x-booking-token'] ?? '');
         const inquiryToken = actionResult.inquiry?.privateToken ?? String(req.headers['x-inquiry-token'] ?? '');
         await database.flush(state,tx);
+        if(envelope.action==='createRentalInquiry'&&actionResult.success&&actionResult.inquiry){actionResult.inquiry.shareWithOwner=await grantRentalInquiryAccess(tx,actionResult.inquiry.id,!!(args[0] as {shareWithOwner?:boolean}).shareWithOwner);await database.flush(state,tx);}
         if(envelope.action==='createHostelManager'&&actionResult.success){const created=state.users.find(u=>u.email.toLowerCase()===String((args[0] as {email:string}).email).toLowerCase());if(created)await auditAuthorization(tx,actor!.id,created.id,null,{role:created.role,assignedHostelIds:created.assignedHostelIds,isActive:created.isActive},'manager_created');}
         actor=await authorizationUser(tx,actor);
         const responseState = await visibleState(tx, actor, database.demo, bookingToken, inquiryToken);
