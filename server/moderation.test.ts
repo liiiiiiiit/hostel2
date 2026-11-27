@@ -143,6 +143,7 @@ test('guest/traveler/provider/expired/disabled sessions cannot moderate or read 
     const payload = { targets: [{ module: 'job', id: job.id, version: target.version, contentVersion: target.contentVersion }], status: 'suspended', note: 'Unauthorized', confirmed: true };
     for (const actor of [f.client(), owner.c, traveler.c]) {
         assert.equal((await actor.get('/api/admin/moderation')).status, 403);
+        assert.equal((await actor.get('/api/admin/moderation/history?module=job&id='+job.id)).status,403);
         assert.equal((await actor.action('moderateContent', [payload])).status, 403);
     }
     await f.db.client.execute('UPDATE sessions SET expires_at=0');
@@ -252,6 +253,10 @@ test('locale keys, Unicode filters, pagination and native validation remain stri
     const last = recent.history.at(-1)!, older = await f.db.sqlTransaction(tx => moderationHistory(tx, f.adminUser, moderationHistoryQuery.parse({ module: 'job', id: tracked.id, beforeTime: last.createdAt, beforeId: last.id })), 'read');
     assert.equal(older.items.length, recent.historyTotal - 50);
     assert(!older.items.some(e => recent.history.some(r => r.id === e.id)));
+    const closed=await f.job();await f.db.sqlTransaction(tx=>recruitmentAction(tx,f.adminUser,'closeRecruitmentJob',[closed.id,1]));
+    await decide(f,'job',closed.id,'changes_requested');await decide(f,'job',closed.id,'published');
+    assert.equal((await f.db.client.execute({sql:'SELECT status FROM job_postings WHERE id=?',args:[closed.id]})).rows[0].status,'closed');
+    assert(!(await f.db.publicState()).jobs!.some(j=>j.id===closed.id));
     const incomplete = listing();
     await f.db.sqlTransaction(tx => recruitmentAction(tx, f.adminUser, 'saveRecruitmentJob', [{ job: { ...incomplete, description: '' }, publication: 'draft', expiresAt: null, moderationNote: '' }]));
     await assert.rejects(() => decide(f, 'job', incomplete.id, 'published'));

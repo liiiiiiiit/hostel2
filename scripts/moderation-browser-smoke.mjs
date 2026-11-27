@@ -18,6 +18,7 @@ export async function verifyModerationUI({request,root,env,adminCookie,proxyPass
  try{
   const {c,p}=await context(),t=moderationText.en,center=p.getByTestId('moderation-center');
   await center.getByLabel(t.search,{exact:true}).fill(prefix);await center.getByTestId('moderation-job-'+ids[0]).waitFor();
+  await center.getByTestId('moderation-job-'+ids[0]).getByText(t.preview,{exact:true}).click();await center.getByTestId('moderation-job-'+ids[0]).getByText('Fictional content only',{exact:true}).waitFor();
   for(const id of ids)await center.getByTestId('moderation-job-'+id).getByRole('checkbox').check();
   await center.getByLabel(t.apply,{exact:true}).selectOption('published');await center.getByLabel(t.note,{exact:true}).fill('SYNTHETIC bulk publication review');
   async function decision(){const response=p.waitForResponse(r=>r.url()===origin+'/api/app'&&r.request().postDataJSON()?.action==='moderateContent');p.once('dialog',d=>d.accept());await center.getByRole('button',{name:t.apply,exact:true}).click();assert.equal((await(await response).json()).success,true);}
