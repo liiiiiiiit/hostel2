@@ -13,7 +13,7 @@ React/TypeScript/Vite/Tailwind, Express/Node24, SQLite/libSQL, scrypt credential
 | Hostels | `is_published`, `listing_status`; administrator edits/publishes; assigned manager can edit location | All eight conceptual states. Existing complete-property validation applies. A manager's material location edit requests fresh review; admin location verification does not itself publish. Existing booking access/operations remain available. |
 | Rentals | `listing_status`; admin only; no rental-owner role | Eight states; complete property validation, no automatic verified badge. Operational rental inquiries remain independent. |
 | Jobs | `approved`, open/closed plus Task07 draft/pending/approved/rejected and expiry; employer/admin | Eight states; provider creates/edits into pending/draft and cannot approve. Published moderation still requires open, nonexpired job and active owner to accept applications. Renewal keeps its existing Task07 approval rule. |
-| Tours | published/hidden/approved, capacity; organizer/admin | Eight states; organizer edits require approval; publication does not alter capacity, existing bookings or confirm passengers. Active owner and existing booking guards still apply. |
+| Tours | published/hidden/approved, capacity; organizer/admin | Eight states; organizer edits require approval; explicit publication clears the visibility-only hidden flag, but does not alter capacity, existing bookings or confirm passengers. Active owner and existing booking guards still apply. |
 | Services | active listing/category, separate verified flag; admin only | Eight states; complete four-language content and active category required for approval/publication. Verification remains independent. |
 | Articles | draft/published; admin only | Eight states layered over existing fields; existing article schema/unique slug validation retained. No new author role or editorial permissions invented. |
 | Reviews | pending/approved/rejected; eligible visitor submits, admin moderates | Eight states; existing stay eligibility is retained on submission, including explicitly preserved historical reviews. Publication maps to native approved; no review or rating is fabricated. |
@@ -79,3 +79,44 @@ Demo recipe4 uses existing native generation/import/provenance services, then va
 Catalog filtering uses Unicode-aware JS matching over lightweight authorized catalog rows; full content/history is loaded only for the current20-item page. It is suitable for tested fixture sizes; very large catalogs need measured SQL/full-text indexing work. Public predicates/indexes and bounded page payloads remain in use. There is no push notification or provider correction email delivery, no scheduled publishing and no automated business verification. Real-device/screen-reader/independent penetration-test certification is not claimed.
 
 Running pre-Task08 code against an upgraded active database is unsafe: it ignores the moderation overlay. A rollback is separate-target encrypted recovery plus reconciliation of post-backup changes, not dropping the new tables or resetting the live database. Prefer a forward fix.
+
+## Changed files
+
+- `CONTENT_MODERATION_API.md`
+- `CONTENT_MODERATION_ARCHITECTURE.md`
+- `CONTENT_MODERATION_GUIDE_FA.md`
+- `CONTENT_MODERATION_STAGING_FA.md`
+- `CONTENT_MODERATION_TEST_RESULTS.md`
+- `scripts/database.ts`
+- `scripts/moderation-browser-smoke.mjs`
+- `scripts/staging-smoke.mjs`
+- `server/action-authorization.ts`
+- `server/api.test.ts`
+- `server/api.ts`
+- `server/database.ts`
+- `server/demo.test.ts`
+- `server/demo/fixtures.ts`
+- `server/demo/manager.ts`
+- `server/demo/materialize.ts`
+- `server/environment.ts`
+- `server/job-postings.ts`
+- `server/moderation-storage.ts`
+- `server/moderation.test.ts`
+- `server/moderation.ts`
+- `server/persistence.ts`
+- `server/recruitment-storage.ts`
+- `server/recruitment.ts`
+- `server/relational-store.ts`
+- `server/relational.test.ts`
+- `server/repository.ts`
+- `server/services.ts`
+- `server/tour-bookings.ts`
+- `server/tours.ts`
+- `src/components/ModerationCenter.tsx`
+- `src/i18n/moderation.ts`
+- `src/types/index.ts`
+- `src/types/moderation.ts`
+- `src/views/AdminPanelView.tsx`
+- `src/views/RecruitmentView.tsx`
+- `src/views/ToursView.tsx`
+- `vercel.json`

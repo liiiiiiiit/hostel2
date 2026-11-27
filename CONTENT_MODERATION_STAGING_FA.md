@@ -1,6 +1,6 @@
 # استقرار امن TASK 08 در staging اوبونتو
 
-این سند فقط برای test.yerevanhub.ir است؛ سایت اصلی، دیتابیس production و سرویس hostel2 را تغییر نمی‌دهد. مبنا شاخهٔ پیش‌فرض تأییدشدهٔ Task07 با SHA برابر 3e2139917ff6191465537ca8bea0fcf82f4b1c4f است. نسخهٔ Task08 برای نصب TASK08_REVIEWED_SOURCE است؛ نتیجهٔ تست واقعی در CONTENT_MODERATION_TEST_RESULTS.md ثبت می‌شود. نیازی به نصب جداگانهٔ تسک‌های قبلی نیست، ولی migration باید اجرا شود.
+این سند فقط برای test.yerevanhub.ir است؛ سایت اصلی، دیتابیس production و سرویس hostel2 را تغییر نمی‌دهد. مبنا شاخهٔ پیش‌فرض تأییدشدهٔ Task07 با SHA برابر 3e2139917ff6191465537ca8bea0fcf82f4b1c4f است. نسخهٔ آزموده‌شدهٔ Task08 برای نصب 3a6b2219aa36916cc49279a92e30a17f4efe30f2 است؛ تست‌های واقعی این نسخه موفق شده‌اند؛ نتیجه و لینک‌ها در CONTENT_MODERATION_TEST_RESULTS.md آمده‌اند. نیازی به نصب جداگانهٔ تسک‌های قبلی نیست، ولی migration باید اجرا شود.
 
 ## بررسی پیش‌نیازها
 
@@ -27,7 +27,7 @@ set -euo pipefail
 export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 git fetch origin refs/heads/codex/08-content-moderation
-git checkout --detach TASK08_REVIEWED_SOURCE
+git checkout --detach 3a6b2219aa36916cc49279a92e30a17f4efe30f2
 npm ci --include=dev
 npm run lint
 npm run build
@@ -75,7 +75,7 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/08-content-moderation
-git switch --detach TASK08_REVIEWED_SOURCE
+git switch --detach 3a6b2219aa36916cc49279a92e30a17f4efe30f2
 npm ci --include=dev
 npm run lint
 npm run build
@@ -103,6 +103,8 @@ SH
 ```
 
 انتظار: `moderation=true، recruitment=true، jobSeekers=true`، `authorization=true`، `schemaReady=true`، `foreignKeyViolations=0` و integrity برابر `ok`. مهاجرت `content-moderation-v1` افزایشی و تراکنشی است. اگر fingerprint یکسان نیست، writer یا env/path متفاوت است؛ guard را خاموش نکنید و هیچ فایل DB را حذف نکنید.
+
+پس از bootstrap اولیه و مهاجرت موفق، برای جلوگیری از migration ناخواسته در شروع‌های آینده، مقدار `REQUIRE_MIGRATION_BACKUP=true` را در فایل `/etc/hostel2-staging/staging.env` نگه دارید. با `sudoedit /etc/hostel2-staging/staging.env` فقط همین کلید موجود را تنظیم یا در صورت غیبت اضافه کنید؛ فایل یا کلید بکاپ را جایگزین نکنید.
 
 ## ۴. شروع و بررسی
 
@@ -168,4 +170,4 @@ SH
 
 مهاجرت content-moderation-v1 دو جدول و دو ایندکس اضافه می‌کند؛ داده‌های قدیمی و statusهای native بازنویسی نمی‌شوند. متغیر محیطی، وابستگی، نقش و فرمان npm جدید لازم نیست. کلید بکاپ و تنظیمات فعلی را حفظ کنید. هیچ down-migration یا restore روی فایل جاری اجرا نشود.
 
-نسخهٔ۴ مولد دمو در تعدادهای پیش‌فرض هشت وضعیت را برای هر هفت ماژول می‌سازد. نسخه‌های۱/۲/۳ byte-identical باقی می‌مانند؛ بچ‌های واردشدهٔ قدیمی خودکار تغییر نمی‌کنند. seed جدید اختیاری است و یک مجموعهٔ کامل دیگر اضافه می‌کند. استفادهٔ مدیر دمو با seed تازه، بعد از بکاپ، فقط روی staging مجاز است. هیچ seed روی production اجرا نشود.
+نسخهٔ۴ مولد دمو در تعدادهای پیش‌فرض هشت وضعیت را برای هر هفت ماژول می‌سازد. recipeهای نسخه‌های۱/۲/۳ byte-identical باقی می‌مانند؛ بچ‌های واردشدهٔ قدیمی خودکار تغییر نمی‌کنند. seed جدید اختیاری است و یک مجموعهٔ کامل دیگر اضافه می‌کند. استفادهٔ مدیر دمو با seed تازه، بعد از بکاپ، فقط روی staging مجاز است. هیچ seed روی production اجرا نشود.
