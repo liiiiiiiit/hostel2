@@ -236,6 +236,11 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     media_assets: 1,
   }))
     assert.equal(counts[table], count, table);
+  for(const module of ['hostel','rental','job','tour','service','article','review']){
+    const states=(await f.database.client.execute({sql:'SELECT DISTINCT status FROM content_moderation WHERE module=?',args:[module]})).rows.map(r=>String(r.status));
+    assert.deepEqual(new Set(states),new Set(['draft','pending_review','changes_requested','approved','published','rejected','suspended','archived']),module+' v4 state coverage');
+  }
+
   assert.equal(
     (
       await f.database.client.execute(
@@ -608,3 +613,5 @@ test("real API authenticates generated roles, isolates dashboards/owners, blocks
 test('legacy Task05 demo recipe retains its exact output and new recipes have distinct provenance',()=>{const config={baseDate:'2026-11-26'};assert.equal(planHash(generatePlan(config,1)),'b37800cfc38155e0b9aba5c91c5e4f0593efd4aab0527c6bf124c82193958589');assert.notEqual(generatePlan(config,1).id,generatePlan(config,2).id);});
 
 test('Task06 recipe v2 remains unchanged after recruitment fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},2)),'44470969294b41f7bc5982356532f4d020f503c35c8d31e374ebb2f69ab75453');});
+
+test('Task07 recipe v3 remains unchanged after moderation fixtures upgrade',()=>{assert.equal(planHash(generatePlan({baseDate:'2026-11-26'},3)),'ebf6f5a71339ba53f5a13aef8dfc40c991ab4c8cf53879046e59f6fe787ab44e');});

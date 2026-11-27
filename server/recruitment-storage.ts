@@ -1,3 +1,4 @@
+import {moderationVisible} from './moderation-storage.js';
 import type { Client, Transaction } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
 import type { RecruitmentStatus } from '../src/types/recruitment.js';
@@ -12,7 +13,7 @@ export const recruitmentSQL = [
     `CREATE INDEX IF NOT EXISTS recruitment_events_job ON recruitment_events(job_id,created_at,id)`,
     `CREATE INDEX IF NOT EXISTS job_applications_job_submitted ON job_applications(job_id,submitted_at,reference)`,
 ];
-export const publicJobEligibility = (alias = 'j') => `${alias}.status='open' AND ${alias}.approved=1 AND ${alias}.owner_id IN (SELECT id FROM users WHERE is_active=1) AND NOT EXISTS(SELECT 1 FROM recruitment_jobs r WHERE r.job_id=${alias}.id AND (r.state!='approved' OR (r.expires_at IS NOT NULL AND r.expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now'))))`;
+export const publicJobEligibility = (alias = 'j') => `${moderationVisible('job',alias+'.id')} AND ${alias}.status='open' AND ${alias}.approved=1 AND ${alias}.owner_id IN (SELECT id FROM users WHERE is_active=1) AND NOT EXISTS(SELECT 1 FROM recruitment_jobs r WHERE r.job_id=${alias}.id AND (r.state!='approved' OR (r.expires_at IS NOT NULL AND r.expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now'))))`;
 export const effectiveApplicationStatus = (a = 'a', l = 'l', r = 'r') => `CASE WHEN ${l}.withdrawn_at IS NOT NULL THEN 'withdrawn' WHEN ${a}.status='reviewing' AND ${r}.stage IS NOT NULL THEN ${r}.stage ELSE ${a}.status END`;
 export { recruitmentTransitions as transitions } from '../src/utils/recruitment.js';
 export async function recruitmentReady(db: Client | Transaction) { const names = new Set((await db.execute("SELECT name FROM sqlite_master WHERE type='table'")).rows.map(r => String(r.name))); if (!names.has('module_migrations'))

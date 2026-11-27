@@ -1,3 +1,4 @@
+import {moderationReady} from './moderation-storage.js';
 import {recruitmentReady} from './recruitment-storage.js';
 import {jobSeekersReady} from './job-seekers.js';
 import {authorizationReady} from './authorization.js';
@@ -13,7 +14,7 @@ export async function pendingMigrations(client:Client){
  const version=names.has('schema_migrations')?Number((await client.execute('SELECT COALESCE(MAX(version),0) AS n FROM schema_migrations')).rows[0].n):0;
  if(version>3)throw Error('Database requires a newer application version.');
  if(version<3)return true;
- const tx=await client.transaction('read');try{const pending=!(await providerIntegrity(tx)).ready||!(await serviceIntegrity(tx)).ready||!await mediaCleanupReady(tx)||!await authorizationReady(tx)||!await jobSeekersReady(tx)||!await recruitmentReady(tx);await tx.commit();return pending;}catch(e){await tx.rollback();throw e;}finally{tx.close();}
+ const tx=await client.transaction('read');try{const pending=!(await providerIntegrity(tx)).ready||!(await serviceIntegrity(tx)).ready||!await mediaCleanupReady(tx)||!await authorizationReady(tx)||!await jobSeekersReady(tx)||!await recruitmentReady(tx)||!await moderationReady(tx);await tx.commit();return pending;}catch(e){await tx.rollback();throw e;}finally{tx.close();}
 }
 export async function requireCurrentRecovery(client:Client,backupFile?:string,env:NodeJS.ProcessEnv=process.env){
  if(!backupFile)throw Error('Pending migration blocked. Stop web/workers; run db:migrate --offline --backup VERIFIED_FILE with a current verified backup.');

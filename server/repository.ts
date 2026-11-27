@@ -1,3 +1,4 @@
+import {moderationVisible} from './moderation-storage.js';
 import {can} from '../src/utils/authorization.js';
 import { servicesState, serviceActionSchemas } from './services.js';
 import { providerUser, providerAccounts } from './provider-accounts.js';
@@ -34,7 +35,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     const base = emptyScope();
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
-    const accountActions = ['saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
+    const accountActions = ['moderateContent','saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
     if (accountActions.includes(action) || action in serviceActionSchemas) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
@@ -208,9 +209,9 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         const userId = actor?.id ?? '';
         const managerId=can(actor,'hostels.manage')?userId:'';
         const bookings = where('(traveler_user_id=? AND traveler_user_id<>\'\') OR (private_token=? AND private_token<>\'\') OR hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', userId, bookingToken, managerId);
-        const properties = where("(kind='hostel' AND (is_published=1 OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published')", managerId, userId, bookingToken);
+        const properties = where(`(kind='hostel' AND ((is_published=1 AND ${moderationVisible('hostel','properties.id')}) OR id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?) OR id IN (SELECT hostel_id FROM bookings WHERE (traveler_user_id=? AND traveler_user_id<>'') OR (private_token=? AND private_token<>'')))) OR (kind='rental' AND listing_status='published' AND ${moderationVisible('rental','properties.id')})`, managerId, userId, bookingToken);
         scope = { ...emptyScope(), app_settings: { sql: '1' }, users: where('id=?', userId), properties, bookings,
-            rental_inquiries: where("private_token=? AND private_token<>''", inquiryToken), coupons: none, reviews: where("status='approved'"), articles: where("status='published'"), phrases: { sql: '1' }, saved_places: where('user_id=?', userId),
+            rental_inquiries: where("private_token=? AND private_token<>''", inquiryToken), coupons: none, reviews: where(`status='approved' AND ${moderationVisible('review','reviews.id')}`), articles: where(`status='published' AND ${moderationVisible('article','articles.id')}`), phrases: { sql: '1' }, saved_places: where('user_id=?', userId),
             capacity_overrides: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), unit_blocks: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId), finance_entries: where('hostel_id IN (SELECT hostel_id FROM manager_properties WHERE user_id=?)', managerId),
             booking_changes: where(`booking_id IN (SELECT id FROM bookings WHERE ${bookings.sql})`, ...(bookings.args ?? [])), support_threads: where(`booking_id IN (SELECT id FROM bookings WHERE ${bookings.sql})`, ...(bookings.args ?? [])),
         };

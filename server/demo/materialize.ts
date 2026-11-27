@@ -1,3 +1,5 @@
+import {moderationDetail,moderateContent} from '../moderation.js';
+import {contentModules,moderationStates,moderationTransitions,type ModerationStatus} from '../../src/types/moderation.js';
 import {recruitmentAction} from '../recruitment.js';
 import {emptySeekerProfile,saveSeekerProfile,uploadResume,seekerAction} from '../job-seekers.js';
 import {syntheticResume} from '../resume-fixtures.js';
@@ -279,7 +281,7 @@ export async function materialize(
       jobInput.parse({ ...job, version: 1, approved: true }),
     );
   }
-  if(plan.version===3)for(const account of plan.employers){const owner=providers.get(account.email)!;await recruitmentAction(tx,owner,'saveEmployerOrganization',[{ownerId:owner.id,version:0,name:'SYNTHETIC agency '+account.index,description:'Fictional recruitment organization for isolated tests only.',website:'https://example.test',phone:'',city:'Yerevan'}]);}
+  if(plan.version>=3)for(const account of plan.employers){const owner=providers.get(account.email)!;await recruitmentAction(tx,owner,'saveEmployerOrganization',[{ownerId:owner.id,version:0,name:'SYNTHETIC agency '+account.index,description:'Fictional recruitment organization for isolated tests only.',website:'https://example.test',phone:'',city:'Yerevan'}]);}
   const seekers=new Map<string,User>(),resumes=new Map<string,string>();
   if(plan.version>=2&&c.jobs>0)for(const [i,person]of plan.travelers.entries()){
     const user=state.users.find(u=>u.id===person.id)!;seekers.set(user.id,user);
@@ -314,7 +316,7 @@ export async function materialize(
         "received",
         status,
       );
-    if(plan.version===3){const owner=providers.get(plan.employers[(i%c.jobs)%c.employers].email)!;const r=(await tx.execute({sql:'SELECT version FROM recruitment_applications WHERE reference=?',args:[reference]})).rows[0];await recruitmentAction(tx,owner,'saveRecruitmentNote',[reference,Number(r?.version??0),'SYNTHETIC private employer note. Not a real hiring decision.']);if(i%8===0)await reviewApplication(tx,owner,reference,'received','shortlisted');if(i%8===1){const date=addCalendarDays(base,7)+'T12:00:00.000Z';if(Date.parse(date)>Date.now())await recruitmentAction(tx,owner,'scheduleRecruitmentInterview',[{reference,previousStatus:'reviewing',previousId:null,startsAt:date,minutes:30,kind:'video',location:'SYNTHETIC interview proposal only; no real meeting or candidate confirmation.'}]);}}
+    if(plan.version>=3){const owner=providers.get(plan.employers[(i%c.jobs)%c.employers].email)!;const r=(await tx.execute({sql:'SELECT version FROM recruitment_applications WHERE reference=?',args:[reference]})).rows[0];await recruitmentAction(tx,owner,'saveRecruitmentNote',[reference,Number(r?.version??0),'SYNTHETIC private employer note. Not a real hiring decision.']);if(i%8===0)await reviewApplication(tx,owner,reference,'received','shortlisted');if(i%8===1){const date=addCalendarDays(base,7)+'T12:00:00.000Z';if(Date.parse(date)>Date.now())await recruitmentAction(tx,owner,'scheduleRecruitmentInterview',[{reference,previousStatus:'reviewing',previousId:null,startsAt:date,minutes:30,kind:'video',location:'SYNTHETIC interview proposal only; no real meeting or candidate confirmation.'}]);}}
   }
   for (const [i, job] of plan.jobs.entries())
     if (i % 5 === 4 || i % 7 === 6)
@@ -328,7 +330,7 @@ export async function materialize(
           approved: i % 7 !== 6,
         }),
       );
-  if(plan.version===3)for(const [i,job]of plan.jobs.entries()){if(i%11===10||i%13===12){const row=(await tx.execute({sql:'SELECT version,status FROM job_postings WHERE id=?',args:[job.id]})).rows[0];await recruitmentAction(tx,admin,'saveRecruitmentJob',[{job:{...job,version:Number(row.version),status:row.status},publication:i%11===10?'draft':'rejected',expiresAt:null,moderationNote:'SYNTHETIC moderation fixture.'}]);}}
+  if(plan.version>=3)for(const [i,job]of plan.jobs.entries()){if(i%11===10||i%13===12){const row=(await tx.execute({sql:'SELECT version,status FROM job_postings WHERE id=?',args:[job.id]})).rows[0];await recruitmentAction(tx,admin,'saveRecruitmentJob',[{job:{...job,version:Number(row.version),status:row.status},publication:i%11===10?'draft':'rejected',expiresAt:null,moderationNote:'SYNTHETIC moderation fixture.'}]);}}
   for (const [i, tour] of plan.tours.entries()) {
     await saveTour(
       tx,
@@ -433,4 +435,18 @@ export async function materialize(
   Object.assign(state, store.getState());
   state.currentUser = null;
   await database.flush(state, tx);
+  if(plan.version>=4){
+    const ids={hostel:plan.hostels.map(x=>x.id),rental:plan.rentals.map(x=>x.id),job:plan.jobs.map(x=>x.id),tour:plan.tours.map(x=>x.id),service:plan.services.map(x=>x.id),article:plan.articles.map(x=>x.id),review:state.reviews.map(x=>x.id)};
+    for(const module of contentModules)for(const [index,status] of moderationStates.entries()){
+      const id=ids[module][index];if(!id)continue;
+      let current=await moderationDetail(tx,admin,module,id);
+      const paths:ModerationStatus[][]=[[current.status]],seen=new Set<ModerationStatus>();let path:ModerationStatus[]|undefined;
+      while(paths.length){const candidate=paths.shift()!,last=candidate.at(-1)!;if(last===status){path=candidate;break;}if(seen.has(last))continue;seen.add(last);for(const next of moderationTransitions[last])paths.push([...candidate,next]);}
+      if(!path)throw Error('Synthetic moderation state is unreachable.');
+      for(const next of path.slice(1)){
+        await moderateContent(tx,admin,{targets:[{module,id,version:current.version,contentVersion:current.contentVersion}],status:next,note:'SYNTHETIC moderation fixture; no real business decision.',confirmed:true});
+        current=await moderationDetail(tx,admin,module,id);
+      }
+    }
+  }
 }

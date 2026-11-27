@@ -1,3 +1,4 @@
+import {moderationReady} from '../server/moderation-storage.js';
 import {recruitmentReady} from '../server/recruitment-storage.js';
 import {jobSeekersReady} from '../server/job-seekers.js';
 import {authorizationReady} from '../server/authorization.js';
@@ -63,8 +64,9 @@ try {
                     const authorization=await authorizationReady(tx);
                     const jobSeekers=await jobSeekersReady(tx);
                     const recruitment=await recruitmentReady(tx);
-                    const schemaReady = recruitment && jobSeekers && authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
-                    console.log(JSON.stringify({ versions, schemaReady, recruitment, jobSeekers, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
+                    const moderation=await moderationReady(tx);
+                    const schemaReady = moderation && recruitment && jobSeekers && authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
+                    console.log(JSON.stringify({ versions, schemaReady, moderation, recruitment, jobSeekers, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
                     if (violations.length || integrity?.some(row => row.integrity_check !== 'ok') || (command === 'check' && !schemaReady))
                         process.exitCode = 1;
                     await tx.commit();

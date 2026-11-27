@@ -1,3 +1,4 @@
+import {syncModeration} from './moderation-storage.js';
 import { z } from 'zod';
 import type { Transaction } from '@libsql/client';
 import { randomUUID } from 'node:crypto';
@@ -50,6 +51,7 @@ export async function recruitmentAction(tx: Transaction, actor: User | null, act
             jobInput.parse(v.job);
         await saveJob(tx, user, { ...v.job, approved: v.publication === 'approved' });
         await tx.execute({ sql: 'UPDATE recruitment_jobs SET state=?,expires_at=?,moderation_note=?,published_at=CASE WHEN ?=1 THEN ? ELSE published_at END WHERE job_id=?', args: [v.publication, v.expiresAt, v.moderationNote, Number(v.publication === 'approved'), new Date().toISOString(), v.job.id] });
+        await syncModeration(tx,'job',v.job.id,user,{...v.job,approved:v.publication==='approved',recruitment_state:v.publication});
         const owner = (await tx.execute({ sql: 'SELECT owner_id FROM job_postings WHERE id=?', args: [v.job.id] })).rows[0];
         await recruitmentEvent(tx, String(owner.owner_id), user.id, v.job.id, v.job.id, 'publication_changed', { publication: v.publication, expiresAt: v.expiresAt });
     }

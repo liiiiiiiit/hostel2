@@ -1,3 +1,4 @@
+import {syncModeration} from './moderation-storage.js';
 import {publicJobEligibility,recordJobSave,recruitmentEvent} from './recruitment-storage.js';
 import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
@@ -29,13 +30,13 @@ export async function saveJob(tx: Transaction, actor: User | null, job: z.infer<
       sql: 'INSERT INTO job_postings(title,company,location,schedule,description,contact,salary,period,status,approved,id,owner_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
       args: [...fields, Number(actor.role==='admin'&&job.approved!==false), job.id, actor.id, new Date().toISOString()],
     });
-    if (result.rowsAffected) {await recordJobSave(tx,job.id,actor.id,actor.role==='admin'&&job.approved!==false);return;}
+    if (result.rowsAffected) {await recordJobSave(tx,job.id,actor.id,actor.role==='admin'&&job.approved!==false);await syncModeration(tx,'job',job.id,actor,{...job,approved:actor.role==='admin'&&job.approved!==false});return;}
   } else {
     const result = await tx.execute({
       sql: 'UPDATE job_postings SET title=?, company=?, location=?, schedule=?, description=?, contact=?, salary=?, period=?, status=?, approved=?, version=version+1 WHERE id=? AND version=? AND (owner_id=? OR ?=1)',
       args: [...fields, Number(actor.role==='admin'&&job.approved!==false), job.id, job.version, actor.id, Number(actor.role === 'admin')],
     });
-    if (result.rowsAffected) {await recordJobSave(tx,job.id,actor.id,actor.role==='admin'&&job.approved!==false);return;}
+    if (result.rowsAffected) {await recordJobSave(tx,job.id,actor.id,actor.role==='admin'&&job.approved!==false);await syncModeration(tx,'job',job.id,actor,{...job,approved:actor.role==='admin'&&job.approved!==false});return;}
   }
   throw new Error('اطلاعات واردشده معتبر نیست.');
 }
@@ -44,9 +45,9 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
   const owner = can(actor,'jobs.manage')?actor!.id:'';
   const admin = Number(can(actor,'platform.admin'));
   const { rows } = await tx.execute({
-    sql: `SELECT j.id,title,company,location,schedule,description,contact,salary,period,status,version,approved,
-      (${publicJobEligibility('j')}) AS accepting_applications, r.state AS recruitment_state,r.expires_at,r.moderation_note,
-      (owner_id=? OR ?=1) AS manageable FROM job_postings j LEFT JOIN recruitment_jobs r ON r.job_id=j.id
+    sql: `SELECT j.id,title,company,location,schedule,description,contact,salary,period,j.status,j.version,approved,
+      (${publicJobEligibility('j')}) AS accepting_applications, r.state AS recruitment_state,r.expires_at,r.moderation_note,cm.status AS moderation_status,(SELECT note FROM moderation_events me WHERE me.module='job' AND me.content_id=j.id AND me.to_status=cm.status AND me.note!='content_saved' ORDER BY created_at DESC,id DESC LIMIT 1) AS feedback,
+      (owner_id=? OR ?=1) AS manageable FROM job_postings j LEFT JOIN recruitment_jobs r ON r.job_id=j.id LEFT JOIN content_moderation cm ON cm.module='job' AND cm.content_id=j.id
       WHERE (${publicJobEligibility('j')}) OR owner_id=? OR ?=1 ORDER BY created_at DESC,j.id`,
     args: [owner, admin, owner, admin],
   });
@@ -54,7 +55,7 @@ export async function readJobs(tx: Transaction, actor: User | null): Promise<Job
     id: String(row.id), title: String(row.title), company: String(row.company), location: String(row.location),
     schedule: String(row.schedule), description: String(row.description), contact: String(row.contact),
     salary: row.salary === null ? null : Number(row.salary), period: row.period as JobPosting['period'],
-    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable), approved:Boolean(row.approved), acceptingApplications:Boolean(row.accepting_applications), ...(row.manageable?{expiresAt:row.expires_at?String(row.expires_at):null,moderationNote:String(row.moderation_note??''),publication:row.recruitment_state==='draft'?'draft':row.recruitment_state==='rejected'?'rejected':row.status==='closed'?'closed':row.recruitment_state==='pending'||!row.approved?'pending':row.expires_at&&String(row.expires_at)<=new Date().toISOString()?'expired':'approved'} as Pick<JobPosting,'expiresAt'|'moderationNote'|'publication'>:{}),
+    status: row.status as JobPosting['status'], version: Number(row.version), manageable: Boolean(row.manageable), approved:Boolean(row.approved), acceptingApplications:Boolean(row.accepting_applications), ...(row.manageable?{moderationStatus:row.moderation_status as JobPosting['moderationStatus'],moderationFeedback:String(row.feedback??''),expiresAt:row.expires_at?String(row.expires_at):null,moderationNote:String(row.moderation_note??''),publication:row.recruitment_state==='draft'?'draft':row.recruitment_state==='rejected'?'rejected':row.status==='closed'?'closed':row.recruitment_state==='pending'||!row.approved?'pending':row.expires_at&&String(row.expires_at)<=new Date().toISOString()?'expired':'approved'} as Pick<JobPosting,'expiresAt'|'moderationNote'|'publication'>:{}),
   }));
 }
 

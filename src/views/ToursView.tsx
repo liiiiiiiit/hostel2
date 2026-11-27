@@ -1,3 +1,4 @@
+import {moderationText} from '../i18n/moderation';
 import {can} from '../utils/authorization';
 import { providerWords } from '../components/ProviderAccounts';
 import { ReferenceTracker } from '../components/ReferenceTracker';
@@ -89,7 +90,7 @@ export function ToursView({ mode, tourId }: {
         {!tours.length && <p className="surface p-5">{managing ? t.none : t.empty}</p>}
         {tours.map(tour => <article key={tour.id} id={"tour-" + tour.id} className="scroll-mt-28 surface min-w-0 space-y-4 p-5 [overflow-wrap:anywhere]">
           <header className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xl font-bold" dir="auto">{tour.title}</h3>
+            <h3 className="text-xl font-bold" dir="auto">{tour.title}</h3>{managing&&tour.moderationStatus&&<p>{moderationText[currentLang][tour.moderationStatus]}</p>}{managing&&tour.moderationFeedback&&<p dir="auto">{tour.moderationFeedback}</p>}
             {managing && <span className="status-pill">{tour.hidden ? t.hidden : tour.published ? t.live : t.draft}</span>}
           </header>
           <p dir="auto">{tour.organizer}</p>
