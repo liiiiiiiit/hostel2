@@ -14,7 +14,6 @@ export function ModerationCenter() {
         let live = true;
         setLoading(true);
         setSelected([]);
-        setNotice('');
         const timer = setTimeout(() => {
             const q = new URLSearchParams({ module, status, search, page: String(page), language: currentLang });
             fetch('/api/admin/moderation?' + q, { credentials: 'same-origin', headers: { 'X-App-Language': currentLang } }).then(async (r) => { if (!r.ok)
@@ -52,11 +51,11 @@ export function ModerationCenter() {
             setBusy(false);
         }
     }
-    const filter = () => { setLoading(true); setPage(1); setSelected([]); };
+    const filter = () => { setLoading(true); setNotice(''); setPage(1); setSelected([]); };
     return <section className="space-y-5 min-w-0" data-testid="moderation-center">
   <h2 className="text-2xl font-bold">{t.nav}</h2><p className="text-sm">{t.policy}</p>
-  <div className="grid gap-3 md:grid-cols-3"><label className="min-w-0">{t.module}<select className="field w-full" value={module} onChange={e => { filter(); setModule(e.target.value as typeof module); }}><option value="all">{t.all}</option>{contentModules.map(v => <option key={v} value={v}>{t[v]}</option>)}</select></label>
-  <label className="min-w-0">{t.status}<select className="field w-full" value={status} onChange={e => { filter(); setStatus(e.target.value as typeof status); }}><option value="all">{t.all}</option>{moderationStates.map(v => <option key={v} value={v}>{t[v]}</option>)}</select></label>
+  <div className="grid gap-3 md:grid-cols-3"><label className="min-w-0">{t.module}<select className="field w-full" aria-label={t.module} value={module} onChange={e => { filter(); setModule(e.target.value as typeof module); }}><option value="all">{t.all}</option>{contentModules.map(v => <option key={v} value={v}>{t[v]}</option>)}</select></label>
+  <label className="min-w-0">{t.status}<select className="field w-full" aria-label={t.status} value={status} onChange={e => { filter(); setStatus(e.target.value as typeof status); }}><option value="all">{t.all}</option>{moderationStates.map(v => <option key={v} value={v}>{t[v]}</option>)}</select></label>
   <label className="min-w-0">{t.search}<input className="field w-full" maxLength={120} value={search} onChange={e => { filter(); setSearch(e.target.value); }}/></label></div>
   {loading && <p role="status">{t.loading}</p>}{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
   <button className="button-secondary" disabled={busy || loading} onClick={refresh}>{t.refresh}</button>

@@ -95,7 +95,7 @@ async function nativeFlags(tx: Transaction, module: ContentModule, id: string, s
         await tx.execute({ sql: "INSERT INTO recruitment_jobs(job_id,state,published_at) VALUES(?,?,?) ON CONFLICT(job_id) DO UPDATE SET state=excluded.state,moderation_note=?,published_at=CASE WHEN excluded.state='approved' THEN COALESCE(recruitment_jobs.published_at,excluded.published_at) ELSE recruitment_jobs.published_at END", args: [id, approved ? 'approved' : status === 'draft' ? 'draft' : status === 'rejected' ? 'rejected' : 'pending', published ? new Date().toISOString() : null, note] });
     }
     else if (module === 'tour')
-        await tx.execute({ sql: 'UPDATE tour_listings SET approved=?,published=?,version=version+1 WHERE id=?', args: [Number(approved), Number(published), id] });
+        await tx.execute({ sql: 'UPDATE tour_listings SET approved=?,published=?,hidden=CASE WHEN ?=1 THEN 0 ELSE hidden END,version=version+1 WHERE id=?', args: [Number(approved), Number(published), Number(published), id] });
     else if (module === 'service')
         await tx.execute({ sql: 'UPDATE service_listings SET is_active=?,version=version+1,updated_at=? WHERE id=?', args: [Number(published), new Date().toISOString(), id] });
     else if (module === 'article')

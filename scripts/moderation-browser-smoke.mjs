@@ -21,8 +21,13 @@ export async function verifyModerationUI({request,root,env,adminCookie,proxyPass
   await center.getByTestId('moderation-job-'+ids[0]).getByText(t.preview,{exact:true}).click();await center.getByTestId('moderation-job-'+ids[0]).getByText('Fictional content only',{exact:true}).waitFor();
   for(const id of ids)await center.getByTestId('moderation-job-'+id).getByRole('checkbox').check();
   await center.getByLabel(t.apply,{exact:true}).selectOption('published');await center.getByLabel(t.note,{exact:true}).fill('SYNTHETIC bulk publication review');
-  async function decision(){const response=p.waitForResponse(r=>r.url()===origin+'/api/app'&&r.request().postDataJSON()?.action==='moderateContent');p.once('dialog',d=>d.accept());await center.getByRole('button',{name:t.apply,exact:true}).click();assert.equal((await(await response).json()).success,true);}
-  await decision();await center.getByText(t.empty,{exact:true}).waitFor();
+  async function decision(expected=true){const response=p.waitForResponse(r=>r.url()===origin+'/api/app'&&r.request().postDataJSON()?.action==='moderateContent');p.once('dialog',d=>d.accept());await center.getByRole('button',{name:t.apply,exact:true}).click();assert.equal((await(await response).json()).success,expected);}
+  assert(JSON.parse((await request('/api/app',{cookie:adminCookie,data:{action:'saveJob',args:[{id:ids[0],version:1,title:prefix+' 0',company:'SYNTHETIC agency',location:'Yerevan',schedule:'Full time',description:'Concurrent change reviewed',contact:'jobs@example.test',salary:100,period:'month',status:'open',approved:false}]}})).text).success);
+  await decision(false);await center.getByRole('alert').waitFor();assert.equal(await center.getByText(t.saved,{exact:true}).count(),0);
+  const unchanged=JSON.parse((await request('/api/app')).text).state.jobs;for(const id of ids)assert(!unchanged.some(j=>j.id===id));
+  await center.getByRole('button',{name:t.refresh,exact:true}).click();for(const id of ids)await center.getByTestId('moderation-job-'+id).getByRole('checkbox').check();
+  await decision();await center.getByText(t.empty,{exact:true}).waitFor();await center.getByText(t.saved,{exact:true}).waitFor();
+
   const live=JSON.parse((await request('/api/app')).text).state.jobs;for(const id of ids)assert(live.some(j=>j.id===id));
   await center.getByLabel(t.status,{exact:true}).selectOption('published');await center.getByTestId('moderation-job-'+ids[0]).waitFor();for(const id of ids)await center.getByTestId('moderation-job-'+id).getByRole('checkbox').check();
   await center.getByLabel(t.apply,{exact:true}).selectOption('suspended');await center.getByLabel(t.note,{exact:true}).fill('SYNTHETIC reason <script>window.qa08Executed=true</script>');await decision();await center.getByText(t.empty,{exact:true}).waitFor();

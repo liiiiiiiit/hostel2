@@ -116,6 +116,13 @@ test('seven-module moderation separates approval/publication, gates API/direct p
     assert.equal(state.services!.find(s => s.id === seed.ids.service)!.isVerified, false);
     assert.equal(state.hostels.find(h => h.id === seed.ids.hostel)!.verification?.status, 'unverified');
     assert.equal(state.rentals.find(r => r.id === seed.ids.rental)!.verifiedBadge, false);
+    const tour=state.tours!.find(t=>t.id===seed.ids.tour)!;
+    assert.equal((await f.admin.action('saveTour',[{...tour,hidden:true}])).data.success,true);
+    assert(!(await f.db.publicState()).tours!.some(t=>t.id===tour.id));
+    await decide(f,'tour',tour.id,'published');
+    const restoredTour=(await f.db.publicState()).tours!.find(t=>t.id===tour.id)!;
+    assert.equal(restoredTour.hidden,false);assert.equal(restoredTour.capacity,10);
+
     await decide(f, 'service', seed.ids.service, 'suspended');
     const request = await f.client().action('requestService', [{ requestId: randomUUID(), serviceId: seed.ids.service, version: 3, name: 'Synthetic visitor', contact: '+37491123456', preferredDate: '', note: '' }]);
     assert.equal(request.data.success, false);
