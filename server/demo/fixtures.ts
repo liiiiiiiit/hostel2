@@ -138,7 +138,7 @@ export function normalizeConfig(value: unknown): DemoConfig {
     throw Error("Maximum 10000 primary records per batch.");
   return { ...parsed, counts } as DemoConfig;
 }
-export function generatePlan(input: unknown,recipeVersion:1|2|3=3) {
+export function generatePlan(input: unknown,recipeVersion:1|2|3|4=4) {
   const config = normalizeConfig(input),
     key = JSON.stringify(config),
     id = uuid("yh-demo-v"+recipeVersion, key),

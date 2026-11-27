@@ -1,3 +1,5 @@
+import {syncModeration,moderationComparable} from './moderation-storage.js';
+import type {ContentModule} from '../src/types/moderation.js';
 import type { InStatement, InValue, ResultSet, Transaction } from '@libsql/client';
 import type { AppStoreState } from './domain.js';
 import { tables, quote, type TableSpec } from './relational-schema.js';
@@ -342,7 +344,7 @@ function orderRows(spec: TableSpec, next: Map<string, RowData>, existing: Map<st
     }
     return orders;
 }
-export async function flushState(tx: Transaction, loaded: LoadedState) {
+export async function flushState(tx: Transaction, loaded: LoadedState, author=loaded.state.currentUser) {
     const after = encodeState(loaded.state, loaded.legacyReviews);
     const writes: InStatement[] = [], deletes: InStatement[] = [];
     const ordersByTable = new Map<string, Map<string, number>>();
@@ -374,6 +376,14 @@ export async function flushState(tx: Transaction, loaded: LoadedState) {
         await tx.batch(deletes);
     if (!loaded.retainExistingAuditRows && (after.get('audit_logs')?.size ?? 0) > (loaded.baseline.get('audit_logs')?.size ?? 0))
         await tx.execute('DELETE FROM audit_logs WHERE id IN (SELECT id FROM audit_logs ORDER BY timestamp DESC,sort_order LIMIT -1 OFFSET 500)');
+    if((await tx.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='content_moderation'")).rows.length) {
+        for(const table of ['properties','articles','reviews']) for(const [key,row] of after.get(table)!) {
+            const previous=loaded.baseline.get(table)!.get(key);
+            if(previous&&moderationComparable(previous.entity)===moderationComparable(row.entity))continue;
+            const module=(table==='properties'?row.entity.kind:table==='articles'?'article':'review') as ContentModule;
+            await syncModeration(tx,module,String(row.entity.id),author,row.entity);
+        }
+    }
     loaded.baseline = after;
     for (const spec of tables)
         loaded.rows.get(spec.table)!.rows = [...after.get(spec.table)!].map(([key, row]) => ({ ...row.values, sort_order: ordersByTable.get(spec.table)!.get(key)! }) as any);

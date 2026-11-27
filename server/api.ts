@@ -1,3 +1,5 @@
+import {moderationHistoryQuery,moderationHistory,moderationQuery,moderationPage,moderationInput,moderateContent} from './moderation.js';
+import {assertModerationVisible} from './moderation-storage.js';
 import {recruitmentActions,recruitmentAction,recruitmentQuery,recruitmentState} from './recruitment.js';
 import {seekerActionSchemas,seekerAction} from './job-seekers.js';
 import {mountJobSeekerRoutes} from './job-seeker-routes.js';
@@ -57,6 +59,7 @@ export const schemas = {
   deleteTour: z.tuple([z.uuid(), z.number().int().positive()]),
   applyForJob: z.tuple([applicationInput]),
   trackApplication: z.tuple([z.uuid()]),
+  moderateContent:z.tuple([moderationInput]),
   reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
   saveProvider: z.tuple([providerInput]),
   deleteJob: z.tuple([z.uuid(),z.number().int().positive()]),
@@ -106,6 +109,8 @@ export function createApi(database: Database) {
     return sessionUser(tx,digest(token));
   };
   app.get('/api/admin/account-access',async(req,res,next)=>{try{res.json(await database.sqlTransaction(async tx=>{const accounts=await authorizationAccounts(tx,await session(req,tx));const events=(await tx.execute('SELECT id,target_id,reason,created_at FROM authorization_events ORDER BY created_at DESC,id LIMIT 100')).rows;return {accounts,events};},'read'));}catch(e){next(e);}});
+  app.get('/api/admin/moderation/history',async(req,res,next)=>{try{const query=moderationHistoryQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>moderationHistory(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
+  app.get('/api/admin/moderation',async(req,res,next)=>{try{const query=moderationQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>moderationPage(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
   app.get('/api/recruitment',async(req,res,next)=>{try{const query=recruitmentQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>recruitmentState(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
   mountJobSeekerRoutes(app,database,session);
   mountServiceRoutes(app,database,session);
@@ -200,6 +205,11 @@ export function createApi(database: Database) {
         const store = new Store(state, true); store.getState().currentUser = actor;
         const before = new Map(state.bookings.map(b => [b.id, b.status]));
         store.expirePendingBookings();
+        if(envelope.action==='createBooking') {
+          const input=args[0] as {hostelId:string;idempotencyKey:string};
+          if(!(await tx.execute({sql:'SELECT id FROM bookings WHERE idempotency_key=?',args:[input.idempotencyKey]})).rows.length)await assertModerationVisible(tx,'hostel',input.hostelId);
+        }
+        if(envelope.action==='createRentalInquiry')await assertModerationVisible(tx,'rental',String((args[0] as {propertyId:string}).propertyId));
         let actionResult: ActionResult = { success: true };
         if(envelope.action==='setAccountAccess'){
           await setAccountAccess(tx,actor,args[0] as z.infer<typeof accessInput>);
@@ -218,6 +228,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action==='moderateContent'){
+          actionResult=await moderateContent(tx,actor,args[0]);
         } else if (envelope.action in recruitmentActions) {
           actionResult=await recruitmentAction(tx,actor,envelope.action as keyof typeof recruitmentActions,args);
         } else if (envelope.action in seekerActionSchemas) {

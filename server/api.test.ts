@@ -472,14 +472,22 @@ test('Vercel API adapter serves read-only browsing and rejects writes without a 
   }
 });
 
-test('hostel location updates are scoped, validated and require explicit admin verification', async t => {
-  const { visitor, client, hostel } = await fixture(t);
+test('hostel location updates require fresh moderation separately from location verification', async t => {
+  const { visitor, client, hostel, base } = await fixture(t);
+  const {completeHostel}=await import('./property-fixtures.js');
+  const initialAdmin=client();await initialAdmin.action('login',['admin@yerevanhub.com','Admin@2026']);
+  assert.equal((await initialAdmin.action('saveHostel',[{...completeHostel(),id:hostel.id,listingStatus:'published',isPublished:true}])).data.success,true);
   const point = { lat: 40.7891, lng: 43.8473, verified: false };
   assert.equal((await visitor.action('updateHostelLocation', [hostel.id, point])).response.status, 403);
   const manager = client();
   await manager.action('login', ['manager.kentron@yerevanhub.com', 'Hostel@2026']);
   assert.equal((await manager.action('updateHostelLocation', [hostel.id, { ...point, verified: true, note: 'Checked' }])).response.status, 403);
   assert.equal((await manager.action('updateHostelLocation', [hostel.id, point])).data.success, true);
+  assert.equal((await visitor.get()).state.hostels.some(h=>h.id===hostel.id),false);
+  const moderator=client();await moderator.action('login',['admin@yerevanhub.com','Admin@2026']);
+  const queue=await(await fetch(base.replace('/api/app','/api/admin/moderation?module=hostel&status=all'),{headers:{cookie:moderator.cookie}})).json();
+  const target=queue.items.find((i:{id:string})=>i.id===hostel.id);
+  assert.equal((await moderator.action('moderateContent',[{targets:[{module:'hostel',id:hostel.id,version:target.version,contentVersion:target.contentVersion}],status:'published',note:'Reviewed updated coordinates',confirmed:true}])).data.success,true);
   let publicHostel = (await visitor.get()).state.hostels.find(h => h.id === hostel.id)!;
   assert.deepEqual(publicHostel.coordinates, { lat: point.lat, lng: point.lng });
   assert.equal(publicHostel.locationVerification?.status, 'unverified');
@@ -936,7 +944,8 @@ test('tour organizers manage their own listings and only admins control moderati
   const draft = (await organizer.get()).state.tours![0];
   assert.equal((await other.action('saveTour', [{...draft, published:true}])).data.success, false);
   assert.equal((await organizer.action('saveTour', [{...draft, published:true}])).data.success, true);
-  await database.sqlTransaction(tx=>tx.execute({sql:'UPDATE tour_listings SET approved=1 WHERE id=?',args:[tour.id]}));
+  const submitted=(await admin.get()).state.tours!.find(t=>t.id===tour.id)!;
+  assert.equal((await admin.action('saveTour',[{...submitted,published:true,approved:true}])).data.success,true);
   const live = (await visitor.get()).state.tours![0];
   assert.equal(live.price, 12000);
   assert.equal((await admin.action('saveTour', [{...live, hidden:true}])).data.success, true);

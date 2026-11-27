@@ -166,12 +166,14 @@ test('invalid legacy data aborts atomically without renaming or dropping the liv
     assert.equal((await check.execute("SELECT name FROM sqlite_master WHERE name='legacy_properties_v2'")).rows.length, 0);
     check.close();
 });
-test('a property edit writes one row; no-op and public reads never rewrite the application or catalogue', async (t) => {
+test('a property edit writes one business row plus scoped moderation metadata/audit; no-op and reads remain write-free', async (t) => {
     const { db } = await fixture(t);
     const sql = instrument(db);
     await db.transaction(async (state) => { state.hostels[0].phone = 'JUST-ONE-EDIT'; });
     const changes = sql.filter(s => s.changed > 0);
-    assert.equal(changes.length, 1);
+    assert.equal(changes.length, 3);
+    assert.equal(changes.filter(s=>/INSERT INTO content_moderation/.test(s.sql)).length,1);
+    assert.equal(changes.filter(s=>/INSERT INTO moderation_events/.test(s.sql)).length,1);
     assert.match(changes[0].sql, /INSERT INTO "properties"/);
     sql.length = 0;
     await db.transaction(async () => { });

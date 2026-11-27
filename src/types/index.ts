@@ -376,6 +376,7 @@ export interface TourBooking {
 }
 
 export interface Tour {
+  moderationStatus?:import('./moderation.js').ModerationStatus;moderationFeedback?:string;
   approved?:boolean; capacity?:number;
   id: string; version: number; owned: boolean; published: boolean; hidden: boolean;
   title: string; organizer: string; destination: string; departure: string; schedule: string;
@@ -389,6 +390,7 @@ export interface JobApplication {
 }
 
 export interface JobPosting {
+  moderationStatus?:import('./moderation.js').ModerationStatus;moderationFeedback?:string;
   /** Server-derived public eligibility; management visibility does not imply availability. */
   publication?:'draft'|'pending'|'approved'|'rejected'|'expired'|'closed'; expiresAt?:string|null; moderationNote?:string;
   acceptingApplications?:boolean;

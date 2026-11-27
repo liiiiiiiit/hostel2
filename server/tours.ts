@@ -1,3 +1,4 @@
+import {syncModeration,moderationVisible} from './moderation-storage.js';
 import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
@@ -45,6 +46,7 @@ export async function saveTour(tx: Transaction, actor: User | null, tour: z.infe
       args: [...values, admin, Number(tour.hidden), Number(!!admin&&tour.approved!==false),capacity,tour.id, tour.version, actor.id, admin],
     });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');
+  await syncModeration(tx,'tour',tour.id,actor,{...tour,approved:!!admin&&tour.approved!==false,hidden:!!admin&&tour.hidden});
 }
 
 export async function deleteTour(tx: Transaction, actor: User | null, id: string, version: number) {
@@ -58,11 +60,14 @@ export async function readTours(tx: Transaction, actor: User | null): Promise<To
   const admin = Number(can(actor,'platform.admin'));
   const { rows } = await tx.execute({
     sql: `SELECT id,title,organizer,destination,departure,schedule,duration,description,contact,price,published,hidden,version,approved,capacity,
+      (SELECT status FROM content_moderation cm WHERE cm.module='tour' AND cm.content_id=tour_listings.id) AS moderation_status,
+      (SELECT note FROM moderation_events me WHERE me.module='tour' AND me.content_id=tour_listings.id AND me.note!='content_saved' AND me.to_status=(SELECT status FROM content_moderation cm WHERE cm.module='tour' AND cm.content_id=tour_listings.id) ORDER BY created_at DESC,id DESC LIMIT 1) AS feedback,
       owner_id=? AS owned FROM tour_listings
-      WHERE (published=1 AND hidden=0 AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)) OR owner_id=? OR ?=1 ORDER BY created_at DESC,id`,
+      WHERE (${moderationVisible('tour','tour_listings.id')} AND published=1 AND hidden=0 AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1)) OR owner_id=? OR ?=1 ORDER BY created_at DESC,id`,
     args: [id, id, admin],
   });
   return rows.map(row => ({
+    ...(row.owned||admin?{moderationStatus:row.moderation_status as Tour['moderationStatus'],moderationFeedback:String(row.feedback??'')}:{}),
     id: String(row.id), title: String(row.title), organizer: String(row.organizer), destination: String(row.destination),
     departure: String(row.departure), schedule: String(row.schedule), duration: String(row.duration),
     description: String(row.description), contact: String(row.contact), price: row.price === null ? null : Number(row.price),

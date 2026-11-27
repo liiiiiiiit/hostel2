@@ -1,3 +1,4 @@
+import {moderationVisible} from './moderation-storage.js';
 import {can} from '../src/utils/authorization.js';
 import { requireProvider } from './provider-accounts.js';
 import type { Transaction } from '@libsql/client';
@@ -32,7 +33,7 @@ export async function bookTour(tx: Transaction, input: z.infer<typeof bookingInp
   const result = await tx.execute({
     sql: `INSERT INTO tour_bookings(reference,request_id,fingerprint,name,contact,travel_date,guests,notes,created_at,status,tour_id,title,organizer,price)
           SELECT ?,?,?,?,?,?,?,?,?,'pending',id,title,organizer,price FROM tour_listings
-          WHERE id=? AND version=? AND published=1 AND hidden=0 AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1) AND capacity >= ? + (SELECT COALESCE(SUM(guests),0) FROM tour_bookings WHERE tour_id=? AND travel_date=? AND status IN ('pending','confirmed'))`,
+          WHERE ${moderationVisible('tour','tour_listings.id')} AND id=? AND version=? AND published=1 AND hidden=0 AND approved=1 AND owner_id IN (SELECT id FROM users WHERE is_active=1) AND capacity >= ? + (SELECT COALESCE(SUM(guests),0) FROM tour_bookings WHERE tour_id=? AND travel_date=? AND status IN ('pending','confirmed'))`,
     args:[reference,input.requestId,fingerprint,input.name,input.contact,input.travelDate,input.guests,input.notes,new Date().toISOString(),input.tourId,input.tourVersion,input.guests,input.tourId,input.travelDate],
   });
   if (!result.rowsAffected) throw new Error('اطلاعات واردشده معتبر نیست.');

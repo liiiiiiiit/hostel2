@@ -1,3 +1,4 @@
+import {syncModeration,moderationVisible} from './moderation-storage.js';
 import {can} from '../src/utils/authorization.js';
 import type { Client, Transaction } from '@libsql/client';
 import { createHash, randomUUID } from 'node:crypto';
@@ -65,7 +66,7 @@ export async function serviceCategories(tx:Transaction,admin=false):Promise<Serv
 const boolQuery=z.enum(['true','false','1','0']).transform(v=>v==='true'||v==='1');
 export const serviceQuery=z.object({category:z.string().trim().max(160).optional(),city:z.string().trim().max(120).optional(),language_spoken:z.enum(languages).optional(),search:z.string().trim().max(160).optional(),featured:boolQuery.optional(),verified:boolQuery.optional(),page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(1).max(48).default(12)});
 export async function searchServices(tx:Transaction,query:z.infer<typeof serviceQuery>):Promise<ServicePage>{
- const clauses=['s.is_active=1','c.is_active=1'],args:(string|number)[]=[];
+ const clauses=['s.is_active=1','c.is_active=1',moderationVisible('service','s.id')],args:(string|number)[]=[];
  if(query.category){clauses.push('(c.slug=? OR c.id=?)');args.push(query.category,query.category);}
  if(query.city){clauses.push('s.city=? COLLATE NOCASE');args.push(query.city);}
  if(query.language_spoken){clauses.push('EXISTS(SELECT 1 FROM json_each(s.languages_json) WHERE value=?)');args.push(query.language_spoken);}
@@ -77,10 +78,10 @@ export async function searchServices(tx:Transaction,query:z.infer<typeof service
  return {items:rows.map(listing),total,page:query.page,pageSize:query.pageSize};
 }
 export async function getService(tx:Transaction,slugOrId:string):Promise<ServiceListing>{
- const row=(await tx.execute({sql:'SELECT s.* FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1',args:[slugOrId,slugOrId]})).rows[0];
+ const row=(await tx.execute({sql:`SELECT s.* FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')}`,args:[slugOrId,slugOrId]})).rows[0];
  if(!row)throw new ServiceError('missing',404);return listing(row);
 }
-export async function serviceCities(tx:Transaction){return(await tx.execute('SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 ORDER BY s.city')).rows.map(r=>String(r.city));}
+export async function serviceCities(tx:Transaction){return(await tx.execute(`SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} ORDER BY s.city`)).rows.map(r=>String(r.city));}
 export async function servicesState(tx:Transaction,actor:User|null){
  const admin=can(actor,'services.manage');
  const services=admin?(await tx.execute('SELECT * FROM service_listings ORDER BY updated_at DESC,id')).rows.map(listing):(await searchServices(tx,{page:1,pageSize:6})).items;
@@ -112,6 +113,7 @@ export async function serviceAction(tx:Transaction,actor:User|null,action:keyof 
   const now=new Date().toISOString();
   const result=input.version===0?await tx.execute({sql:`INSERT INTO service_listings(id,${columns.join(',')},created_at,updated_at) VALUES(${Array(values.length+3).fill('?').join(',')}) ON CONFLICT(id) DO NOTHING`,args:[input.id,...values,now,now]}):await tx.execute({sql:`UPDATE service_listings SET ${columns.map(c=>c+'=?').join(',')},updated_at=?,version=version+1 WHERE id=? AND version=?`,args:[...values,now,input.id,input.version]});
   if(!result.rowsAffected)throw new ServiceError('conflict',409);
+  await syncModeration(tx,'service',input.id,actor,input);
  }else if(action==='deleteService'||action==='deleteServiceCategory'){
   const table=action==='deleteService'?'service_listings':'service_categories';
   const references=action==='deleteService'?'SELECT 1 FROM service_requests WHERE service_id=?':'SELECT 1 FROM service_listings WHERE category_id=?';
