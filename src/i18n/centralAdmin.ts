@@ -484,4 +484,4 @@ export const centralModules:Record<AppLanguage,Record<AdminModule,string>>={
     "activity": "Ադմինիստրատորների գործողություններ"
   }
 };
-export function centralStatus(lang:AppLanguage,status:string){const values={...jobsText[lang],...servicesText[lang],...dashboardText(lang),...moderationText[lang],...centralText[lang]} as Record<string,string>;return values[status]??status;}
+export function centralStatus(lang:AppLanguage,status:string){const values={...servicesText[lang],...jobsText[lang],...dashboardText(lang),...moderationText[lang],...centralText[lang]} as Record<string,string>;return values[status]??status;}

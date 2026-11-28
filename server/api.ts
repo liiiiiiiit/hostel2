@@ -1,3 +1,4 @@
+import {administrationClientState} from './repository.js';
 import {centralAdminSchemas,centralAdminAction} from './central-admin.js';
 import {mountCentralAdmin} from './central-admin-routes.js';
 import {serviceProviderSchemas,serviceProviderAction} from './service-providers.js';
@@ -186,7 +187,7 @@ export function createApi(database: Database) {
       }
       const data = await database.sqlTransaction(async tx => {
         const actor = await session(req,tx);
-        return visibleState(tx,actor,database.demo,String(req.headers['x-booking-token']??''),String(req.headers['x-inquiry-token']??''));
+        return administrationClientState(tx,actor,database.demo,String(req.headers['x-booking-token']??''),String(req.headers['x-inquiry-token']??''),String(req.headers['x-admin-workspace']??''));
       },'read');
       res.json({ state: data });
     } catch (error) { next(error); }
@@ -336,7 +337,7 @@ export function createApi(database: Database) {
         if(envelope.action==='createRentalInquiry'&&actionResult.success&&actionResult.inquiry){actionResult.inquiry.shareWithOwner=await grantRentalInquiryAccess(tx,actionResult.inquiry.id,!!(args[0] as {shareWithOwner?:boolean}).shareWithOwner);await database.flush(state,tx);}
         if(envelope.action==='createHostelManager'&&actionResult.success){const created=state.users.find(u=>u.email.toLowerCase()===String((args[0] as {email:string}).email).toLowerCase());if(created)await auditAuthorization(tx,actor!.id,created.id,null,{role:created.role,assignedHostelIds:created.assignedHostelIds,isActive:created.isActive},'manager_created');}
         actor=await authorizationUser(tx,actor);
-        const responseState = await visibleState(tx, actor, database.demo, bookingToken, inquiryToken);
+        const responseState = await administrationClientState(tx, actor, database.demo, bookingToken, inquiryToken,String(req.headers['x-admin-workspace']??''));
         // Use the same redaction for action payloads and state, including retries
         // that return an existing booking with staff and finance history.
         if (actionResult.booking) actionResult = { ...actionResult, booking: responseState.bookings.find(booking => booking.id === actionResult.booking!.id) };

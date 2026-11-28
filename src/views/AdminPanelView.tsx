@@ -121,6 +121,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [section, setSection] = useState<Section>("overview");
   const [demoAvailable,setDemoAvailable]=useState(false);
+  useEffect(()=>{void appStore.setAdminMode('shell').catch(()=>{});return()=>{void appStore.setAdminMode('legacy').catch(()=>{});};},[]);
   useEffect(()=>{let live=true;void fetch('/api/environment').then(r=>r.ok?r.json():null).then(v=>{if(live)setDemoAvailable(v?.environment==='staging'&&v?.demoTools===true);}).catch(()=>{});return()=>{live=false;};},[]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<BookingStatus | "all">("all");
@@ -154,11 +155,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const inquiries = state.rentalInquiries.filter(
     (i) => i.status === "pending_review",
   );
+  const isCentral=(id:string)=>['overview','records','health','cases'].includes(id)||!!moduleNav[id];
   const go = (id: string) => {
-    if (actionLock.current) return;
-    if(moduleNav[id]){setRegistryModule(moduleNav[id]);setSection("records");}else setSection(id as Section);
-    setShowForm(false);
-    setFeedback(null);
+    if(actionLock.current)return;
+    const show=()=>{if(moduleNav[id]){setRegistryModule(moduleNav[id]);setSection('records');}else setSection(id as Section);setShowForm(false);setFeedback(null);};
+    const mode=isCentral(id)?'shell':'legacy';
+    if(appStore.getAdminMode()===mode){show();return;}
+    actionLock.current=true;setBusy(true);
+    void appStore.setAdminMode(mode).then(show).catch(e=>setFeedback({ok:false,text:e instanceof Error?e.message:ct.error})).finally(()=>{actionLock.current=false;setBusy(false);});
   };
   const run = async (task: () => Promise<ActionResult>, done?: () => void) => {
     if (actionLock.current) return;
@@ -205,7 +209,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       id: "bookings",
       label: t.bookings,
       icon: <CalendarDays size={17} />,
-      count: pending.length,
+      count: appStore.getAdminMode()==='legacy'?pending.length:undefined,
     },
     { id: "properties", label: t.properties, icon: <Building2 size={17} /> },
     { id: "operations", label: t.operations, icon: <Settings2 size={17} /> },
@@ -215,13 +219,13 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       id: "reviews",
       label: t.reviews,
       icon: <Star size={17} />,
-      count: pendingReviews.length,
+      count: appStore.getAdminMode()==='legacy'?pendingReviews.length:undefined,
     },
     {
       id: "rentals",
       label: t.rentals,
       icon: <House size={17} />,
-      count: inquiries.length,
+      count: appStore.getAdminMode()==='legacy'?inquiries.length:undefined,
     },
     ...(demoAvailable?[{id:"demo" as const,label:demoText[currentLang].nav,icon:<Activity size={17}/>}]:[]),
     {id:"service-providers",label:serviceProviderText[currentLang].admin,icon:<House size={17}/>},
@@ -312,7 +316,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             "AmountAMD",
             "Status",
           ],
-          ...filtered.map((b) => [
+          ...selectAdminBookings(appStore.getState().bookings,{status,query,issuesOnly,arrivalsOn}).map((b) => [
             b.trackingCode,
             b.guestName,
             b.guestContact,
@@ -405,7 +409,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       )}
     </div>
   );
-  const allowPrivateReport=async(format:'csv'|'json')=>{if(!window.confirm(ct.privateReportHint))return false;const reason=window.prompt(ct.reason);if(!reason?.trim())return false;const r=await appStore.action('adminRecordPrivateReport',[{format,confirmed:true,reason:reason.trim()}]);if(!r.success)setFeedback({ok:false,text:r.error||ct.error});return r.success;};
+  const allowPrivateReport=async(format:'csv'|'json')=>{if(!window.confirm(ct.privateReportHint))return false;const reason=window.prompt(ct.reason);if(!reason?.trim())return false;const r=await appStore.action('adminRecordPrivateReport',[{format,confirmed:true,reason:reason.trim()}]);if(!r.success){setFeedback({ok:false,text:r.error||ct.error});return false;}await appStore.setAdminMode('legacy');return true;};
   const actions = (
     <details
       className="admin-report-menu"
@@ -429,6 +433,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             if(!await allowPrivateReport('csv'))return;
             exportCsv();
             menu?.removeAttribute("open");
+            if(isCentral(section))void appStore.setAdminMode('shell').catch(()=>{});
           }}
         >
           {t.download} · CSV
@@ -444,7 +449,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
                 {
                   exportedAt: new Date().toISOString(),
                   currency: "AMD",
-                  bookings: bookingReport(filtered),
+                  bookings: bookingReport(selectAdminBookings(appStore.getState().bookings,{status,query,issuesOnly,arrivalsOn})),
                 },
                 null,
                 2,
@@ -452,6 +457,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
               "application/json",
             );
             menu?.removeAttribute("open");
+            if(isCentral(section))void appStore.setAdminMode('shell').catch(()=>{});
           }}
         >
           {admin.report} · JSON
