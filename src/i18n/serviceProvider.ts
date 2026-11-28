@@ -1,4 +1,4 @@
-import type {AppLanguage} from '../types';
+import type {AppLanguage} from '../types/index.js';
 export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"businessName"|"bio"|"city"|"profile"|"listings"|"requests"|"history"|"save"|"refresh"|"error"|"saved"|"denied"|"loading"|"submit"|"draftHint"|"consent"|"contactHint"|"status"|"previous"|"next"|"search"|"all"|"user"|"grant"|"reason"|"owner"|"unassigned"|"assign"|"create"|"edit"|"name"|"email"|"phone"|"password"|"active"|"suspended"|"verification"|"evidence"|"verify"|"confirm"|"tracking"|"track"|"reference"|"privacy",string>>={
   "en": {
     "panel": "Business dashboard",

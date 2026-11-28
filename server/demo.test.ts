@@ -229,6 +229,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
     job_seeker_profiles:30, job_seeker_skills:60,job_seeker_languages:60,job_seeker_experience:30,job_seeker_education:30,job_seeker_documents:3,saved_jobs:60,account_job_applications:30,
     tour_listings: 20,
     tour_bookings: 40,
+    service_provider_accounts:5,service_provider_listings:40,service_provider_request_access:15,
     service_listings: 40,
     service_requests: 30,
     articles: 20,
@@ -260,6 +261,7 @@ test("full requested ecosystem persists, preserves baseline, validates every rel
   );
   assert.equal(manifest.accounts.length, 65);
   assert.equal(manifest.accounts.filter((a: {capabilities?: string[]})=>a.capabilities?.includes("rental_owner")).length,10);
+  assert.equal(manifest.accounts.filter((a: {capabilities?: string[]})=>a.capabilities?.includes("service_provider")).length,5);
   assert.equal(
     (await lstat(f.directory + "/demo/" + batch.manifest)).mode & 0o777,
     0o600,

@@ -33,6 +33,7 @@ try{
  const image=await sharp({create:{width:96,height:64,channels:3,background:'#14241a'}}).png().toBuffer();const uploaded=admin.waitForResponse(r=>r.url().includes('/api/app?upload=1')&&r.request().method()==='POST');await editor.getByLabel(t.upload,{exact:true}).setInputFiles({name:'clinic.png',mimeType:'image/png',buffer:image});assert.equal((await(await uploaded).json()).success,true);await editor.getByRole('button',{name:t.cover,exact:true}).waitFor();
  await editor.getByRole('button',{name:t.addHighlight,exact:true}).click();for(const lang of ['fa','en','ru','hy'])await editor.getByLabel(`${t.highlights} · ${t[lang]}`,{exact:true}).fill('Friendly staff '+lang);
  for(const label of [t.active,t.featuredField,t.verifiedField,t.allowRequest])await editor.getByLabel(label,{exact:true}).check();
+ await editor.getByLabel((await import('../src/i18n/serviceProvider.ts')).serviceProviderText.en.evidence,{exact:true}).fill('SYNTHETIC supporting business review');
  for(const width of [320,390,820,1366]){await admin.setViewportSize({width,height:900});await fit(admin,'admin editor '+width);}await admin.setViewportSize({width:1366,height:900});
  await mutation(admin,'saveService',()=>editor.getByRole('button',{name:t.save,exact:true}).click());await area.getByRole('heading',{name:'Browser clinic en'}).waitFor();
  console.log('PASS admin multilingual category/listing, uploaded image, publication and editor widths');

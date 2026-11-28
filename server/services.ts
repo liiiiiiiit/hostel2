@@ -100,6 +100,7 @@ export async function serviceAction(tx:Transaction,actor:User|null,action:keyof 
   await shareServiceRequest(tx,reference,!!input.shareWithProvider);
   return {success:true,serviceReference:reference};
  }
+ if(internal?.provider&&action!=='saveService')throw new ServiceError('forbidden',403);
  if(!internal?.provider)requireAdmin(actor);
  if(action==='saveServiceCategory'){
   const input=args[0] as z.infer<typeof categoryInput>;await uniqueSlug(tx,'service_categories',input.id,input.slug);

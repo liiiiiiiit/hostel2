@@ -1,4 +1,4 @@
-import type {ServiceListing,ServiceCategory,ServiceRequest} from './services';
+import type {ServiceListing,ServiceCategory,ServiceRequest} from './services.js';
 export interface ServiceBusiness {userId:string;name:string;email:string;phone:string;status:'active'|'suspended';businessName:string;bio:string;city:string;version:number}
 export interface ProviderListing extends ServiceListing {ownershipVersion:number;moderationStatus:string}
 export interface ProviderRequest extends Omit<ServiceRequest,'reference'> {id:string}
