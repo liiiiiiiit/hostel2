@@ -5,6 +5,7 @@ export interface ServiceCategory {
 }
 export interface ServiceListing {
   id:string; slug:string; categoryId:string; version:number;
+  providerRequestsEnabled?:boolean;
   isActive:boolean; isFeatured:boolean; isVerified:boolean; allowBookingRequest:boolean;
   title:ServiceText; shortDescription:ServiceText; description:ServiceText; address:ServiceText; workingHours:ServiceText; priceRange:ServiceText;
   coverImage:string; gallery:string[]; phone:string; whatsapp:string; telegram:string; instagram:string; website:string;

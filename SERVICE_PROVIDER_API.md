@@ -40,9 +40,9 @@ Use existing POST `/api/app`, body `{"action":"...","args":[...]}`, session cook
 
 | Action | Argument | Policy |
 |---|---|---|
-| saveServiceProviderAccount | {userId?: UUID,version,name,email,phone,password,status,businessName,bio,city} | accounts.assign; new accounts version=0 and password 12–128; existing password empty preserves credentials |
+| saveServiceProviderAccount | {userId?: existing user ID,version,name,email,phone,password,status,businessName,bio,city} | accounts.assign; new accounts version=0 and password 12–128; existing password empty preserves credentials |
 | grantServiceProvider | {userId,businessName,reason} | accounts.assign; explicit existing active user |
-| assignServiceProvider | {serviceId,ownerId: UUID or null,version,reason} | accounts.assign; null returns administrator management |
+| assignServiceProvider | {serviceId,ownerId: existing user ID or null,version,reason} | accounts.assign; null returns administrator management |
 | saveServiceBusiness | {version,businessName,bio,city} | services.provide + live active business |
 | saveProviderService | {service: existing serviceInput,submit:boolean} | Own listing or new version=0; featured/verification cannot be changed; images must be retained existing assets or own scoped uploads |
 | updateProviderServiceRequest | [providerRequestId,previous,next] as the action's three args | Consent recipient must still own listing; new → contacted/closed, contacted → closed; terminal reopening rejected |
@@ -50,7 +50,7 @@ Use existing POST `/api/app`, body `{"action":"...","args":[...]}`, session cook
 
 The existing saveService action also requires `verificationEvidence` for a new positive verification flag and records an explicit review. This optional input is never part of public listing output. Existing legacy verified records can be edited without creating fictional evidence. Negative decisions record an explicit revocation. The original administrator category/listing/request APIs remain administrator-only.
 
-Existing requestService accepts optional `shareWithProvider:boolean` (default false). Without consent, the request remains administrator-only. Assignment never transfers old request contacts to a new owner. Existing requests are never retroactively shared. Idempotent retries retain their original consent and recipient.
+Public listings expose providerRequestsEnabled only when an owner is assigned; the consent checkbox is shown for these listings. Existing requestService accepts optional `shareWithProvider:boolean` (default false). Without consent, the request remains administrator-only. Assignment never transfers old request contacts to a new owner. Existing requests are never retroactively shared. Idempotent retries retain their original consent and recipient.
 
 POST `/api/service-provider/media?serviceId=UUID`: raw JPEG/PNG/WebP, session and CSRF header. Save draft first. Shared Sharp validation/re-encoding strips metadata; limit 4 MiB/input, 30 calls/provider/minute, 60 assets/service. Returns existing {success,image:{id,url}} pattern.
 POST same endpoint with `&deleteMedia=UUID`: caller must own both service and asset; detach and save first; referenced assets cannot be deleted. Existing deletion queue handles storage cleanup. Media is public business imagery; never upload customer identity documents or verification evidence.

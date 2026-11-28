@@ -1,5 +1,5 @@
 import type {AppLanguage} from '../types/index.js';
-export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"businessName"|"bio"|"city"|"profile"|"listings"|"requests"|"history"|"save"|"refresh"|"error"|"saved"|"denied"|"loading"|"submit"|"draftHint"|"consent"|"contactHint"|"status"|"previous"|"next"|"search"|"all"|"user"|"grant"|"reason"|"owner"|"unassigned"|"assign"|"create"|"edit"|"name"|"email"|"phone"|"password"|"active"|"suspended"|"verification"|"evidence"|"verify"|"confirm"|"tracking"|"track"|"reference"|"privacy",string>>={
+export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"businessName"|"bio"|"city"|"profile"|"listings"|"requests"|"history"|"save"|"refresh"|"error"|"saved"|"denied"|"loading"|"submit"|"draftHint"|"consent"|"contactHint"|"status"|"previous"|"next"|"search"|"all"|"user"|"grant"|"reason"|"owner"|"unassigned"|"assign"|"create"|"edit"|"name"|"email"|"phone"|"password"|"active"|"suspended"|"verification"|"evidence"|"verify"|"confirm"|"tracking"|"track"|"reference"|"privacy"|"unverified",string>>={
   "en": {
     "panel": "Business dashboard",
     "admin": "Service providers",
@@ -46,7 +46,8 @@ export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"busi
     "tracking": "Request progress",
     "track": "Check progress",
     "reference": "Private tracking reference",
-    "privacy": "Keep tracking references private. Public business contact and map fields are visible to visitors."
+    "privacy": "Keep tracking references private. Public business contact and map fields are visible to visitors.",
+    "unverified": "Unverified"
   },
   "fa": {
     "panel": "پنل کسب‌وکار",
@@ -94,7 +95,8 @@ export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"busi
     "tracking": "پیگیری درخواست",
     "track": "بررسی وضعیت",
     "reference": "کد خصوصی پیگیری",
-    "privacy": "کد پیگیری را خصوصی نگه دارید. اطلاعات تماس و نقشهٔ کسب‌وکار برای عموم نمایش داده می‌شوند."
+    "privacy": "کد پیگیری را خصوصی نگه دارید. اطلاعات تماس و نقشهٔ کسب‌وکار برای عموم نمایش داده می‌شوند.",
+    "unverified": "تأییدنشده"
   },
   "ru": {
     "panel": "Кабинет бизнеса",
@@ -142,7 +144,8 @@ export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"busi
     "tracking": "Статус запроса",
     "track": "Проверить статус",
     "reference": "Секретный код запроса",
-    "privacy": "Храните код запроса в тайне. Контакты и карта бизнеса доступны посетителям."
+    "privacy": "Храните код запроса в тайне. Контакты и карта бизнеса доступны посетителям.",
+    "unverified": "Не проверено"
   },
   "hy": {
     "panel": "Բիզնեսի վահանակ",
@@ -190,6 +193,57 @@ export const serviceProviderText:Record<AppLanguage,Record<"panel"|"admin"|"busi
     "tracking": "Հարցման ընթացք",
     "track": "Ստուգել ընթացքը",
     "reference": "Հարցման գաղտնի կոդ",
-    "privacy": "Հարցման կոդը պահեք գաղտնի։ Բիզնեսի կապի և քարտեզի տվյալները հանրային են։"
+    "privacy": "Հարցման կոդը պահեք գաղտնի։ Բիզնեսի կապի և քարտեզի տվյալները հանրային են։",
+    "unverified": "Չստուգված"
+  }
+};
+export const serviceProviderEventText={
+  "en": {
+    "account_saved": "Account updated",
+    "account_authorized": "Account authorized",
+    "listing_saved": "Listing saved",
+    "listing_submitted": "Listing submitted for review",
+    "listing_assigned": "Listing assigned",
+    "profile_saved": "Business profile updated",
+    "request_updated": "Customer request updated",
+    "image_uploaded": "Image uploaded",
+    "image_removed": "Image removed",
+    "verification_reviewed": "Verification reviewed"
+  },
+  "fa": {
+    "account_saved": "حساب به‌روزرسانی شد",
+    "account_authorized": "حساب مجاز شد",
+    "listing_saved": "خدمت ذخیره شد",
+    "listing_submitted": "خدمت برای بررسی ارسال شد",
+    "listing_assigned": "خدمت واگذار شد",
+    "profile_saved": "پروفایل کسب‌وکار به‌روزرسانی شد",
+    "request_updated": "درخواست مشتری به‌روزرسانی شد",
+    "image_uploaded": "تصویر بارگذاری شد",
+    "image_removed": "تصویر حذف شد",
+    "verification_reviewed": "تصمیم تأیید ثبت شد"
+  },
+  "ru": {
+    "account_saved": "Аккаунт обновлён",
+    "account_authorized": "Аккаунт авторизован",
+    "listing_saved": "Услуга сохранена",
+    "listing_submitted": "Услуга отправлена на проверку",
+    "listing_assigned": "Поставщик назначен",
+    "profile_saved": "Профиль бизнеса обновлён",
+    "request_updated": "Запрос клиента обновлён",
+    "image_uploaded": "Изображение загружено",
+    "image_removed": "Изображение удалено",
+    "verification_reviewed": "Решение проверки записано"
+  },
+  "hy": {
+    "account_saved": "Հաշիվը թարմացվել է",
+    "account_authorized": "Հաշիվը լիազորվել է",
+    "listing_saved": "Ծառայությունը պահպանվել է",
+    "listing_submitted": "Ծառայությունն ուղարկվել է ստուգման",
+    "listing_assigned": "Մատուցողը նշանակվել է",
+    "profile_saved": "Բիզնեսի պրոֆիլը թարմացվել է",
+    "request_updated": "Հաճախորդի հարցումը թարմացվել է",
+    "image_uploaded": "Նկարը վերբեռնվել է",
+    "image_removed": "Նկարը հեռացվել է",
+    "verification_reviewed": "Ստուգման որոշումը գրանցվել է"
   }
 };

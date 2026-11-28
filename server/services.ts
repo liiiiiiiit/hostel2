@@ -59,6 +59,7 @@ export async function migrateServices(client:Client){
 function requireAdmin(actor:User|null){if(!can(actor,'services.manage'))throw new ServiceError('forbidden',403);}
 const parse=<T>(value:unknown)=>JSON.parse(String(value)) as T;
 export function listing(row:Record<string,unknown>):ServiceListing{return {
+ providerRequestsEnabled:!!row.provider_requests_enabled,
  id:String(row.id),slug:String(row.slug),categoryId:String(row.category_id),version:Number(row.version),isActive:!!row.is_active,isFeatured:!!row.is_featured,isVerified:!!row.is_verified,allowBookingRequest:!!row.allow_booking_request,
  title:parse(row.title_json),shortDescription:parse(row.short_description_json),description:parse(row.description_json),address:parse(row.address_json),workingHours:parse(row.working_hours_json),priceRange:parse(row.price_range_json),
  coverImage:String(row.cover_image),gallery:parse(row.gallery_json),phone:String(row.phone),whatsapp:String(row.whatsapp),telegram:String(row.telegram),instagram:String(row.instagram),website:String(row.website),city:String(row.city),district:String(row.district),mapUrl:String(row.map_url),latitude:row.latitude===null?null:Number(row.latitude),longitude:row.longitude===null?null:Number(row.longitude),languagesSpoken:parse(row.languages_json),highlights:parse(row.highlights_json),createdAt:String(row.created_at),updatedAt:String(row.updated_at),
@@ -75,11 +76,11 @@ export async function searchServices(tx:Transaction,query:z.infer<typeof service
  for(const [field,value] of [['is_featured',query.featured],['is_verified',query.verified]] as const)if(value!==undefined){clauses.push('s.'+field+'=?');args.push(Number(value));}
  const from='FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE '+clauses.join(' AND ');
  const total=Number((await tx.execute({sql:'SELECT COUNT(*) AS n '+from,args})).rows[0].n);
- const rows=(await tx.execute({sql:'SELECT s.* '+from+' ORDER BY s.is_featured DESC,s.updated_at DESC,s.id LIMIT ? OFFSET ?',args:[...args,query.pageSize,(query.page-1)*query.pageSize]})).rows;
+ const rows=(await tx.execute({sql:'SELECT s.*,EXISTS(SELECT 1 FROM service_provider_listings sp WHERE sp.service_id=s.id AND sp.owner_id IS NOT NULL) AS provider_requests_enabled '+from+' ORDER BY s.is_featured DESC,s.updated_at DESC,s.id LIMIT ? OFFSET ?',args:[...args,query.pageSize,(query.page-1)*query.pageSize]})).rows;
  return {items:rows.map(listing),total,page:query.page,pageSize:query.pageSize};
 }
 export async function getService(tx:Transaction,slugOrId:string):Promise<ServiceListing>{
- const row=(await tx.execute({sql:`SELECT s.* FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} AND ${serviceProviderVisible('s.id')}`,args:[slugOrId,slugOrId]})).rows[0];
+ const row=(await tx.execute({sql:`SELECT s.*,EXISTS(SELECT 1 FROM service_provider_listings sp WHERE sp.service_id=s.id AND sp.owner_id IS NOT NULL) AS provider_requests_enabled FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} AND ${serviceProviderVisible('s.id')}`,args:[slugOrId,slugOrId]})).rows[0];
  if(!row)throw new ServiceError('missing',404);return listing(row);
 }
 export async function serviceCities(tx:Transaction){return(await tx.execute(`SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} AND ${serviceProviderVisible('s.id')} ORDER BY s.city`)).rows.map(r=>String(r.city));}

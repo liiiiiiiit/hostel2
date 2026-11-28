@@ -145,7 +145,7 @@ test('verification requires evidence; evidence stays private; assignment and sus
  assert.equal((await f.admin.action('reviewServiceVerification',[{serviceId:s.id,version:s.version,verified:true,evidence:''}])).data.success,false);
  assert.equal((await f.admin.action('saveService',[{...s,isVerified:true}])).data.success,false);
  assert.equal((await f.admin.action('reviewServiceVerification',[{serviceId:s.id,version:s.version,verified:true,evidence:'SYNTHETIC PRIVATE EVIDENCE'}])).data.success,true);
- const pub=(await f.client().get('/api/services/'+s.id)).data;assert.equal(pub.service.isVerified,true);assert(!JSON.stringify(pub).includes('PRIVATE EVIDENCE'));
+ const pub=(await f.client().get('/api/services/'+s.id)).data;assert.equal(pub.service.isVerified,true);assert.equal(pub.service.providerRequestsEnabled,true);assert(!JSON.stringify(pub).includes('PRIVATE EVIDENCE'));
  s=(await a.c.get('/api/service-provider')).data.listings[0];
  assert.equal((await f.admin.action('assignServiceProvider',[{serviceId:s.id,ownerId:b.user.id,version:s.ownershipVersion,reason:'SYNTHETIC reassignment'}])).data.success,true);
  assert.equal((await a.c.get('/api/service-provider')).status,403);
