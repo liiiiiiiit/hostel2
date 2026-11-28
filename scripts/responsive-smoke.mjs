@@ -224,6 +224,9 @@ try {
         await navigate(page, `/#/${role}`);
         const dashboard = role === 'account' ? 'traveler' : role;
         await page.getByTestId(`${dashboard}-dashboard`).waitFor();
+        // The central overview loads its SQL data after the legacy app bootstrap.
+        // Measure the populated view, as with other independently loaded catalogues.
+        if(role==='admin'){await page.getByTestId('central-overview').getByTestId('count-users').waitFor();await page.evaluate(()=>new Promise(requestAnimationFrame));}
         const adminScreenshot = role === 'admin' && language === 'fa' && [390, 1366].includes(viewport.width);
         await inspect(page, `${prefix}-${role}`, adminScreenshot);
         if (role === 'admin') {
