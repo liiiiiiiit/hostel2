@@ -9,12 +9,12 @@ import {serviceInput,serviceAction,listing,serviceCategories,ServiceError} from 
 import {serviceProviderEvent} from './service-provider-storage.js';
 import {writeModeration} from './moderation-storage.js';
 import {moderationTransitions,type ModerationStatus} from '../src/types/moderation.js';
-const id=z.uuid(),text=(max:number)=>z.string().trim().max(max),version=z.number().int().nonnegative();
-export const businessInput=z.object({userId:id.optional(),version,name:text(120).min(1),email:z.email().max(254).transform(s=>s.toLowerCase()),phone:text(100),password:z.string().max(128),status:z.enum(['active','suspended']),businessName:text(160).min(1),bio:text(3000),city:text(160)}).strict();
+const id=z.uuid(),userIdSchema=z.string().min(1).max(500),text=(max:number)=>z.string().trim().max(max),version=z.number().int().nonnegative();
+export const businessInput=z.object({userId:userIdSchema.optional(),version,name:text(120).min(1),email:z.email().max(254).transform(s=>s.toLowerCase()),phone:text(100),password:z.string().max(128),status:z.enum(['active','suspended']),businessName:text(160).min(1),bio:text(3000),city:text(160)}).strict();
 export const serviceProviderSchemas={
  saveServiceProviderAccount:z.tuple([businessInput]),
- grantServiceProvider:z.tuple([z.object({userId:id,businessName:text(160).min(1),reason:text(2000).min(1)}).strict()]),
- assignServiceProvider:z.tuple([z.object({serviceId:id,ownerId:id.nullable(),version,reason:text(2000).min(1)}).strict()]),
+ grantServiceProvider:z.tuple([z.object({userId:userIdSchema,businessName:text(160).min(1),reason:text(2000).min(1)}).strict()]),
+ assignServiceProvider:z.tuple([z.object({serviceId:id,ownerId:userIdSchema.nullable(),version,reason:text(2000).min(1)}).strict()]),
  saveServiceBusiness:z.tuple([z.object({version,businessName:text(160).min(1),bio:text(3000),city:text(160)}).strict()]),
  saveProviderService:z.tuple([z.object({service:serviceInput,submit:z.boolean()}).strict()]),
  updateProviderServiceRequest:z.tuple([z.string().regex(/^[a-f0-9]{64}$/),z.enum(['new','contacted','closed']),z.enum(['new','contacted','closed'])]),
@@ -60,7 +60,7 @@ export async function serviceProviderAction(tx:Transaction,actor:User|null,actio
   if((await tx.execute({sql:'SELECT id FROM users WHERE email=? COLLATE NOCASE AND id<>?',args:[v.email,userId]})).rows.length)throw new ServiceError('duplicate',409);
   if(!old)await tx.execute({sql:"INSERT INTO users(id,name,email,phone,role,is_active,created_at) VALUES(?,?,?,?,'traveler',1,?)",args:[userId,v.name,v.email,v.phone,now]});
   else await tx.execute({sql:'UPDATE users SET name=?,phone=?,email_verified_at=CASE WHEN email!=? COLLATE NOCASE THEN NULL ELSE email_verified_at END,email=? WHERE id=?',args:[v.name,v.phone,v.email,v.email,userId]});
-  if(v.password){const c=await createPasswordCredential(v.password);await tx.execute({sql:'INSERT INTO user_credentials VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET hash=excluded.hash,salt=excluded.salt',args:[userId,c.hash,c.salt]});}
+  if(v.password){const c=await createPasswordCredential(v.password);await tx.execute({sql:'INSERT INTO user_credentials(user_id,hash,salt) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET hash=excluded.hash,salt=excluded.salt',args:[userId,c.hash,c.salt]});}
   if(old)await tx.execute({sql:'UPDATE service_provider_accounts SET status=?,business_name=?,bio=?,city=?,version=version+1,updated_at=? WHERE user_id=?',args:[v.status,v.businessName,v.bio,v.city,now,userId]});
   else await tx.execute({sql:'INSERT INTO service_provider_accounts VALUES(?,?,?,?,?,1,?,?)',args:[userId,v.status,v.businessName,v.bio,v.city,now,now]});
   await revokeAuthorizationSessions(tx,userId);await auditAuthorization(tx,admin.id,userId,old?{status:old.status}:null,{status:v.status},'service_provider_account_saved');await serviceProviderEvent(tx,userId,admin.id,null,'account_saved');

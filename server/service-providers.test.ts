@@ -106,6 +106,7 @@ test('shared listing drafts, review, public visibility and provider material edi
  const f=await fixture(t),p=await provider(f),s=await listingDraft(f,p);
  assert.equal((await f.client().get('/api/services/'+s.id)).status,404);
  assert.equal((await p.c.action('saveService',[s])).status,403);
+ await listingDraft(f,p);assert.equal((await p.c.get('/api/service-provider')).data.stats.listings,2);
  const publicListing=await publishService(f,p,s);
  assert.equal((await f.client().get('/api/services/'+s.id)).status,200);
  assert.equal((await f.db.client.execute({sql:'SELECT COUNT(*) AS n FROM service_listings WHERE id=?',args:[s.id]})).rows[0].n,1);
