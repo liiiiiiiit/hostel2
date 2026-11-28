@@ -30,4 +30,10 @@ jobs:
       - name: Real isolated staging server and HTTPS proxy
         env:
           BROWSER_PATH: /usr/bin/google-chrome
-        run: node scripts/staging-smoke.mjs
+        run: node --import tsx scripts/staging-smoke.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
+        with:
+          name: central-admin-browser-evidence
+          path: test-artifacts/central-admin
+          retention-days: 14

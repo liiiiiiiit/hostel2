@@ -1,3 +1,5 @@
+import {centralAdminSchemas,centralAdminAction} from './central-admin.js';
+import {mountCentralAdmin} from './central-admin-routes.js';
 import {serviceProviderSchemas,serviceProviderAction} from './service-providers.js';
 import {mountServiceProviderRoutes} from './service-provider-routes.js';
 import {ownerActionSchemas,rentalOwnerAction,ownerQuery,rentalOwnerState,rentalOwnerAdminState} from './rental-owners.js';
@@ -66,6 +68,7 @@ export const schemas = {
   trackApplication: z.tuple([z.uuid()]),
   ...ownerActionSchemas,
   ...serviceProviderSchemas,
+  ...centralAdminSchemas,
   moderateContent:z.tuple([moderationInput]),
   reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
   saveProvider: z.tuple([providerInput]),
@@ -123,6 +126,7 @@ export function createApi(database: Database) {
   app.get('/api/recruitment',async(req,res,next)=>{try{const query=recruitmentQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>recruitmentState(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
   mountRentalOwnerMedia(app,database,session);
   mountJobSeekerRoutes(app,database,session);
+  mountCentralAdmin(app,database,session);
   mountServiceProviderRoutes(app,database,session);
   mountServiceRoutes(app,database,session);
   mountDemoRoutes(app,database,session);
@@ -239,6 +243,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action in centralAdminSchemas){
+          actionResult=await centralAdminAction(tx,actor,envelope.action as keyof typeof centralAdminSchemas,args);
         } else if(envelope.action in serviceProviderSchemas){
           actionResult=await serviceProviderAction(tx,actor,envelope.action as keyof typeof serviceProviderSchemas,args);
         } else if(envelope.action in ownerActionSchemas){

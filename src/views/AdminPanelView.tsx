@@ -1,3 +1,9 @@
+import {CentralAdminOverview} from '../components/admin/CentralAdminOverview';
+import {CentralAdminRecords} from '../components/admin/CentralAdminRecords';
+import {CentralAdminHealth} from '../components/admin/CentralAdminHealth';
+import {CentralAdminCases} from '../components/admin/CentralAdminCases';
+import {centralText,centralModules} from '../i18n/centralAdmin';
+import type {AdminModule} from '../types/centralAdmin';
 import {ServiceProvidersAdmin} from '../components/ServiceProvidersAdmin';
 import {serviceProviderText} from '../i18n/serviceProvider';
 import {RentalOwnersAdmin} from '../components/RentalOwnersAdmin';
@@ -15,7 +21,6 @@ import { toursText } from "../i18n/tours";
 import { ToursView } from "./ToursView";
 import { JobsView } from "./JobsView";
 import { jobsText } from "../i18n/jobs";
-import { AdminOverview } from "../components/admin/AdminOverview";
 import { AdminArticles } from "../components/admin/AdminArticles";
 import { AdminField as Field } from "../components/admin/AdminField";
 import { AdminBookingCard } from "../components/admin/AdminBookingCard";
@@ -72,6 +77,7 @@ interface Props {
   onNavigate: (view: string, params?: Record<string, string>) => void;
 }
 type Section =
+  | "records" | "health" | "cases" | "settings"
   | "service-providers"
   | "rental-owners"
   | "moderation"
@@ -107,6 +113,10 @@ function download(name: string, content: string, type: string) {
 export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tAdmin, getLocalized } = useLanguage();
   const t = dashboardText(currentLang);
+  const ct=centralText[currentLang],cm=centralModules[currentLang];
+  const [registryModule,setRegistryModule]=useState<AdminModule>('users');
+  const [caseTarget,setCaseTarget]=useState<{module:AdminModule;id:string}>();
+  const moduleNav:Record<string,AdminModule>={'records-users':'users','records-rooms':'rooms','records-inquiries':'rentalInquiries','records-employers':'employers','records-seekers':'seekers','records-applications':'applications','records-tour-providers':'tourProviders','records-tour-bookings':'tourBookings','records-service-requests':'serviceRequests','records-translations':'translations',media:'media'};
   const admin = adminText(currentLang);
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [section, setSection] = useState<Section>("overview");
@@ -146,7 +156,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   );
   const go = (id: string) => {
     if (actionLock.current) return;
-    setSection(id as Section);
+    if(moduleNav[id]){setRegistryModule(moduleNav[id]);setSection("records");}else setSection(id as Section);
     setShowForm(false);
     setFeedback(null);
   };
@@ -185,6 +195,11 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     currentPage * 10,
   );
   const nav = [
+    {id:"records",label:ct.records,icon:<Search size={17}/>},
+    {id:"health",label:ct.health,icon:<Activity size={17}/>},
+    {id:"cases",label:ct.cases,icon:<Activity size={17}/>},
+    {id:"settings",label:ct.settings,icon:<Settings2 size={17}/>},
+    ...Object.entries(moduleNav).map(([id,module])=>({id,label:cm[module],icon:<Activity size={17}/>})),
     { id: "overview", label: t.overview, icon: <LayoutDashboard size={17} /> },
     {
       id: "bookings",
@@ -242,13 +257,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.propertyGroup,
-      ids: ["properties", "operations", "managers"],
+      ids: ["properties", "records-rooms", "operations", "managers"],
     },
     {
       label: admin.contentGroup,
-      ids: ["service-providers", "rental-owners", "moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
+      ids: ["records-inquiries", "records-employers", "records-seekers", "records-applications", "records-tour-providers", "records-tour-bookings", "records-service-requests", "records-translations", "service-providers", "rental-owners", "moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
-    { label: admin.system, ids: ["access", "audit", "profile",...(demoAvailable?["demo"]:[])] },
+    { label: ct.recordsGroup, ids: ["records", "media", "cases", "health"] },
+    { label: admin.system, ids: ["records-users", "access", "audit", "settings", "profile",...(demoAvailable?["demo"]:[])] },
   ];
   const organizedNav = navigationGroups.flatMap((group) =>
     group.ids.flatMap((id) => {
@@ -433,7 +449,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             event.currentTarget.closest("details")?.removeAttribute("open");
           }}
         >
-          {t.backup} · JSON
+          {admin.report} · JSON
         </button>
       </div>
     </details>
@@ -445,6 +461,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         subtitle={t.welcome}
         nav={organizedNav}
         organized
+        navigationSearchLabel={ct.navSearch}
         sidebarFooter={
           <div className="admin-sidebar-identity">
             <span aria-hidden="true">
@@ -456,7 +473,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </div>
         }
-        active={section}
+        active={section==='records'?(Object.entries(moduleNav).find(([,m])=>m===registryModule)?.[0]??'records'):section}
         onChange={go}
         actions={actions}
         disabled={busy}
@@ -470,20 +487,11 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             <span>{feedback.text}</span>
           </div>
         )}
-        {section === "overview" && (
-          <AdminOverview
-            state={state}
-            today={today}
-            onSection={go}
-            onBookings={openBookings}
-            onNavigate={onNavigate}
-            onCreate={(section) => {
-              if (actionLock.current) return;
-              go(section);
-              setShowForm(true);
-            }}
-          />
-        )}
+        {section === "overview" && <CentralAdminOverview onRecords={module=>{setRegistryModule(module);go('records');}} onSection={go}/>}
+        {section === "records" && <CentralAdminRecords key={registryModule} initialModule={registryModule} onModuleChange={setRegistryModule} onWorkspace={go} onCase={(module,id)=>{setCaseTarget({module,id});go('cases');}}/>}
+        {section === "health" && <CentralAdminHealth/>}
+        {section === "cases" && <CentralAdminCases target={caseTarget}/>}
+        {section === "settings" && <PlatformSettings/>}
         {section === "bookings" && (
           <>
             {sectionHeader(t.bookings)}

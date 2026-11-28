@@ -27,6 +27,7 @@ export function DashboardLayout({
   disabled = false,
   sidebarFooter,
   organized = false,
+  navigationSearchLabel,
 }: {
   title: string;
   subtitle?: string;
@@ -38,10 +39,13 @@ export function DashboardLayout({
   disabled?: boolean;
   sidebarFooter?: React.ReactNode;
   organized?: boolean;
+  navigationSearchLabel?:string;
 }) {
   const { currentLang } = useLanguage(),
     t = dashboardText(currentLang);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navQuery,setNavQuery]=useState('');
+  const visibleNav=nav.filter(item=>!navQuery||item.label.toLocaleLowerCase().includes(navQuery.toLocaleLowerCase()));
   const menuId = useId(),
     content = useRef<HTMLDivElement>(null),
     menuButton = useRef<HTMLButtonElement>(null);
@@ -106,9 +110,10 @@ export function DashboardLayout({
             }}
           >
             <p className="dashboard-nav-caption eyebrow">{t.menu}</p>
-            {nav.map((item, index) => (
+            {navigationSearchLabel&&<label className="central-nav-search">{navigationSearchLabel}<input aria-label={navigationSearchLabel} className="field w-full" value={navQuery} maxLength={120} onChange={e=>setNavQuery(e.target.value)}/></label>}
+            {visibleNav.map((item, index) => (
               <React.Fragment key={item.id}>
-                {item.group && item.group !== nav[index - 1]?.group && (
+                {item.group && item.group !== visibleNav[index - 1]?.group && (
                   <h2 className="dashboard-nav-group">{item.group}</h2>
                 )}
                 <button
