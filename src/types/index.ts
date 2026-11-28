@@ -6,7 +6,7 @@ export type AppLanguage = 'fa' | 'en' | 'ru' | 'hy';
 export type UserRole = 'admin' | 'hostel_manager' | 'traveler' | 'job_provider' | 'tour_provider';
 
 export interface User {
-  rentalOwnerAuthorized?:boolean; assignedRentalIds?:string[];
+  serviceProviderAuthorized?:boolean; rentalOwnerAuthorized?:boolean; assignedRentalIds?:string[];
   legacyProviderRoles?:('job_provider'|'tour_provider')[];
   organization?:string;
   emailVerifiedAt?:string;

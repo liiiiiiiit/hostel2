@@ -1,8 +1,10 @@
+import {routeHash} from '../utils/navigation';
+import {serviceProviderText} from '../i18n/serviceProvider';
 import { useEffect, useRef, useState } from 'react';
 import { Phone, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { servicesText } from '../i18n/services';
-import { fetchService, fetchCategories } from '../services/services-directory';
+import { directoryFetch, fetchService, fetchCategories } from '../services/services-directory';
 import { appStore } from '../services/store';
 import { createRequestId } from '../utils/request-id';
 import { normalizeTourPhone } from '../utils/tour-contact';
@@ -11,13 +13,14 @@ import { StayPhoto } from '../components/StayPhoto';
 import { PropertyLocationMap } from '../components/HostelLocationMap';
 import type { ServiceListing, ServiceCategory } from '../types';
 function Inquiry({service}:{service:ServiceListing}){
- const {currentLang}=useLanguage(),t=servicesText[currentLang];const [busy,setBusy]=useState(false),[reference,setReference]=useState(''),[error,setError]=useState('');const attempt=useRef({body:'',id:''});
+ const {currentLang}=useLanguage(),t=servicesText[currentLang];const [busy,setBusy]=useState(false),[reference,setReference]=useState(''),[error,setError]=useState('');const [progress,setProgress]=useState<'new'|'contacted'|'closed'|''>('');const attempt=useRef({body:'',id:''});
+ async function track(){if(busy)return;setBusy(true);setError('');try{const r=await directoryFetch<{status:'new'|'contacted'|'closed'}>('/api/service-requests/'+encodeURIComponent(reference),currentLang);setProgress(r.status);}catch(e){setError(e instanceof Error?e.message:t.offline);}finally{setBusy(false);}}
  async function submit(event:React.FormEvent<HTMLFormElement>){
-  event.preventDefault();if(busy)return;const form=new FormData(event.currentTarget);const input={serviceId:service.id,version:service.version,name:String(form.get('name')).trim(),contact:String(form.get('contact')).trim(),preferredDate:String(form.get('date')),note:String(form.get('note')).trim()};
+  event.preventDefault();if(busy)return;const form=new FormData(event.currentTarget);const input={shareWithProvider:form.get('shareWithProvider')==='on',serviceId:service.id,version:service.version,name:String(form.get('name')).trim(),contact:String(form.get('contact')).trim(),preferredDate:String(form.get('date')),note:String(form.get('note')).trim()};
   const body=JSON.stringify(input);if(body!==attempt.current.body)attempt.current={body,id:createRequestId()};setBusy(true);setError('');
   try{const result=await appStore.action('requestService',[{...input,requestId:attempt.current.id}]);if(result.success&&result.serviceReference)setReference(result.serviceReference);else setError(result.error||t.invalid);}finally{setBusy(false);}
  }
- return <section className="surface space-y-4 p-5" aria-label={t.request}><h2 className="text-xl font-bold">{t.request}</h2>{reference?<div role="status"><p>{t.received}</p><p>{t.reference} · <code dir="ltr" className="break-all select-all">{reference}</code></p></div>:<form onSubmit={submit} className="space-y-4"><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2"><label>{t.name}<input name="name" required maxLength={120} autoComplete="name" className="field mt-1 w-full"/></label><label>{t.contact}<input name="contact" required maxLength={250} className="field mt-1 w-full" dir="auto"/></label><label>{t.date}<input name="date" type="date" min={yerevanToday()} className="field mt-1 w-full"/></label><label className="sm:col-span-2">{t.note}<textarea name="note" maxLength={2000} rows={4} className="field mt-1 w-full"/></label></fieldset>{error&&<p role="alert">{error}</p>}<button className="button-primary" disabled={busy}>{busy?t.sending:t.send}</button></form>}</section>;
+ return <section className="surface space-y-4 p-5" aria-label={t.request}><h2 className="text-xl font-bold">{t.request}</h2>{reference?<div role="status"><p>{t.received}</p><p>{t.reference} · <code dir="ltr" className="break-all select-all">{reference}</code></p><a className="button-secondary inline-block" href={routeHash('service-track',{reference})} rel="noreferrer">{serviceProviderText[currentLang].tracking}</a><p>{serviceProviderText[currentLang].privacy}</p><button type="button" className="button-secondary" disabled={busy} onClick={()=>void track()}>{serviceProviderText[currentLang].track}</button>{progress&&<p>{t[progress]}</p>}{error&&<p role="alert">{error}</p>}</div>:<form onSubmit={submit} className="space-y-4"><p>{serviceProviderText[currentLang].contactHint}</p><fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2"><label>{t.name}<input name="name" required maxLength={120} autoComplete="name" className="field mt-1 w-full"/></label><label>{t.contact}<input name="contact" required maxLength={250} className="field mt-1 w-full" dir="auto"/></label><label>{t.date}<input name="date" type="date" min={yerevanToday()} className="field mt-1 w-full"/></label><label className="sm:col-span-2">{t.note}<textarea name="note" maxLength={2000} rows={4} className="field mt-1 w-full"/></label>{service.providerRequestsEnabled&&<label className="flex items-start gap-2 sm:col-span-2"><input type="checkbox" name="shareWithProvider"/>{serviceProviderText[currentLang].consent}</label>}</fieldset>{error&&<p role="alert">{error}</p>}<button className="button-primary" disabled={busy}>{busy?t.sending:t.send}</button></form>}</section>;
 }
 export function ServiceDetailView({slug,onNavigate}:{slug:string;onNavigate:(view:string,params?:Record<string,unknown>)=>void}){
  const {currentLang}=useLanguage(),t=servicesText[currentLang];const [service,setService]=useState<ServiceListing|null>(null),[category,setCategory]=useState<ServiceCategory>(),[error,setError]=useState(''),[busy,setBusy]=useState(true),[retry,setRetry]=useState(0),[image,setImage]=useState('');

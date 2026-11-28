@@ -31,6 +31,8 @@ const GuideView = lazy(() => import('./views/GuideView').then(module => ({ defau
 const ArticleDetailView = lazy(() => import('./views/ArticleDetailView').then(module => ({ default: module.ArticleDetailView })));
 const ToursView = lazy(() => import('./views/ToursView').then(m => ({ default: m.ToursView })));
 const JobSeekerView=lazy(()=>import('./views/JobSeekerView').then(m=>({default:m.JobSeekerView})));
+const ServiceTrackingView=lazy(()=>import('./views/ServiceTrackingView').then(m=>({default:m.ServiceTrackingView})));
+const ServiceProviderView=lazy(()=>import('./views/ServiceProviderView').then(m=>({default:m.ServiceProviderView})));
 const RentalOwnerView=lazy(()=>import('./views/RentalOwnerView').then(m=>({default:m.RentalOwnerView})));
 const JobsView = lazy(() => import('./views/JobsView').then(m => ({ default: m.JobsView })));
 const AdminPanelView = lazy(() => import('./views/AdminPanelView').then(module => ({ default: module.AdminPanelView })));
@@ -145,6 +147,8 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
       case 'tour-organizer': return <ToursView key={currentUser?.id ?? 'guest'} mode="organizer" />;
       case 'job-seeker': return can(currentUser,'account.self')?<JobSeekerView key={currentUser!.id}/>:<section className="page-shell py-8"><p>{seekerText[currentLang].signIn}</p></section>;
       case 'jobs': return <JobsView key="public-jobs" mode="public" jobId={String(viewParams.jobId??'')} />;
+      case 'service-track':return <ServiceTrackingView reference={String(viewParams.reference??'')} key={String(viewParams.reference??'')}/>;
+      case 'service-provider':return <ServiceProviderView key={currentUser?.id??'guest'}/>;
       case 'rental-owner':return <RentalOwnerView key={currentUser?.id??'guest'}/>;
       case 'employer': return <JobsView key={currentUser?.id ?? 'guest'} mode="employer" />;
       case 'account-action':return <AccountActionView purpose={String(viewParams.purpose)} token={String(viewParams.token)}/>;
@@ -363,7 +367,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
             if (user.role === 'tour_provider') { handleNavigate('tour-organizer'); return; }
             if (user.role === 'admin') handleNavigate('admin');
             else if (user.role === 'hostel_manager') handleNavigate('manager');
-            else handleNavigate(user.rentalOwnerAuthorized?'rental-owner':'account');
+            else handleNavigate(user.serviceProviderAuthorized?'service-provider':user.rentalOwnerAuthorized?'rental-owner':'account');
           }}
         />
       )}

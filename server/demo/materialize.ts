@@ -1,3 +1,4 @@
+import {serviceProviderAction} from '../service-providers.js';
 import {rentalOwnerAction} from '../rental-owners.js';
 import {grantRentalInquiryAccess} from '../rental-owner-storage.js';
 import {authorizationUser} from '../authorization.js';
@@ -30,7 +31,7 @@ import { operate, operationSchemas } from "../operations.js";
 import { addCalendarDays, yerevanToday } from "../../src/utils/dates.js";
 import { uuid, type DemoPlan } from "./fixtures.js";
 export interface DemoAccount {
-  capabilities?:readonly ['rental_owner'];
+  capabilities?:readonly ('rental_owner'|'service_provider')[];
   id: string;
   name: string;
   email: string;
@@ -408,6 +409,15 @@ export async function materialize(
       "saveService",
       serviceActionSchemas.saveService.parse([service]),
     );
+  if(plan.version>=6&&plan.serviceProviders?.length){
+    Object.assign(state,store.getState());state.currentUser=admin;await database.flush(state,tx);
+    for(const person of plan.serviceProviders)await serviceProviderAction(tx,admin,'grantServiceProvider',[{userId:person.userId,businessName:'SYNTHETIC business '+person.userId.slice(0,8),reason:'SYNTHETIC authorization; not business verification.'}]);
+    for(const [index,service] of plan.services.entries()){
+      await serviceProviderAction(tx,admin,'assignServiceProvider',[{serviceId:service.id,ownerId:plan.serviceProviders[index%plan.serviceProviders.length].userId,version:0,reason:'SYNTHETIC explicit new listing assignment.'}]);
+      const current=await moderationDetail(tx,admin,'service',service.id);
+      await moderateContent(tx,admin,{targets:[{module:'service',id:service.id,version:current.version,contentVersion:current.contentVersion}],status:'published',note:'SYNTHETIC listing review.',confirmed:true});
+    }
+  }
   for (let i = 0; i < c.serviceRequests; i++) {
     const service = plan.services[i % c.services];
     const result = await serviceAction(
@@ -418,7 +428,8 @@ export async function materialize(
         {
           requestId: uuid(plan.id, "service-request:" + i),
           serviceId: service.id,
-          version: 1,
+          ...(plan.version>=6?{shareWithProvider:i%2===0}:{}),
+          version: plan.version>=6?Number((await tx.execute({sql:'SELECT version FROM service_listings WHERE id=?',args:[service.id]})).rows[0].version):1,
           name: "SYNTHETIC Service Guest " + (i + 1),
           contact: `serviceguest.${i}.${plan.id.slice(0, 8)}@example.test`,
           preferredDate: addCalendarDays(base, 5),
@@ -445,7 +456,7 @@ export async function materialize(
         admin,
         "saveService",
         serviceActionSchemas.saveService.parse([
-          { ...service, version: 1, isActive: false },
+          { ...service, version: plan.version>=6?Number((await tx.execute({sql:'SELECT version FROM service_listings WHERE id=?',args:[service.id]})).rows[0].version):1, isActive: false },
         ]),
       );
   for (const [i, coupon] of plan.coupons.entries())

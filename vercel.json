@@ -20,7 +20,8 @@
       "codex/06-job-seeker-dashboard": false,
       "codex/07-employer-recruitment-dashboard": false,
       "codex/08-content-moderation": false,
-      "codex/09-rental-owner-dashboard": false
+      "codex/09-rental-owner-dashboard": false,
+      "codex/10-service-provider-dashboard": false
     }
   },
   "rewrites": [

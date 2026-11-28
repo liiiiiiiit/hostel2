@@ -46,3 +46,7 @@ group('platform.admin','moderateContent');
 
 group('accounts.assign','saveRentalOwnerAccount grantRentalOwner assignRentalOwner');
 group('rentals.manage','saveOwnerProfile saveOwnerRental setOwnerRentalAvailability updateOwnerInquiry');
+
+group('accounts.assign','saveServiceProviderAccount grantServiceProvider assignServiceProvider');
+group('services.provide','saveServiceBusiness saveProviderService updateProviderServiceRequest');
+group('platform.admin','reviewServiceVerification');

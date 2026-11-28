@@ -49,6 +49,7 @@ try{
  const {verifyJobSeekerUI}=await import('./job-seeker-browser-smoke.mjs');await verifyJobSeekerUI({request,adminCookie:cookie,proxyPassword});
  const {verifyRecruitmentUI}=await import('./recruitment-browser-smoke.mjs');await verifyRecruitmentUI({request,root,env,adminCookie:cookie,seedBatchId:generated.id,proxyPassword});
  const {verifyModerationUI}=await import('./moderation-browser-smoke.mjs');await verifyModerationUI({request,root,env,adminCookie:cookie,proxyPassword});
+ const {verifyServiceProviderUI}=await import('./service-provider-browser-smoke.mjs');await verifyServiceProviderUI({request,root,env,adminCookie:cookie,proxyPassword});
  const {verifyRentalOwnerUI}=await import('./rental-owner-browser-smoke.mjs');await verifyRentalOwnerUI({request,root,env,adminCookie:cookie,proxyPassword});
  console.log('PASS full requested synthetic ecosystem persisted through rebuild/restart and encrypted recovery; real staging startup, HTTPS/Basic Auth Nginx, noindex/banner, admin login and cookie isolation, persisted edit/session/upload after rebuild and restart, safe worker, encrypted backup/restoration to a separate target and schema integrity');
 }finally{if(nginx?.exitCode===null&&nginx.signalCode===null){nginx.kill();await new Promise(r=>nginx.once('exit',r));}await stop();await rm(dir,{recursive:true,force:true});}

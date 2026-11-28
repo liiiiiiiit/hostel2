@@ -1,4 +1,5 @@
 import {syncModeration,moderationVisible} from './moderation-storage.js';
+import {serviceProviderVisible,shareServiceRequest} from './service-provider-storage.js';
 import {can} from '../src/utils/authorization.js';
 import type { Client, Transaction } from '@libsql/client';
 import { createHash, randomUUID } from 'node:crypto';
@@ -22,14 +23,14 @@ const optionalPhone=z.string().trim().max(60).refine(v=>!v||isTourPhone(v));
 const handle=(host:string)=>z.string().trim().max(250).refine(v=>!v||/^@?[A-Za-z0-9_.]{1,64}$/.test(v)||URL.canParse(v)&&new URL(v).protocol==='https:'&&[host,'www.'+host].includes(new URL(v).hostname)&&!new URL(v).username&&!new URL(v).password);
 export const categoryInput=z.object({id:z.uuid(),slug,icon:z.enum(['medical','dining','legal','wellness','finance','other']),order:z.number().int().min(0).max(10000),isActive:z.boolean(),name:localized(120).refine(v=>languages.every(l=>v[l].length>0)),version:z.number().int().nonnegative()});
 export const serviceInput=z.object({
-  id:z.uuid(),slug,categoryId:z.uuid(),version:z.number().int().nonnegative(),isActive:z.boolean(),isFeatured:z.boolean(),isVerified:z.boolean(),allowBookingRequest:z.boolean(),
+  id:z.uuid(),slug,categoryId:z.uuid(),version:z.number().int().nonnegative(),verificationEvidence:z.string().trim().max(4000).optional(),isActive:z.boolean(),isFeatured:z.boolean(),isVerified:z.boolean(),allowBookingRequest:z.boolean(),
   title:localized(160),shortDescription:localized(350),description:localized(12000),address:localized(1000),workingHours:localized(500),priceRange:localized(250),
   coverImage:z.union([z.literal(''),imageUrl]),gallery:z.array(imageUrl).max(20),phone:optionalPhone,whatsapp:optionalPhone,telegram:handle('t.me'),instagram:handle('instagram.com'),website:https,
   city:z.string().trim().max(120),district:z.string().trim().max(160),mapUrl:https,
   latitude:z.number().finite().min(-85.05112878).max(85.05112878).nullable(),longitude:z.number().finite().min(-180).max(180).nullable(),
   languagesSpoken:z.array(z.enum(languages)).max(4).refine(a=>new Set(a).size===a.length),highlights:z.array(localized(200)).max(20),
 }).refine(v=>(v.latitude===null)===(v.longitude===null),'Coordinates must be paired').refine(v=>!v.isActive||!!v.city&&languages.every(l=>[v.title,v.shortDescription,v.description,v.address,v.workingHours].every(f=>!!f[l])),'Publication content is incomplete');
-export const serviceRequestInput=z.object({requestId:z.uuid(),serviceId:z.uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(120),contact:z.string().trim().max(250).refine(v=>z.email().safeParse(v).success||isTourPhone(v)),preferredDate:z.union([z.literal(''),z.iso.date().refine(v=>v>=yerevanToday())]).default(''),note:z.string().trim().max(2000).default('')});
+export const serviceRequestInput=z.object({shareWithProvider:z.boolean().optional(),requestId:z.uuid(),serviceId:z.uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(120),contact:z.string().trim().max(250).refine(v=>z.email().safeParse(v).success||isTourPhone(v)),preferredDate:z.union([z.literal(''),z.iso.date().refine(v=>v>=yerevanToday())]).default(''),note:z.string().trim().max(2000).default('')});
 export const requestStatus=z.enum(['new','contacted','closed']);
 export const serviceActionSchemas={saveService:z.tuple([serviceInput]),deleteService:z.tuple([z.uuid(),z.number().int().positive()]),saveServiceCategory:z.tuple([categoryInput]),deleteServiceCategory:z.tuple([z.uuid(),z.number().int().positive()]),requestService:z.tuple([serviceRequestInput]),updateServiceRequest:z.tuple([z.uuid(),requestStatus,requestStatus])};
 export const serviceSchemaSQL=[
@@ -57,7 +58,8 @@ export async function migrateServices(client:Client){
 }
 function requireAdmin(actor:User|null){if(!can(actor,'services.manage'))throw new ServiceError('forbidden',403);}
 const parse=<T>(value:unknown)=>JSON.parse(String(value)) as T;
-function listing(row:Record<string,unknown>):ServiceListing{return {
+export function listing(row:Record<string,unknown>):ServiceListing{return {
+ providerRequestsEnabled:!!row.provider_requests_enabled,
  id:String(row.id),slug:String(row.slug),categoryId:String(row.category_id),version:Number(row.version),isActive:!!row.is_active,isFeatured:!!row.is_featured,isVerified:!!row.is_verified,allowBookingRequest:!!row.allow_booking_request,
  title:parse(row.title_json),shortDescription:parse(row.short_description_json),description:parse(row.description_json),address:parse(row.address_json),workingHours:parse(row.working_hours_json),priceRange:parse(row.price_range_json),
  coverImage:String(row.cover_image),gallery:parse(row.gallery_json),phone:String(row.phone),whatsapp:String(row.whatsapp),telegram:String(row.telegram),instagram:String(row.instagram),website:String(row.website),city:String(row.city),district:String(row.district),mapUrl:String(row.map_url),latitude:row.latitude===null?null:Number(row.latitude),longitude:row.longitude===null?null:Number(row.longitude),languagesSpoken:parse(row.languages_json),highlights:parse(row.highlights_json),createdAt:String(row.created_at),updatedAt:String(row.updated_at),
@@ -66,7 +68,7 @@ export async function serviceCategories(tx:Transaction,admin=false):Promise<Serv
 const boolQuery=z.enum(['true','false','1','0']).transform(v=>v==='true'||v==='1');
 export const serviceQuery=z.object({category:z.string().trim().max(160).optional(),city:z.string().trim().max(120).optional(),language_spoken:z.enum(languages).optional(),search:z.string().trim().max(160).optional(),featured:boolQuery.optional(),verified:boolQuery.optional(),page:z.coerce.number().int().min(1).max(100000).default(1),pageSize:z.coerce.number().int().min(1).max(48).default(12)});
 export async function searchServices(tx:Transaction,query:z.infer<typeof serviceQuery>):Promise<ServicePage>{
- const clauses=['s.is_active=1','c.is_active=1',moderationVisible('service','s.id')],args:(string|number)[]=[];
+ const clauses=['s.is_active=1','c.is_active=1',moderationVisible('service','s.id'),serviceProviderVisible('s.id')],args:(string|number)[]=[];
  if(query.category){clauses.push('(c.slug=? OR c.id=?)');args.push(query.category,query.category);}
  if(query.city){clauses.push('s.city=? COLLATE NOCASE');args.push(query.city);}
  if(query.language_spoken){clauses.push('EXISTS(SELECT 1 FROM json_each(s.languages_json) WHERE value=?)');args.push(query.language_spoken);}
@@ -74,14 +76,14 @@ export async function searchServices(tx:Transaction,query:z.infer<typeof service
  for(const [field,value] of [['is_featured',query.featured],['is_verified',query.verified]] as const)if(value!==undefined){clauses.push('s.'+field+'=?');args.push(Number(value));}
  const from='FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE '+clauses.join(' AND ');
  const total=Number((await tx.execute({sql:'SELECT COUNT(*) AS n '+from,args})).rows[0].n);
- const rows=(await tx.execute({sql:'SELECT s.* '+from+' ORDER BY s.is_featured DESC,s.updated_at DESC,s.id LIMIT ? OFFSET ?',args:[...args,query.pageSize,(query.page-1)*query.pageSize]})).rows;
+ const rows=(await tx.execute({sql:'SELECT s.*,EXISTS(SELECT 1 FROM service_provider_listings sp WHERE sp.service_id=s.id AND sp.owner_id IS NOT NULL) AS provider_requests_enabled '+from+' ORDER BY s.is_featured DESC,s.updated_at DESC,s.id LIMIT ? OFFSET ?',args:[...args,query.pageSize,(query.page-1)*query.pageSize]})).rows;
  return {items:rows.map(listing),total,page:query.page,pageSize:query.pageSize};
 }
 export async function getService(tx:Transaction,slugOrId:string):Promise<ServiceListing>{
- const row=(await tx.execute({sql:`SELECT s.* FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')}`,args:[slugOrId,slugOrId]})).rows[0];
+ const row=(await tx.execute({sql:`SELECT s.*,EXISTS(SELECT 1 FROM service_provider_listings sp WHERE sp.service_id=s.id AND sp.owner_id IS NOT NULL) AS provider_requests_enabled FROM service_listings s JOIN service_categories c ON c.id=s.category_id WHERE (s.slug=? OR s.id=?) AND s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} AND ${serviceProviderVisible('s.id')}`,args:[slugOrId,slugOrId]})).rows[0];
  if(!row)throw new ServiceError('missing',404);return listing(row);
 }
-export async function serviceCities(tx:Transaction){return(await tx.execute(`SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} ORDER BY s.city`)).rows.map(r=>String(r.city));}
+export async function serviceCities(tx:Transaction){return(await tx.execute(`SELECT DISTINCT s.city FROM service_listings s JOIN service_categories c ON s.category_id=c.id WHERE s.is_active=1 AND c.is_active=1 AND ${moderationVisible('service','s.id')} AND ${serviceProviderVisible('s.id')} ORDER BY s.city`)).rows.map(r=>String(r.city));}
 export async function servicesState(tx:Transaction,actor:User|null){
  const admin=can(actor,'services.manage');
  const services=admin?(await tx.execute('SELECT * FROM service_listings ORDER BY updated_at DESC,id')).rows.map(listing):(await searchServices(tx,{page:1,pageSize:6})).items;
@@ -89,23 +91,25 @@ export async function servicesState(tx:Transaction,actor:User|null){
  return {services,serviceCategories:await serviceCategories(tx,admin),serviceRequests};
 }
 async function uniqueSlug(tx:Transaction,table:'service_categories'|'service_listings',id:string,value:string){if((await tx.execute({sql:'SELECT id FROM '+table+' WHERE slug=? AND id<>?',args:[value,id]})).rows.length)throw new ServiceError('duplicate',409);}
-export async function serviceAction(tx:Transaction,actor:User|null,action:keyof typeof serviceActionSchemas,args:unknown[]){
+export async function serviceAction(tx:Transaction,actor:User|null,action:keyof typeof serviceActionSchemas,args:unknown[],internal?:{provider:true}){
  if(action==='requestService'){
   const input=args[0] as z.infer<typeof serviceRequestInput>,fingerprint=createHash('sha256').update(JSON.stringify(input)).digest('hex');
   const previous=(await tx.execute({sql:'SELECT reference,fingerprint FROM service_requests WHERE request_id=?',args:[input.requestId]})).rows[0];
   if(previous){if(previous.fingerprint!==fingerprint)throw new ServiceError('conflict',409);return {success:true,serviceReference:String(previous.reference)};}
   const service=await getService(tx,input.serviceId);if(!service.allowBookingRequest||service.version!==input.version)throw new ServiceError('unavailable',409);
   const reference=randomUUID();await tx.execute({sql:"INSERT INTO service_requests VALUES(?,?,?,?,?,?,?,?,?,'new',?)",args:[reference,input.requestId,fingerprint,service.id,JSON.stringify(service.title),input.name,input.contact,input.preferredDate,input.note,new Date().toISOString()]});
+  await shareServiceRequest(tx,reference,!!input.shareWithProvider);
   return {success:true,serviceReference:reference};
  }
- requireAdmin(actor);
+ if(internal?.provider&&action!=='saveService')throw new ServiceError('forbidden',403);
+ if(!internal?.provider)requireAdmin(actor);
  if(action==='saveServiceCategory'){
   const input=args[0] as z.infer<typeof categoryInput>;await uniqueSlug(tx,'service_categories',input.id,input.slug);
   const values=[input.slug,input.icon,input.order,Number(input.isActive),JSON.stringify(input.name)];
   const result=input.version===0?await tx.execute({sql:'INSERT INTO service_categories(id,slug,icon,sort_order,is_active,name_json) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',args:[input.id,...values]}):await tx.execute({sql:'UPDATE service_categories SET slug=?,icon=?,sort_order=?,is_active=?,name_json=?,version=version+1 WHERE id=? AND version=?',args:[...values,input.id,input.version]});
   if(!result.rowsAffected)throw new ServiceError('conflict',409);
  }else if(action==='saveService'){
-  const input=args[0] as z.infer<typeof serviceInput>;await uniqueSlug(tx,'service_listings',input.id,input.slug);
+  const input=args[0] as z.infer<typeof serviceInput>;const old=(await tx.execute({sql:'SELECT is_verified FROM service_listings WHERE id=?',args:[input.id]})).rows[0];if(input.isVerified!==!!old?.is_verified&&input.isVerified&&!input.verificationEvidence?.trim())throw new ServiceError('invalid');await uniqueSlug(tx,'service_listings',input.id,input.slug);
   if(!(await tx.execute({sql:'SELECT id FROM service_categories WHERE id=?',args:[input.categoryId]})).rows.length)throw new ServiceError('missing',404);
   const jsonFields=['title','shortDescription','description','address','workingHours','priceRange'] as const;
   const values=[input.slug,input.categoryId,...[input.isActive,input.isFeatured,input.isVerified,input.allowBookingRequest].map(Number),...jsonFields.map(k=>JSON.stringify(input[k])),input.coverImage,JSON.stringify(input.gallery),input.phone,input.whatsapp,input.telegram,input.instagram,input.website,input.city,input.district,input.mapUrl,input.latitude,input.longitude,JSON.stringify(input.languagesSpoken),JSON.stringify(input.highlights),[...jsonFields.flatMap(k=>Object.values(input[k])),input.city,input.district,...input.highlights.flatMap(v=>Object.values(v))].join(' ').normalize('NFKC').toLocaleLowerCase()];
@@ -114,8 +118,10 @@ export async function serviceAction(tx:Transaction,actor:User|null,action:keyof 
   const result=input.version===0?await tx.execute({sql:`INSERT INTO service_listings(id,${columns.join(',')},created_at,updated_at) VALUES(${Array(values.length+3).fill('?').join(',')}) ON CONFLICT(id) DO NOTHING`,args:[input.id,...values,now,now]}):await tx.execute({sql:`UPDATE service_listings SET ${columns.map(c=>c+'=?').join(',')},updated_at=?,version=version+1 WHERE id=? AND version=?`,args:[...values,now,input.id,input.version]});
   if(!result.rowsAffected)throw new ServiceError('conflict',409);
   await syncModeration(tx,'service',input.id,actor,input);
+  if(input.isVerified!==!!old?.is_verified){if(!actor||actor.role!=='admin')throw new ServiceError('forbidden',403);await tx.execute({sql:'INSERT INTO service_verification_reviews VALUES(?,?,?,?,?,?)',args:[randomUUID(),input.id,actor.id,Number(input.isVerified),input.verificationEvidence?.trim()||'Explicit administrator revocation',now]});}
  }else if(action==='deleteService'||action==='deleteServiceCategory'){
   const table=action==='deleteService'?'service_listings':'service_categories';
+  if(action==='deleteService'&&(await tx.execute({sql:'SELECT 1 FROM service_provider_listings WHERE service_id=? UNION ALL SELECT 1 FROM service_provider_media WHERE service_id=? UNION ALL SELECT 1 FROM service_verification_reviews WHERE service_id=? LIMIT 1',args:[String(args[0]),String(args[0]),String(args[0])]})).rows.length)throw new ServiceError('referenced',409);
   const references=action==='deleteService'?'SELECT 1 FROM service_requests WHERE service_id=?':'SELECT 1 FROM service_listings WHERE category_id=?';
   if((await tx.execute({sql:references,args:[String(args[0])]})).rows.length)throw new ServiceError('referenced',409);
   if(!(await tx.execute({sql:'DELETE FROM '+table+' WHERE id=? AND version=?',args:[String(args[0]),Number(args[1])]})).rowsAffected)throw new ServiceError('conflict',409);
