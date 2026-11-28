@@ -138,6 +138,7 @@ test('ownership, media scope, badges and administrator request boundaries cannot
  assert.equal((await a.c.action('saveProviderService',[{service:{...s,coverImage:image.url,gallery:[image.url]},submit:false}])).data.success,true);
  assert.equal((await a.c.request('/api/service-provider/media?serviceId='+s.id+'&deleteMedia='+image.id,{method:'POST'})).status,409);
  assert.equal((await a.c.action('saveService',[s])).status,403);
+ const current=(await a.c.get('/api/service-provider')).data.listings.find(r=>r.id===s.id);assert.equal((await f.admin.action('deleteService',[s.id,current.version])).status,409);
 });
 test('verification requires evidence; evidence stays private; assignment and suspension never share historical contacts',async t=>{
  const f=await fixture(t),a=await provider(f),b=await provider(f);let s=await publishService(f,a,await listingDraft(f,a));await request(f,s,true);

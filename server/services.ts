@@ -120,6 +120,7 @@ export async function serviceAction(tx:Transaction,actor:User|null,action:keyof 
   if(input.isVerified!==!!old?.is_verified){if(!actor||actor.role!=='admin')throw new ServiceError('forbidden',403);await tx.execute({sql:'INSERT INTO service_verification_reviews VALUES(?,?,?,?,?,?)',args:[randomUUID(),input.id,actor.id,Number(input.isVerified),input.verificationEvidence?.trim()||'Explicit administrator revocation',now]});}
  }else if(action==='deleteService'||action==='deleteServiceCategory'){
   const table=action==='deleteService'?'service_listings':'service_categories';
+  if(action==='deleteService'&&(await tx.execute({sql:'SELECT 1 FROM service_provider_listings WHERE service_id=? UNION ALL SELECT 1 FROM service_provider_media WHERE service_id=? UNION ALL SELECT 1 FROM service_verification_reviews WHERE service_id=? LIMIT 1',args:[String(args[0]),String(args[0]),String(args[0])]})).rows.length)throw new ServiceError('referenced',409);
   const references=action==='deleteService'?'SELECT 1 FROM service_requests WHERE service_id=?':'SELECT 1 FROM service_listings WHERE category_id=?';
   if((await tx.execute({sql:references,args:[String(args[0])]})).rows.length)throw new ServiceError('referenced',409);
   if(!(await tx.execute({sql:'DELETE FROM '+table+' WHERE id=? AND version=?',args:[String(args[0]),Number(args[1])]})).rowsAffected)throw new ServiceError('conflict',409);
