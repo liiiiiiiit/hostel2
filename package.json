@@ -32,7 +32,10 @@
     "demo:validate": "node --import tsx scripts/demo.ts validate",
     "demo:seed": "node --import tsx scripts/demo.ts seed",
     "demo:status": "node --import tsx scripts/demo.ts status",
-    "demo:cleanup": "node --import tsx scripts/demo.ts cleanup"
+    "demo:cleanup": "node --import tsx scripts/demo.ts cleanup",
+    "release:check": "node --import tsx scripts/release-check.ts",
+    "test:release-load": "node --import tsx scripts/release-load.mjs",
+    "release:assets": "node scripts/release-assets.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

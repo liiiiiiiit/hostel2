@@ -7,6 +7,7 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   const disableSockets = previewSocketsDisabled();
   return {
+    build: {manifest:true},
     plugins: [react(), tailwindcss(), previewSocketPlugin(disableSockets)],
     resolve: {
       alias: {

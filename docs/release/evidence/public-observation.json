@@ -1,0 +1,56 @@
+{
+  "observedAtUtc": "2026-11-28T10:58:33.169553+00:00",
+  "scope": "Four read-only unauthenticated GETs; WAN latency includes the execution proxy, not a server SLA. No login, scanning, mutation or load testing. Deployed code SHA unknown.",
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "sampleBytes": 4949,
+      "elapsedMs": 4741,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "cache-control": "public, max-age=0"
+      },
+      "canonicalCount": 0,
+      "structuredDataCount": 0,
+      "serverRenderedMain": false
+    },
+    {
+      "path": "/fa/",
+      "status": 200,
+      "sampleBytes": 5007,
+      "elapsedMs": 3626,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      },
+      "canonicalCount": 1,
+      "structuredDataCount": 0,
+      "serverRenderedMain": true
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "sampleBytes": 137,
+      "elapsedMs": 3520,
+      "headers": {
+        "content-type": "text/plain; charset=utf-8"
+      },
+      "canonicalCount": 0,
+      "structuredDataCount": 0,
+      "serverRenderedMain": false
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "sampleBytes": 2153,
+      "elapsedMs": 3441,
+      "headers": {
+        "content-type": "application/xml; charset=utf-8"
+      },
+      "canonicalCount": 0,
+      "structuredDataCount": 0,
+      "serverRenderedMain": false
+    }
+  ]
+}

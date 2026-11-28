@@ -1,0 +1,55 @@
+{
+  "environment": {
+    "node": "v24.22.3",
+    "cpus": 9,
+    "dataset": {
+      "users": 5001,
+      "hostels": 100,
+      "roomTypes": 200
+    }
+  },
+  "seo": {
+    "samples": 5,
+    "p50Ms": 46.91,
+    "p95Ms": 50.05,
+    "bytes": 351384
+  },
+  "adminShell": {
+    "samples": 12,
+    "p50Ms": 3.62,
+    "p95Ms": 7.4,
+    "bytes": 981
+  },
+  "records": {
+    "samples": 12,
+    "p50Ms": 7.38,
+    "p95Ms": 8.49,
+    "bytes": 2888
+  },
+  "search": {
+    "samples": 12,
+    "p50Ms": 9.64,
+    "p95Ms": 13.49,
+    "bytes": 2885
+  },
+  "queryPlan": [
+    "SCAN users USING INDEX users_admin_recent"
+  ],
+  "writeContention": {
+    "processes": 4,
+    "attempted": 160,
+    "committed": 160,
+    "errors": 0,
+    "startupErrors": [],
+    "p95Ms": 0.23,
+    "elapsedMs": 753.24
+  },
+  "integrity": "ok",
+  "foreignKeyViolations": 0,
+  "resources": {
+    "processCpuMs": 979.559,
+    "elapsedMs": 1554.4930640000002,
+    "rssBytes": 340119552,
+    "eventLoopP95Ms": 15.179775
+  }
+}

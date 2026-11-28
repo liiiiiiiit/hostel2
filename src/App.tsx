@@ -4,21 +4,24 @@ import { servicesText } from './i18n/services';
 import {TranslatorView} from './views/TranslatorView';
 import {articleInLanguage} from './utils/article-language';
 import {publicPage} from './utils/public-seo';
-import {RecommendationsView} from './views/RecommendationsView';
+
 import {parseBrowserRoute,browserPath} from './utils/public-routes';
-import {AccountActionView} from './components/AccountSettings';
+
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { AppLanguage, User } from './types';
 import { appStore } from './services/store';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomeView } from './views/HomeView';
-import { AuthModal } from './views/AuthModal';
+
 import { parseRoute, routeHash } from './utils/navigation';
 import { useLanguage } from './context/LanguageContext';
 import { ContentLoading } from './components/ContentLoading';
 import { loadingText, type StartupStatus } from './i18n/loading';
 
+const RecommendationsView=lazy(()=>import('./views/RecommendationsView').then(m=>({default:m.RecommendationsView})));
+const AccountActionView=lazy(()=>import('./components/AccountSettings').then(m=>({default:m.AccountActionView})));
+const AuthModal=lazy(()=>import('./views/AuthModal').then(m=>({default:m.AuthModal})));
 const ServicesView=lazy(()=>import('./views/ServicesView').then(m=>({default:m.ServicesView})));
 const ServiceDetailView=lazy(()=>import('./views/ServiceDetailView').then(m=>({default:m.ServiceDetailView})));
 const HostelsView = lazy(() => import('./views/HostelsView').then(module => ({ default: module.HostelsView })));
@@ -120,10 +123,14 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
     const meta=(name:string,value:string,property=false)=>{const selector=property?`meta[property="${name}"]`:`meta[name="${name}"]`;let element=document.head.querySelector(selector);if(!element){element=document.createElement('meta');element.setAttribute(property?'property':'name',name);document.head.appendChild(element);}element.setAttribute('content',value);};
     const staging=document.head.querySelector('meta[name="yh-environment"]')?.getAttribute('content')==='staging';
     meta('robots',staging||isPrivate?'noindex,nofollow':page.status===404||page.noindex?'noindex,nofollow':'index,follow');meta('description',isPrivate?'':page.description??'');meta('og:title',isPrivate?'YEREVANHUB':page.title,true);meta('og:description',isPrivate?'':page.description??'',true);if(!isPrivate&&page.image)meta('og:image',new URL(page.image,window.location.origin).href,true);else document.head.querySelector('meta[property="og:image"]')?.remove();
+    meta('og:locale',({fa:'fa_IR',en:'en_US',ru:'ru_RU',hy:'hy_AM'})[currentLang],true);
     meta('og:url',window.location.origin+(isPrivate?'/':pagePath),true);
+    document.head.querySelectorAll('script[type="application/ld+json"]').forEach(node=>node.remove());
+    if(!isPrivate&&!staging){const json=page.head.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];if(json){const node=document.createElement('script');node.type='application/ld+json';node.textContent=json;document.head.appendChild(node);}}
     const canonical=document.head.querySelector('link[rel="canonical"]')??document.head.appendChild(document.createElement('link'));canonical.setAttribute('rel','canonical');canonical.setAttribute('href',window.location.origin+(isPrivate?'/':pagePath));
     for(const node of document.head.querySelectorAll('link[hreflang]'))node.remove();
-    if(!isPrivate&&page.status===200)for(const lang of ['fa','en','ru','hy']){if(activeView==='article-detail'){const original=storeState.articles.find(a=>a.slug===viewParams.slug||a.id===viewParams.slug);if(!original||!articleInLanguage(original,lang as AppLanguage))continue;}const link=document.createElement('link');link.rel='alternate';link.hreflang=lang;link.href=window.location.origin+pagePath.replace(/^\/(fa|en|ru|hy)/,'/'+lang);document.head.appendChild(link);}
+    if(!isPrivate&&!staging&&!page.noindex&&page.status===200)for(const lang of ['fa','en','ru','hy']){if(activeView==='article-detail'){const original=storeState.articles.find(a=>a.slug===viewParams.slug||a.id===viewParams.slug);if(!original||!articleInLanguage(original,lang as AppLanguage))continue;}const link=document.createElement('link');link.rel='alternate';link.hreflang=lang;link.href=window.location.origin+pagePath.replace(/^\/(fa|en|ru|hy)/,'/'+lang);document.head.appendChild(link);}
+    const fallback=document.head.querySelector('link[hreflang="fa"]');if(fallback){const node=document.createElement('link');node.rel='alternate';node.hreflang='x-default';node.href=(fallback as HTMLLinkElement).href;document.head.appendChild(node);}
   },[activeView,currentLang,storeState,viewParams]);
   const currentUser = storeState.currentUser;
 
@@ -359,7 +366,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
 
       {/* Auth Modal */}
       {showAuthModal && (
-        <AuthModal
+        <Suspense fallback={<ContentLoading lang={currentLang}/>}><AuthModal
           currentLang={currentLang}
           onClose={() => setShowAuthModal(false)}
           onSuccess={user => {
@@ -369,7 +376,7 @@ export default function App({ startupStatus = 'ready', onStartupRetry }: { start
             else if (user.role === 'hostel_manager') handleNavigate('manager');
             else handleNavigate(user.serviceProviderAuthorized?'service-provider':user.rentalOwnerAuthorized?'rental-owner':'account');
           }}
-        />
+        /></Suspense>
       )}
     </div>
   );

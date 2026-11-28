@@ -1,0 +1,28 @@
+{
+  "productionModeCsp": "passed",
+  "localNavigationObservations": [
+    {
+      "lang": "fa",
+      "canonical": "http://127.0.0.1:46079/fa/",
+      "navigationMs": 342.70000000000437
+    },
+    {
+      "lang": "en",
+      "canonical": "http://127.0.0.1:46079/en/",
+      "navigationMs": 124.19999999999709
+    },
+    {
+      "lang": "ru",
+      "canonical": "http://127.0.0.1:46079/ru/",
+      "navigationMs": 56.19999999999709
+    },
+    {
+      "lang": "hy",
+      "canonical": "http://127.0.0.1:46079/hy/",
+      "navigationMs": 58.39999999999418
+    }
+  ],
+  "pageErrors": [],
+  "privateNoindex": "passed",
+  "lazyAuthentication": "passed"
+}

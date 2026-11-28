@@ -1,3 +1,4 @@
+import {releaseReady} from '../server/release-storage.js';
 import {centralAdminReady} from '../server/central-admin-storage.js';
 import {serviceProvidersReady} from '../server/service-provider-storage.js';
 import {rentalOwnersReady} from '../server/rental-owner-storage.js';
@@ -70,9 +71,9 @@ try {
                     const moderation=await moderationReady(tx);
                     const rentalOwners=await rentalOwnersReady(tx);
                     const serviceProviders=await serviceProvidersReady(tx);
-                    const centralAdmin=await centralAdminReady(tx);
-                    const schemaReady = centralAdmin && serviceProviders && rentalOwners && moderation && recruitment && jobSeekers && authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
-                    console.log(JSON.stringify({ versions, schemaReady, centralAdmin, serviceProviders, rentalOwners, moderation, recruitment, jobSeekers, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
+                    const releaseReadiness=await releaseReady(tx); const centralAdmin=await centralAdminReady(tx);
+                    const schemaReady = releaseReadiness && centralAdmin && serviceProviders && rentalOwners && moderation && recruitment && jobSeekers && authorization && mediaCleanup && services.ready && providers.ready && versions.some(row => Number(row.version) === 3) && !versions.some(row => Number(row.version) > 3) && missingTables.length === 0 && missingIndexes.length === 0;
+                    console.log(JSON.stringify({ versions, schemaReady, releaseReadiness, centralAdmin, serviceProviders, rentalOwners, moderation, recruitment, jobSeekers, authorization, mediaCleanup, missingTables, missingIndexes, providers, services, counts, indexes: indexes.length, foreignKeyViolations: violations.length, ...(integrity ? { integrity } : {}) }, null, 2));
                     if (violations.length || integrity?.some(row => row.integrity_check !== 'ok') || (command === 'check' && !schemaReady))
                         process.exitCode = 1;
                     await tx.commit();

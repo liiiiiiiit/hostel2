@@ -202,7 +202,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     base.finance_entries = where('booking_id=?', bookingId);
     return base;
 }
-export async function visibleState(tx: Transaction, actor: User | null, demo: boolean, bookingToken = '', inquiryToken = '') {
+export async function visibleState(tx: Transaction, actor: User | null, demo: boolean, bookingToken = '', inquiryToken = '', includeAvailability = true) {
     let scope: Scope;
     if (can(actor,'platform.admin'))
         scope = { user_credentials: none, audit_logs: { sql: 'id IN (SELECT id FROM audit_logs ORDER BY timestamp DESC LIMIT 500)' } };
@@ -218,7 +218,7 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
         };
     }
     const { state } = await loadState(tx, scope);
-    const ids = state.hostels.map(hostel => hostel.id);
+    const ids = includeAvailability?state.hostels.map(hostel => hostel.id):[];
     const availability: AvailabilityDay[] = [];
     // Aggregate upcoming occupancy in SQL, using indexed date/status lookups. No guest
     // contacts, tokens, old bookings, or credentials are loaded for public availability.

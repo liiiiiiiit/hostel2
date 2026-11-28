@@ -1,3 +1,4 @@
+import {migrateRelease} from './release-storage.js';
 import {migrateCentralAdmin} from './central-admin-storage.js';
 import {migrateServiceProviders} from './service-provider-storage.js';
 import {migrateRentalOwners} from './rental-owner-storage.js';
@@ -48,7 +49,7 @@ export class Database {
     this.demo = !['staging','production'].includes(applicationEnvironment()) && process.env.NODE_ENV !== 'production' && !process.env.VERCEL && (options.demo ?? process.env.DEMO_MODE === 'true');
     this.client = createClient({ url: url ?? 'file:data/hostel.db', authToken: options.authToken ?? process.env.DATABASE_AUTH_TOKEN });
     this.writeQueue = databaseWriteQueue(url ?? 'file:data/hostel.db');
-    this.ready = this.writeQueue.run(async () => { await guardMigrations(this.client,options.migrationBackup); await ensureDatabaseEnvironment(this.client); await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); await migrateMediaCleanup(this.client); await migrateAuthorization(this.client); await migrateJobSeekers(this.client); await migrateRecruitment(this.client); await migrateModeration(this.client); await migrateRentalOwners(this.client); await migrateServiceProviders(this.client); await migrateCentralAdmin(this.client); });
+    this.ready = this.writeQueue.run(async () => { if((url??'file:').startsWith('file:'))await this.client.execute('PRAGMA busy_timeout=5000'); await guardMigrations(this.client,options.migrationBackup); await ensureDatabaseEnvironment(this.client); await this.initialize(options); await this.client.batch([jobTable, applicationTable, tourTable, tourBookingTable], 'write'); await migrateProviders(this.client); await migrateServices(this.client); await migrateMediaCleanup(this.client); await migrateAuthorization(this.client); await migrateJobSeekers(this.client); await migrateRecruitment(this.client); await migrateModeration(this.client); await migrateRentalOwners(this.client); await migrateServiceProviders(this.client); await migrateCentralAdmin(this.client); await migrateRelease(this.client); });
     this.queue = this.ready.catch(() => {});
   }
   async waitUntilReady(): Promise<void> { await this.ready; }
@@ -128,6 +129,7 @@ export class Database {
     const loaded=this.contexts.get(tx);if(!loaded||loaded.state!==state)throw new Error('State does not belong to this transaction');
     await flushState(tx,loaded);
   }
+  async publicSeoState() { return this.sqlTransaction(tx=>visibleState(tx,null,this.demo,'','',false),'read'); }
   async publicState(actor:User|null=null,bookingToken='',inquiryToken='') {
     return this.sqlTransaction(tx=>visibleState(tx,actor,this.demo,bookingToken,inquiryToken),'read');
   }

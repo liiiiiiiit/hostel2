@@ -48,15 +48,15 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
     status = 200,
     noindex = false;
   let available = languages;
-  const list = () =>
+  const list = (kind?:string) =>
     `<ul>${state.hostels
-      .filter((h) => h.isPublished)
+      .filter((h) => h.isPublished && (!kind||kind==="hostels"))
       .map(
         (h) =>
           `<li><a href="/${lang}/hostels/${encodeURIComponent(h.slug)}">${escape(h.name[lang])}</a></li>`,
       )
       .join("")}${state.rentals
-      .filter((r) => r.status === "published")
+      .filter((r) => r.status === "published" && (!kind||kind==="rentals"))
       .map(
         (r) =>
           `<li><a href="/${lang}/rentals/${encodeURIComponent(r.slug)}">${escape(r.title[lang])}</a></li>`,
@@ -115,7 +115,7 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
             )
             .join("") +
           "</ul>"
-        : list()
+        : ["hostels","rentals"].includes(section)?list(section):""
     }`;
   } else if (parts.length === 3 && section === "hostels") {
     const h = state.hostels.find((h) => h.isPublished && h.slug === parts[2]);
@@ -124,7 +124,7 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
       title = h.name[lang] + " · YEREVANHUB";
       description = h.description?.[lang] ?? h.address[lang];
       image = h.photos[0] ?? "";
-      noindex = !!h.sampleContent;
+      noindex = !!h.sampleContent || !!h.publicPreview;
       content = `<h1>${escape(h.name[lang])}</h1><p>${escape(description)}</p><p>${escape(h.address[lang])}</p>${h.sampleContent ? "<p>Sample / unverified content</p>" : ""}<ul>${h.roomTypes.map((room) => `<li>${escape(room.name[lang])} · ${room.pricePerNightAMD} AMD / ${room.type === "private" ? "room" : "bed"} / night</li>`).join("")}</ul>`;
       if (h.publicPreview) content = `<h1>${escape(h.name[lang])}</h1><p>${escape(previewText[lang])}</p><p>${escape(description)}</p>`;
     }
@@ -137,7 +137,7 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
       title = r.title[lang] + " · YEREVANHUB";
       description = r.description?.[lang] ?? r.approximateLocationLabel;
       image = r.photos[0] ?? "";
-      noindex = !!r.sampleContent;
+      noindex = !!r.sampleContent || !!r.publicPreview;
       content = `<h1>${escape(r.title[lang])}</h1><p>${escape(description)}</p><p>${escape(r.addressPublic)}</p><p>${r.areaSqm} m² · ${r.maxResidents} guests</p><p>${r.pricePerNightAMD ?? "—"} AMD / night · ${r.pricePerMonthAMD ?? "—"} AMD / month</p>`;
       if (r.publicPreview) content = `<h1>${escape(r.title[lang])}</h1><p>${escape(previewText[lang])}</p><p>${escape(description)}</p>`;
     }
@@ -163,13 +163,17 @@ export function publicPage(state: ClientState, rawPath: string, base: string) {
     noindex = true;
     content = "<h1>404</h1>";
   }
+  const sectionNames:Record<string,string[]>={hostels:['هاستل‌ها','Hostels','Хостелы','Հոսթելներ'],rentals:['اجاره ملک','Rentals','Аренда жилья','Վարձակալություն'],guides:['راهنمای سفر','Travel guides','Путеводители','Ուղեցույցներ'],translator:['مترجم','Translator','Переводчик','Թարգմանիչ'],about:['درباره ما','About us','О нас','Մեր մասին'],contact:['تماس با ما','Contact','Контакты','Կապ'],rules:['قوانین','Terms','Правила','Կանոններ'],privacy:['حریم خصوصی','Privacy','Конфиденциальность','Գաղտնիություն'],recommendations:['پیشنهاد اقامت','Stay recommendations','Рекомендации жилья','Կացության առաջարկներ']};
+  if(status===200&&parts.length===2&&sectionNames[section]){description=sectionNames[section][languages.indexOf(lang)]+' · YEREVANHUB';title=description;}
   const localizedPath = url.pathname === "/" ? "/fa/" : url.pathname;
   const canonical =
     base + localizedPath.replace(/\/$/, "") + (parts.length === 1 ? "/" : "");
   const alternate = (language: AppLanguage) =>
     base + localizedPath.replace(/^\/(fa|en|ru|hy)/, "/" + language);
-  const head = `<title>${escape(title)}</title><meta name="description" content="${escape(description.slice(0, 300))}"><link rel="canonical" href="${escape(canonical)}"><meta name="robots" content="${noindex ? "noindex,nofollow" : "index,follow"}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description.slice(0, 300))}"><meta property="og:url" content="${escape(canonical)}"><meta property="og:locale" content="${lang}">${image ? `<meta property="og:image" content="${escape(new URL(image, base || "https://local.invalid").href)}">` : ""}${status === 200 ? available.map((language) => `<link rel="alternate" hreflang="${language}" href="${escape(alternate(language))}">`).join("") : ""}`;
-  return { status, lang, title, description, head, content, noindex, image };
+  const head = `<title>${escape(title)}</title><meta name="description" content="${escape(description.slice(0, 300))}"><link rel="canonical" href="${escape(canonical)}"><meta name="robots" content="${noindex ? "noindex,nofollow" : "index,follow"}"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${escape(description.slice(0, 300))}"><meta property="og:url" content="${escape(canonical)}"><meta property="og:locale" content="${({fa:"fa_IR",en:"en_US",ru:"ru_RU",hy:"hy_AM"})[lang]}">${image ? `<meta property="og:image" content="${escape(new URL(image, base || "https://local.invalid").href)}">` : ""}${status === 200 && !noindex ? available.map((language) => `<link rel="alternate" hreflang="${language}" href="${escape(alternate(language))}">`).join("") : ""}`;
+  const structured=status===200&&!noindex?'<script type="application/ld+json">'+JSON.stringify({'@context':'https://schema.org','@type':parts.length===1?'WebSite':'WebPage',name:title,url:canonical,inLanguage:lang}).replace(/</g,'\\u003c')+'</script>':'';
+  const xDefault=status===200&&!noindex&&available.includes('fa')?'<link rel="alternate" hreflang="x-default" href="'+escape(alternate('fa'))+'">':'';
+  return { status, lang, title, description, head:head+xDefault+structured, content, noindex, image };
 }
 export function renderPublicHtml(
   template: string,
@@ -179,6 +183,9 @@ export function renderPublicHtml(
 ) {
   const page = publicPage(state, rawPath, base);
   const stripped = template
+    .replace(/<link[^>]+rel=["'](?:canonical|alternate)["'][^>]*>/gi,'')
+    .replace(/<meta[^>]+name=["']robots["'][^>]*>/gi,'')
+    .replace(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi,'')
     .replace(/<title>[\s\S]*?<\/title>/i, "")
     .replace(
       /<meta[^>]+(?:name="description"|property="og:[^"]+")[^>]*>/gi,
@@ -186,6 +193,7 @@ export function renderPublicHtml(
     );
   return {
     status: page.status,
+    noindex:page.noindex,
     html: stripped
       .replace(
         /<html[^>]*>/,
@@ -210,10 +218,10 @@ export function sitemap(state: ClientState, base: string) {
       `/${lang}/services`,
       ...(state.services??[]).filter(s=>s.isActive).map(s=>`/${lang}/services/${encodeURIComponent(s.slug)}`),
       ...state.hostels
-        .filter((h) => h.isPublished && !h.sampleContent)
+        .filter((h) => h.isPublished && !h.sampleContent && !h.publicPreview)
         .map((h) => `/${lang}/hostels/${encodeURIComponent(h.slug)}`),
       ...state.rentals
-        .filter((r) => r.status === "published" && !r.sampleContent)
+        .filter((r) => r.status === "published" && !r.sampleContent && !r.publicPreview)
         .map((r) => `/${lang}/rentals/${encodeURIComponent(r.slug)}`),
     ])
     .concat(
