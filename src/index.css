@@ -522,3 +522,4 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
 
 /* Keep intrinsic translated banner text inside a narrow flex column while loading. */
 .central-admin .admin-day-banner > div { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.central-admin .admin-day-banner .eyebrow { color:#d7e4da; }
