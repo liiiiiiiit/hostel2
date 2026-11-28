@@ -519,3 +519,6 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
 .central-confirm::backdrop { background:#071a11a6; }
 .central-confirm :is(input,textarea) { font-size:1rem; max-width:100%; }
 .central-admin button { min-height:44px; white-space:normal; }
+
+/* Keep intrinsic translated banner text inside a narrow flex column while loading. */
+.central-admin .admin-day-banner > div { min-width:0; max-width:100%; overflow-wrap:anywhere; }

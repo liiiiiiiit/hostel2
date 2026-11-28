@@ -86,7 +86,8 @@ async function inspect(page, label, screenshot = false) {
         if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) headerOverlap.push([part.name, other.name]);
       }
     }
-    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow, headerOverlap };
+    const scrollSources=document.documentElement.scrollWidth>width+1?[...document.querySelectorAll('body *')].filter(e=>e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible').map(e=>({tag:e.tagName,class:String(e.className).slice(0,90),client:e.clientWidth,scroll:e.scrollWidth})).slice(-15):[];
+    return { width, documentWidth: document.documentElement.scrollWidth, dir: document.documentElement.dir, overflow, headerOverlap,scrollSources };
   });
   const passed = state.documentWidth <= state.width + 1 && state.overflow.length === 0 && state.headerOverlap.length === 0;
   const result = { label, passed, ...state };
