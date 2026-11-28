@@ -1,6 +1,6 @@
 # استقرار TASK 10 فقط در staging اوبونتو
 
-این دستورها فقط سرویس مستقل `hostel2-staging` و مسیر `/opt/hostel2-staging` را هدف می‌گیرند. هیچ دستور تغییر production، ادغام PR یا seed روی production وجود ندارد. مبنای مورد تأیید مالک `a2062b8a9f323beeb2c636617bdda70a562f12a4` است. برای نصب نسخهٔ آزموده‌شده، SHA نهایی در بخش دریافت کد این سند ثبت می‌شود؛ تا ثبت نتیجهٔ موفق و رفع همهٔ شکست‌ها نصب نکنید.
+این دستورها فقط سرویس مستقل `hostel2-staging` و مسیر `/opt/hostel2-staging` را هدف می‌گیرند. هیچ دستور تغییر production، ادغام PR یا seed روی production وجود ندارد. مبنای مورد تأیید مالک `a2062b8a9f323beeb2c636617bdda70a562f12a4` است. نسخهٔ آزموده‌شده برای نصب `625a7a37073641b76cc4ca8510810f7df4a7db99` است. همهٔ هشت job این نسخه موفق شدند؛ شواهد و محدودیت‌ها در SERVICE_PROVIDER_TEST_RESULTS.md آمده‌اند.
 
 ## پیش‌نیاز
 
@@ -70,7 +70,7 @@ export PATH=/opt/hostel2-staging/node/bin:/usr/bin:/bin
 cd /opt/hostel2-staging/app
 test -z "$(git status --porcelain)"
 git fetch origin refs/heads/codex/10-service-provider-dashboard
-git switch --detach TASK10_VERIFIED_SHA
+git switch --detach 625a7a37073641b76cc4ca8510810f7df4a7db99
 npm ci --include=dev
 npm run lint
 npm run build
@@ -78,7 +78,7 @@ SH
 ROOT
 ```
 
-`TASK10_VERIFIED_SHA` در نسخهٔ نهایی این سند با SHA واقعیِ آزموده‌شده جایگزین می‌شود. تست‌های مخرب و npm test را با env واقعی VPS اجرا نکنید. آزمون‌ها از محیط CI یک‌بارمصرف استفاده می‌کنند.
+تست‌های مخرب و npm test را با env واقعی VPS اجرا نکنید. آزمون‌ها از محیط CI یک‌بارمصرف استفاده می‌کنند.
 
 ## ۳. مهاجرت افزایشی با guard بکاپ
 

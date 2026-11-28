@@ -71,3 +71,17 @@ Availability is the existing inquiry toggle and working hours; there is no paid 
 See SERVICE_PROVIDER_GUIDE_FA.md, SERVICE_PROVIDER_STAGING_FA.md and SERVICE_PROVIDER_TEST_RESULTS.md. Do not deploy while a critical dependency, migration or security failure remains unresolved. Old code does not enforce provider ownership/suspension and consent boundaries; a code-only downgrade after use is unsafe.
 
 Listings linked to provider ownership, uploaded assets or verification evidence are retained for accountability; administrator deletion returns referenced/409. Use existing moderation archive or deactivate instead. Unlinked administrator listings keep their existing delete behavior.
+
+## Changed-file inventory
+
+| Area | Files |
+|---|---|
+| Business persistence and policy | server/service-provider-storage.ts, server/service-providers.ts, server/service-provider-routes.ts |
+| Existing Services integration | server/services.ts, src/components/ServicesAdmin.tsx, src/views/ServiceDetailView.tsx |
+| Authorization and API | server/authorization.ts, server/action-authorization.ts, server/api.ts, server/repository.ts, src/utils/authorization.ts, src/types/index.ts |
+| Startup and operations | server/database.ts, server/persistence.ts, server/environment.ts, scripts/database.ts, vercel.json |
+| Business and tracking UI | src/views/ServiceProviderView.tsx, src/components/ServiceProvidersAdmin.tsx, src/views/ServiceTrackingView.tsx |
+| Routing and language | src/App.tsx, src/components/Header.tsx, src/views/AdminPanelView.tsx, src/utils/navigation.ts, src/types/serviceProvider.ts, src/types/services.ts, src/i18n/serviceProvider.ts |
+| Synthetic ecosystem | server/demo/fixtures.ts, server/demo/materialize.ts, server/demo/manager.ts, server/demo.test.ts |
+| Regression coverage | server/service-providers.test.ts, server/services.test.ts, scripts/service-provider-browser-smoke.mjs, scripts/services-browser-smoke.mjs, scripts/staging-smoke.mjs |
+| Documentation | SERVICE_PROVIDER_API.md, SERVICE_PROVIDER_GUIDE_FA.md, SERVICE_PROVIDER_STAGING_FA.md, SERVICE_PROVIDER_TEST_RESULTS.md |
