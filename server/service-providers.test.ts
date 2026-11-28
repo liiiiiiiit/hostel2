@@ -142,6 +142,7 @@ test('ownership, media scope, badges and administrator request boundaries cannot
 test('verification requires evidence; evidence stays private; assignment and suspension never share historical contacts',async t=>{
  const f=await fixture(t),a=await provider(f),b=await provider(f);let s=await publishService(f,a,await listingDraft(f,a));await request(f,s,true);
  assert.equal((await f.admin.action('reviewServiceVerification',[{serviceId:s.id,version:s.version,verified:true,evidence:''}])).data.success,false);
+ assert.equal((await f.admin.action('saveService',[{...s,isVerified:true}])).data.success,false);
  assert.equal((await f.admin.action('reviewServiceVerification',[{serviceId:s.id,version:s.version,verified:true,evidence:'SYNTHETIC PRIVATE EVIDENCE'}])).data.success,true);
  const pub=(await f.client().get('/api/services/'+s.id)).data;assert.equal(pub.service.isVerified,true);assert(!JSON.stringify(pub).includes('PRIVATE EVIDENCE'));
  s=(await a.c.get('/api/service-provider')).data.listings[0];
@@ -174,4 +175,19 @@ test('provider stale writes and failed audit are atomic; additive migration and 
 test('all four business locales and navigation are wired',()=>{
  for(const lang of ['fa','en','ru','hy'] as const){assert.deepEqual(Object.keys(serviceProviderText[lang]),Object.keys(serviceProviderText.en));assert(Object.values(serviceProviderText[lang]).every(v=>!!v));}
  assert.equal(parseRoute(routeHash('service-provider')).view,'service-provider');
+});
+
+test('service provider migration preserves all legacy rows, creates no implicit assignments and rolls back failed DDL',async t=>{
+ const f=await fixture(t),before=await exportSnapshot(f.db.client);
+ const fingerprint=(snap:typeof before)=>snap.tables.filter(t=>!t.name.startsWith('service_provider_')&&t.name!=='service_verification_reviews'&&t.name!=='module_migrations').map(t=>[t.name,JSON.stringify(t.rows)]);
+ await f.db.client.batch(['DROP TABLE service_provider_media','DROP TABLE service_provider_request_access','DROP TABLE service_provider_listings','DROP TABLE service_verification_reviews','DROP TABLE service_provider_events','DROP TABLE service_provider_accounts',"DELETE FROM module_migrations WHERE name='service-provider-v1'"],'write');
+ assert.equal(await serviceProvidersReady(f.db.client),false);assert.equal(await pendingMigrations(f.db.client),true);
+ await assert.rejects(()=>guardMigrations(f.db.client,undefined,{...process.env,REQUIRE_MIGRATION_BACKUP:'true'}));
+ await f.db.client.execute("CREATE TRIGGER fail_service_provider_migration BEFORE INSERT ON module_migrations WHEN NEW.name='service-provider-v1' BEGIN SELECT RAISE(ABORT,'injected migration failure'); END");
+ await assert.rejects(()=>migrateServiceProviders(f.db.client));assert.equal((await f.db.client.execute("SELECT name FROM sqlite_master WHERE name='service_provider_accounts'")).rows.length,0);
+ await f.db.client.execute('DROP TRIGGER fail_service_provider_migration');await migrateServiceProviders(f.db.client);await migrateServiceProviders(f.db.client);
+ assert.deepEqual(fingerprint(await exportSnapshot(f.db.client)),fingerprint(before));
+ assert.equal((await f.db.client.execute('SELECT COUNT(*) AS n FROM service_provider_listings')).rows[0].n,0);
+ assert.equal((await f.db.client.execute('SELECT COUNT(*) AS n FROM service_provider_request_access')).rows[0].n,0);
+ assert.equal((await f.db.client.execute('PRAGMA foreign_key_check')).rows.length,0);
 });
