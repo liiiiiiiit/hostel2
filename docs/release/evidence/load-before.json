@@ -1,0 +1,58 @@
+{
+  "environment": {
+    "node": "v24.22.3",
+    "cpus": 9,
+    "dataset": {
+      "users": 5001,
+      "hostels": 100,
+      "roomTypes": 200
+    }
+  },
+  "seo": {
+    "samples": 5,
+    "p50Ms": 141.46,
+    "p95Ms": 256.46,
+    "bytes": 3299783
+  },
+  "adminShell": {
+    "samples": 12,
+    "p50Ms": 3.6,
+    "p95Ms": 4.64,
+    "bytes": 981
+  },
+  "records": {
+    "samples": 12,
+    "p50Ms": 7.72,
+    "p95Ms": 13.56,
+    "bytes": 2888
+  },
+  "search": {
+    "samples": 12,
+    "p50Ms": 10.04,
+    "p95Ms": 22.06,
+    "bytes": 2885
+  },
+  "queryPlan": [
+    "SCAN users",
+    "USE TEMP B-TREE FOR ORDER BY"
+  ],
+  "writeContention": {
+    "processes": 4,
+    "attempted": 160,
+    "committed": 120,
+    "errors": 40,
+    "startupErrors": [
+      "LibsqlError: SQLITE_BUSY: database is locked"
+    ],
+    "p95Ms": 0.1,
+    "elapsedMs": 695.49
+  },
+  "integrity": "ok",
+  "foreignKeyViolations": 0,
+  "resources": {
+    "processCpuMs": 2245.952,
+    "elapsedMs": 2420.0980469999995,
+    "rssBytes": 466984960,
+    "eventLoopP95Ms": 19.578879
+  }
+}
