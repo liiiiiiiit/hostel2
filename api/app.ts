@@ -1,3 +1,4 @@
+import {releaseHeaders} from '../server/release-http.js';
 import {assertRuntimeEnvironment} from '../server/environment.js';
 import { servicesForPage } from '../server/service-pages.js';
 import {renderPublicHtml,sitemap,robots} from '../server/public-pages.js';
@@ -18,13 +19,14 @@ function json(res: ServerResponse, status: number, body: unknown) {
 }
 export default async function endpoint(req: IncomingMessage, res: ServerResponse) {
   assertRuntimeEnvironment();
+  releaseHeaders(req,res);
   const rewrittenService=new URL(req.url??'/','https://local.invalid');
   const servicePath=rewrittenService.searchParams.get('servicePath')??(req as IncomingMessage&{query?:Record<string,unknown>}).query?.servicePath;
   if(typeof servicePath==='string'&&/^\/api\/(services|service-categories|admin\/(services|service-categories|service-requests))(\/|$)/.test(servicePath)&&!servicePath.includes('?')){
     rewrittenService.searchParams.delete('servicePath');req.url=servicePath+(rewrittenService.searchParams.size?'?'+rewrittenService.searchParams:'');
   }
   const incoming=new URL(req.url??'/','https://local.invalid');const rewritten=(req as IncomingMessage&{query?:Record<string,unknown>}).query?.publicPath;const publicPath=incoming.searchParams.get('publicPath')??(typeof rewritten==='string'?rewritten:null)??(/^\/(fa|en|ru|hy)(\/|$)/.test(incoming.pathname)||['/sitemap.xml','/robots.txt'].includes(incoming.pathname)?incoming.pathname+incoming.search:null);
-  if(publicPath){try{const base=(process.env.APP_URL||'https://'+req.headers.host).replace(/\/$/,'');if(publicPath==='/robots.txt'){res.setHeader('Content-Type','text/plain');res.end(robots(base));return;}let state:import('../src/types/index.js').ClientState=process.env.DATABASE_URL?await(database??=new Database()).publicState():readOnlyPreview();if(database)state=await servicesForPage(database,state,publicPath);if(publicPath==='/sitemap.xml'){res.setHeader('Content-Type','application/xml');res.end(sitemap(state,base));return;}const page=renderPublicHtml(await readFile(new URL('../dist/index.html',import.meta.url),'utf8'),state,publicPath,base);res.statusCode=page.status;res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Referrer-Policy','no-referrer');res.end(page.html);return;}catch{json(res,503,{error:'YEREVANHUB unavailable'});return;}}
+  if(publicPath){try{const base=(process.env.APP_URL||'https://'+req.headers.host).replace(/\/$/,'');if(publicPath==='/robots.txt'){res.setHeader('Content-Type','text/plain');res.end(robots(base));return;}let state:import('../src/types/index.js').ClientState=process.env.DATABASE_URL?await(database??=new Database()).publicSeoState():readOnlyPreview();if(database)state=await servicesForPage(database,state,publicPath);if(publicPath==='/sitemap.xml'){res.setHeader('Content-Type','application/xml');res.end(sitemap(state,base));return;}const page=renderPublicHtml(await readFile(new URL('../dist/index.html',import.meta.url),'utf8'),state,publicPath,base);res.statusCode=page.status;res.setHeader('Cache-Control','no-store');res.setHeader('X-Robots-Tag',page.noindex?'noindex, nofollow':'all');res.setHeader('Content-Type','text/html; charset=utf-8');res.setHeader('Referrer-Policy','no-referrer');res.end(page.html);return;}catch{json(res,503,{error:'YEREVANHUB unavailable'});return;}}
   if (!process.env.DATABASE_URL) {
     if (req.method === 'GET') { json(res, 200, { state: readOnlyPreview() }); return; }
     json(res, 503, { success: false, error: 'این نسخه فقط برای مشاهده است؛ ثبت رزرو و ورود هنوز فعال نشده‌اند.' }); return;

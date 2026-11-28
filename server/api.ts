@@ -1,3 +1,4 @@
+import {releaseHeaders} from './release-http.js';
 import {administrationClientState} from './repository.js';
 import {centralAdminSchemas,centralAdminAction} from './central-admin.js';
 import {mountCentralAdmin} from './central-admin-routes.js';
@@ -108,6 +109,8 @@ export function createApi(database: Database) {
   const app = express();
   app.get('/api/environment',(_req,res)=>res.set('Cache-Control','no-store').json({environment:applicationEnvironment(),demoTools:applicationEnvironment()==='staging'&&process.env.DEMO_TOOLS_ENABLED==='true'}));
   app.disable('x-powered-by');
+  app.use((req,res,next)=>{releaseHeaders(req,res);next();});
+  app.get('/api/health',async(_req,res)=>{try{await database.sqlTransaction(tx=>tx.execute('SELECT 1'),'read');res.set('Cache-Control','no-store').json({status:'ok'});}catch{res.set('Cache-Control','no-store').status(503).json({status:'unavailable'});}});
   if (process.env.VERCEL) app.set('trust proxy', 1);
   else if (process.env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
   app.use(express.json({ limit: '1mb' }));

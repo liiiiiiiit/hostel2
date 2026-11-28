@@ -1,0 +1,35 @@
+name: Release readiness measurements
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=moderate
+      - run: npm run build
+      - name: Isolated 5001-account catalogue and four-process SQLite contention
+        run: |
+          mkdir -p test-artifacts/release
+          npm run --silent test:release-load > test-artifacts/release/load.json
+          npm run --silent release:assets > test-artifacts/release/assets.json
+      - name: Production-mode browser CSP and SEO regression
+        env:
+          BROWSER_PATH: /usr/bin/google-chrome
+        run: node scripts/release-browser-smoke.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
+        with:
+          name: release-measurements
+          path: test-artifacts/release
+          retention-days: 30

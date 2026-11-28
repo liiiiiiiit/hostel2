@@ -22,7 +22,8 @@
       "codex/08-content-moderation": false,
       "codex/09-rental-owner-dashboard": false,
       "codex/10-service-provider-dashboard": false,
-      "codex/11-central-admin-dashboard": false
+      "codex/11-central-admin-dashboard": false,
+      "codex/12-production-readiness": false
     }
   },
   "rewrites": [

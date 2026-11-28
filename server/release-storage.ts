@@ -1,0 +1,3 @@
+import type {Client,Transaction} from '@libsql/client';
+export async function releaseReady(db:Client|Transaction){return !!(await db.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='users_admin_recent'")).rows.length&&!!(await db.execute("SELECT name FROM module_migrations WHERE name='release-readiness-v1'")).rows.length;}
+export async function migrateRelease(db:Client){const tx=await db.transaction('write');try{await tx.execute('CREATE INDEX IF NOT EXISTS users_admin_recent ON users(created_at DESC,id DESC)');await tx.execute("INSERT OR IGNORE INTO module_migrations VALUES('release-readiness-v1',strftime('%Y-%m-%dT%H:%M:%fZ','now'))");await tx.commit();}catch(e){await tx.rollback();throw e;}finally{tx.close();}}
