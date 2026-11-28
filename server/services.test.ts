@@ -41,7 +41,7 @@ test('services migration adds only taxonomy, preserves every old row, is idempot
 });
 test('admin CRUD and paginated public filtering honor category activity, city, language, verification, feature and Unicode search',async t=>{
  const {admin,visitor,categories,listing,database}=await fixture(t);
- const a=listing({slug:'trusted-clinic',isVerified:true,isFeatured:true,title:translated('Здоровье Dental')}),b=listing({city:'Gyumri',languagesSpoken:['en']}),draft=listing({isActive:false});
+ const a=listing({slug:'trusted-clinic',verificationEvidence:'SYNTHETIC supporting registry review',isVerified:true,isFeatured:true,title:translated('Здоровье Dental')}),b=listing({city:'Gyumri',languagesSpoken:['en']}),draft=listing({isActive:false});
  for(const item of [a,b,draft])assert.equal((await admin.request('/api/admin/services','POST',item)).data.success,true);
  let data=(await visitor.request('/api/services?featured=true&verified=true&language_spoken=fa&city=Yerevan')).data;assert.equal(data.total,1);assert.equal(data.items[0].id,a.id);
  assert.equal((await visitor.request('/api/services?featured=false')).data.total,1);

@@ -116,13 +116,15 @@ export async function authorizationUser(
   ).rows.map(
     (r) => String(r.provider_role) as "job_provider" | "tour_provider",
   );
+  const business=(await tx.execute({sql:'SELECT status FROM service_provider_accounts WHERE user_id=?',args:[user.id]})).rows[0];
+  const serviceProviderAuthorized=business?.status==='active';
   const owner=(await tx.execute({sql:"SELECT status FROM rental_owner_accounts WHERE user_id=?",args:[user.id]})).rows[0];
   const rentalOwnerAuthorized=owner?.status==='active';
   const assignedRentalIds=rentalOwnerAuthorized?(await tx.execute({sql:'SELECT property_id FROM rental_owner_properties WHERE owner_id=? ORDER BY property_id',args:[user.id]})).rows.map(r=>String(r.property_id)):[];
   return {
     ...user,
     isActive: true,
-    rentalOwnerAuthorized,assignedRentalIds,
+    rentalOwnerAuthorized,assignedRentalIds,serviceProviderAuthorized,
     role: (row.provider_role ?? row.role) as User["role"],
     organization: row.provider_role ? String(row.organization) : undefined,
     ...(legacy.length

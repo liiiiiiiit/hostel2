@@ -8,6 +8,7 @@ export const permissions = [
   "jobs.manage",
   "tours.manage",
   "services.manage",
+  "services.provide",
   "media.manage",
   "rentals.manage",
 ] as const;
@@ -28,6 +29,7 @@ export function can(
   if (!user?.isActive) return false;
   return (
     !!rolePermissions[user.role]?.includes(permission) ||
+    (permission === "services.provide" && user.serviceProviderAuthorized===true) ||
     (permission === "rentals.manage" && user.rentalOwnerAuthorized===true) ||
     (permission === "jobs.manage" &&
       !!user.legacyProviderRoles?.includes("job_provider")) ||
