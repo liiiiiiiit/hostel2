@@ -36,7 +36,7 @@ export async function mutationScope(tx: Transaction, request: RequestScope): Pro
     const base = emptyScope();
     base.app_settings = { sql: '1' };
     base.audit_logs = none;
-    const accountActions = ['saveServiceProviderAccount','grantServiceProvider','assignServiceProvider','saveServiceBusiness','saveProviderService','updateProviderServiceRequest','reviewServiceVerification','saveRentalOwnerAccount','grantRentalOwner','assignRentalOwner','saveOwnerProfile','saveOwnerRental','setOwnerRentalAvailability','updateOwnerInquiry','moderateContent','saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
+    const accountActions = ['adminRecordPrivateReport','adminExport','adminPreviewImport','adminCommitImport','adminPrepareBulk','adminApplyBulk','adminCreateCase','adminResolveCase','adminReadActivity','adminDeleteMedia','saveServiceProviderAccount','grantServiceProvider','assignServiceProvider','saveServiceBusiness','saveProviderService','updateProviderServiceRequest','reviewServiceVerification','saveRentalOwnerAccount','grantRentalOwner','assignRentalOwner','saveOwnerProfile','saveOwnerRental','setOwnerRentalAvailability','updateOwnerInquiry','moderateContent','saveEmployerOrganization','saveRecruitmentJob','closeRecruitmentJob','renewRecruitmentJob','saveRecruitmentNote','scheduleRecruitmentInterview','finishRecruitmentInterview','saveSeekerProfile','saveSeekerJob','withdrawJobApplication','revokeApplicationSharing','deleteSeekerDocument','deleteSeekerProfile','setAccountAccess','saveProvider','deleteJob','applyForJob','trackApplication','reviewApplication','bookTour','trackTour','changeTourBooking','saveTour', 'deleteTour', 'saveJob', 'login', 'logout', 'registerTraveler', 'requestPasswordRecovery', 'resetPassword', 'requestEmailVerification', 'verifyEmail', 'changePassword', 'logoutAll', 'updateProfile', 'mergeSavedPlaces', 'toggleAccountSaved', 'translateText', 'checkCoupon', 'notificationStatus', 'sendNotifications'];
     if (accountActions.includes(action) || action in serviceActionSchemas) {
         let targetId = '';
         if (action === 'resetPassword' || action === 'verifyEmail')
@@ -241,4 +241,13 @@ export async function visibleState(tx: Transaction, actor: User | null, demo: bo
 }
 export async function imageIsReferenced(tx: Transaction, url: string) {
     return !!(await tx.execute({ sql: `SELECT 1 FROM service_listings WHERE cover_image=? UNION ALL SELECT 1 FROM service_listings s,json_each(s.gallery_json) g WHERE g.value=? UNION ALL SELECT 1 FROM property_photos WHERE url=? UNION ALL SELECT 1 FROM property_images WHERE url=? UNION ALL SELECT 1 FROM articles WHERE featured_image=? UNION ALL SELECT 1 FROM properties WHERE json_extract(extras_json,'$.entrancePhoto')=? LIMIT 1`, args: [url, url, url, url, url, url] })).rows.length;
+}
+
+/** The central admin shell has independent bounded SQL endpoints. Legacy consumers
+ * without this opt-in header keep their complete authorized compatibility state. */
+export async function administrationClientState(tx:Transaction,actor:User|null,demo:boolean,bookingToken='',inquiryToken='',mode='legacy'){
+ if(mode!=='shell'||!can(actor,'platform.admin'))return visibleState(tx,actor,demo,bookingToken,inquiryToken);
+ const scope=emptyScope();scope.users=where('id=?',actor!.id);scope.saved_places=where('user_id=?',actor!.id);scope.app_settings={sql:'1'};
+ const {state}=await loadState(tx,scope);
+ return {...publicState(state,actor,demo,'','',[]),services:[],serviceCategories:[],serviceRequests:[],jobs:[],jobApplications:[],tours:[],tourBookings:[],providerAccounts:[]};
 }

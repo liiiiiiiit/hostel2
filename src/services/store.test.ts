@@ -94,3 +94,5 @@ test('property saves omit absent revisions rather than serializing them as inval
   assert.deepEqual(JSON.parse(String(requests[1].init.body)).args,[hostel,'server-revision']);
   reply(1,{success:true,state:state(null)});await edit;
 });
+
+test('admin login starts with the small shell and legacy hydration is explicit and reversible on failure',async t=>{const {store,requests,state,user,reply}=fixture(t),admin={...user,role:'admin' as const};const login=store.login(admin.email,'Password-42');await tick();assert.equal((requests[0].init.headers as Record<string,string>)['X-Admin-Workspace'],'shell');reply(0,{success:true,state:state(admin)});await login;assert.equal(store.getAdminMode(),'shell');const legacy=store.setAdminMode('legacy');await tick();assert.equal((requests[1].init.headers as Record<string,string>)['X-Admin-Workspace'],'legacy');reply(1,{state:state(admin)});await legacy;const failed=store.setAdminMode('shell');await tick();reply(2,{error:'SYNTHETIC unavailable'});await assert.rejects(()=>failed);assert.equal(store.getAdminMode(),'legacy');});

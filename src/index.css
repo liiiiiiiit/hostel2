@@ -495,3 +495,31 @@ html.dark .admin-day-banner { background: radial-gradient(ellipse at top right, 
 
 /* Runtime-rendered only for staging; production HTML has no indicator. */
 .environment-indicator { position: fixed; inset-inline-end: 12px; bottom: 12px; z-index: 10000; max-width: calc(100vw - 24px); border: 2px solid #fff; border-radius: 10px; background: #9f1239; color: #fff; padding: 8px 14px; font: 700 12px/1.5 system-ui,sans-serif; box-shadow: 0 2px 12px #0004; pointer-events: none; }
+
+/* Central administration reuses the existing workspace palette in both themes. */
+.central-admin { min-width:0; }
+.central-admin :is(input,select,textarea) { min-width:0; max-width:100%; font-size:1rem; }
+.central-nav-search { display:block; padding:.5rem; font-size:.875rem; }
+.central-nav-search input { margin-top:.4rem; }
+.central-metrics { display:grid; gap:.35rem; }
+.central-metrics button { display:flex; justify-content:space-between; align-items:start; gap:1rem; text-align:start; min-height:44px; padding:.6rem .75rem; border-radius:.65rem; }
+.central-metrics button:hover { background:var(--workspace-hover); }
+.central-metrics strong { font-variant-numeric:tabular-nums; }
+.central-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:.85rem; }
+.central-filters label { min-width:0; font-size:.875rem; }
+.central-record-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:1rem; }
+.central-record { min-width:0; display:flex; flex-direction:column; gap:.8rem; overflow-wrap:anywhere; }
+.central-record time { font-size:.875rem; color:var(--workspace-muted); }
+.central-status { align-self:start; padding:.25rem .65rem; border:1px solid var(--workspace-line); border-radius:.5rem; font-size:.875rem; }
+.central-health-values { display:grid; gap:1rem; }
+.central-health-values > div { display:flex; align-items:start; justify-content:space-between; gap:1rem; }
+.central-health-values dd { font-variant-numeric:tabular-nums; }
+.central-preview { max-height:320px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.875rem; padding:.75rem; border:1px solid var(--workspace-line); border-radius:.75rem; }
+.central-confirm { position:fixed; margin:auto; padding:1.25rem; width:min(640px,calc(100% - 2rem)); max-height:85dvh; overflow:auto; color:var(--ink); }
+.central-confirm::backdrop { background:#071a11a6; }
+.central-confirm :is(input,textarea) { font-size:1rem; max-width:100%; }
+.central-admin button { min-height:44px; white-space:normal; }
+
+/* Keep intrinsic translated banner text inside a narrow flex column while loading. */
+.central-admin .admin-day-banner > div { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.central-admin .admin-day-banner .eyebrow { color:#d7e4da; }

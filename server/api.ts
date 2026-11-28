@@ -1,3 +1,6 @@
+import {administrationClientState} from './repository.js';
+import {centralAdminSchemas,centralAdminAction} from './central-admin.js';
+import {mountCentralAdmin} from './central-admin-routes.js';
 import {serviceProviderSchemas,serviceProviderAction} from './service-providers.js';
 import {mountServiceProviderRoutes} from './service-provider-routes.js';
 import {ownerActionSchemas,rentalOwnerAction,ownerQuery,rentalOwnerState,rentalOwnerAdminState} from './rental-owners.js';
@@ -66,6 +69,7 @@ export const schemas = {
   trackApplication: z.tuple([z.uuid()]),
   ...ownerActionSchemas,
   ...serviceProviderSchemas,
+  ...centralAdminSchemas,
   moderateContent:z.tuple([moderationInput]),
   reviewApplication: z.tuple([z.uuid(),applicationStatus,applicationStatus]),
   saveProvider: z.tuple([providerInput]),
@@ -123,6 +127,7 @@ export function createApi(database: Database) {
   app.get('/api/recruitment',async(req,res,next)=>{try{const query=recruitmentQuery.parse(req.query);res.json(await database.sqlTransaction(async tx=>recruitmentState(tx,await session(req,tx),query),'read'));}catch(e){next(e);}});
   mountRentalOwnerMedia(app,database,session);
   mountJobSeekerRoutes(app,database,session);
+  mountCentralAdmin(app,database,session);
   mountServiceProviderRoutes(app,database,session);
   mountServiceRoutes(app,database,session);
   mountDemoRoutes(app,database,session);
@@ -182,7 +187,7 @@ export function createApi(database: Database) {
       }
       const data = await database.sqlTransaction(async tx => {
         const actor = await session(req,tx);
-        return visibleState(tx,actor,database.demo,String(req.headers['x-booking-token']??''),String(req.headers['x-inquiry-token']??''));
+        return administrationClientState(tx,actor,database.demo,String(req.headers['x-booking-token']??''),String(req.headers['x-inquiry-token']??''),String(req.headers['x-admin-workspace']??''));
       },'read');
       res.json({ state: data });
     } catch (error) { next(error); }
@@ -239,6 +244,8 @@ export function createApi(database: Database) {
           const token = parseCookies(req.headers.cookie)[cookieName];
           if (token) await tx.execute({ sql: 'DELETE FROM sessions WHERE token_hash=?', args: [digest(token)] });
           res.cookie(cookieName, '', { httpOnly: true, secure: secureCookie, sameSite: 'lax', path: '/', maxAge: 0 });
+        } else if(envelope.action in centralAdminSchemas){
+          actionResult=await centralAdminAction(tx,actor,envelope.action as keyof typeof centralAdminSchemas,args);
         } else if(envelope.action in serviceProviderSchemas){
           actionResult=await serviceProviderAction(tx,actor,envelope.action as keyof typeof serviceProviderSchemas,args);
         } else if(envelope.action in ownerActionSchemas){
@@ -330,7 +337,7 @@ export function createApi(database: Database) {
         if(envelope.action==='createRentalInquiry'&&actionResult.success&&actionResult.inquiry){actionResult.inquiry.shareWithOwner=await grantRentalInquiryAccess(tx,actionResult.inquiry.id,!!(args[0] as {shareWithOwner?:boolean}).shareWithOwner);await database.flush(state,tx);}
         if(envelope.action==='createHostelManager'&&actionResult.success){const created=state.users.find(u=>u.email.toLowerCase()===String((args[0] as {email:string}).email).toLowerCase());if(created)await auditAuthorization(tx,actor!.id,created.id,null,{role:created.role,assignedHostelIds:created.assignedHostelIds,isActive:created.isActive},'manager_created');}
         actor=await authorizationUser(tx,actor);
-        const responseState = await visibleState(tx, actor, database.demo, bookingToken, inquiryToken);
+        const responseState = await administrationClientState(tx, actor, database.demo, bookingToken, inquiryToken,String(req.headers['x-admin-workspace']??''));
         // Use the same redaction for action payloads and state, including retries
         // that return an existing booking with staff and finance history.
         if (actionResult.booking) actionResult = { ...actionResult, booking: responseState.bookings.find(booking => booking.id === actionResult.booking!.id) };

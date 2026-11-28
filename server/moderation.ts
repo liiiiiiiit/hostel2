@@ -133,3 +133,5 @@ export async function moderationHistory(tx: Transaction, actor: User | null, q: 
     const rows = (await tx.execute({ sql: 'SELECT * FROM moderation_events WHERE module=? AND content_id=?' + cursor + ' ORDER BY created_at DESC,id DESC LIMIT 50', args: [q.module, q.id, ...(q.beforeTime ? [q.beforeTime, q.beforeTime, q.beforeId!] : [])] })).rows;
     return { items: rows.map(r => ({ id: String(r.id), from: String(r.from_status), to: r.to_status as ModerationStatus, note: String(r.note), actorId: r.actor_id ? String(r.actor_id) : null, createdAt: String(r.created_at) })) };
 }
+
+export const moderationCatalog=catalog;

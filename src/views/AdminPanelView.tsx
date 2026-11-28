@@ -1,3 +1,9 @@
+import {CentralAdminOverview} from '../components/admin/CentralAdminOverview';
+import {CentralAdminRecords} from '../components/admin/CentralAdminRecords';
+import {CentralAdminHealth} from '../components/admin/CentralAdminHealth';
+import {CentralAdminCases} from '../components/admin/CentralAdminCases';
+import {centralText,centralModules} from '../i18n/centralAdmin';
+import type {AdminModule} from '../types/centralAdmin';
 import {ServiceProvidersAdmin} from '../components/ServiceProvidersAdmin';
 import {serviceProviderText} from '../i18n/serviceProvider';
 import {RentalOwnersAdmin} from '../components/RentalOwnersAdmin';
@@ -15,7 +21,6 @@ import { toursText } from "../i18n/tours";
 import { ToursView } from "./ToursView";
 import { JobsView } from "./JobsView";
 import { jobsText } from "../i18n/jobs";
-import { AdminOverview } from "../components/admin/AdminOverview";
 import { AdminArticles } from "../components/admin/AdminArticles";
 import { AdminField as Field } from "../components/admin/AdminField";
 import { AdminBookingCard } from "../components/admin/AdminBookingCard";
@@ -72,6 +77,7 @@ interface Props {
   onNavigate: (view: string, params?: Record<string, string>) => void;
 }
 type Section =
+  | "records" | "health" | "cases" | "settings"
   | "service-providers"
   | "rental-owners"
   | "moderation"
@@ -107,10 +113,15 @@ function download(name: string, content: string, type: string) {
 export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const { currentLang, tAdmin, getLocalized } = useLanguage();
   const t = dashboardText(currentLang);
+  const ct=centralText[currentLang],cm=centralModules[currentLang];
+  const [registryModule,setRegistryModule]=useState<AdminModule>('users');
+  const [caseTarget,setCaseTarget]=useState<{module:AdminModule;id:string}>();
+  const moduleNav:Record<string,AdminModule>={'records-users':'users','records-rooms':'rooms','records-inquiries':'rentalInquiries','records-employers':'employers','records-seekers':'seekers','records-applications':'applications','records-tour-providers':'tourProviders','records-tour-bookings':'tourBookings','records-service-requests':'serviceRequests','records-translations':'translations',media:'media'};
   const admin = adminText(currentLang);
   const state = useSyncExternalStore(appStore.subscribe, appStore.getState);
   const [section, setSection] = useState<Section>("overview");
   const [demoAvailable,setDemoAvailable]=useState(false);
+  useEffect(()=>{void appStore.setAdminMode('shell').catch(()=>{});return()=>{void appStore.setAdminMode('legacy').catch(()=>{});};},[]);
   useEffect(()=>{let live=true;void fetch('/api/environment').then(r=>r.ok?r.json():null).then(v=>{if(live)setDemoAvailable(v?.environment==='staging'&&v?.demoTools===true);}).catch(()=>{});return()=>{live=false;};},[]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<BookingStatus | "all">("all");
@@ -144,11 +155,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
   const inquiries = state.rentalInquiries.filter(
     (i) => i.status === "pending_review",
   );
+  const isCentral=(id:string)=>['overview','records','health','cases'].includes(id)||!!moduleNav[id];
   const go = (id: string) => {
-    if (actionLock.current) return;
-    setSection(id as Section);
-    setShowForm(false);
-    setFeedback(null);
+    if(actionLock.current)return;
+    const show=()=>{if(moduleNav[id]){setRegistryModule(moduleNav[id]);setSection('records');}else setSection(id as Section);setShowForm(false);setFeedback(null);};
+    const mode=isCentral(id)?'shell':'legacy';
+    if(appStore.getAdminMode()===mode){show();return;}
+    actionLock.current=true;setBusy(true);
+    void appStore.setAdminMode(mode).then(show).catch(e=>setFeedback({ok:false,text:e instanceof Error?e.message:ct.error})).finally(()=>{actionLock.current=false;setBusy(false);});
   };
   const run = async (task: () => Promise<ActionResult>, done?: () => void) => {
     if (actionLock.current) return;
@@ -185,12 +199,17 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     currentPage * 10,
   );
   const nav = [
+    {id:"records",label:ct.records,icon:<Search size={17}/>},
+    {id:"health",label:ct.health,icon:<Activity size={17}/>},
+    {id:"cases",label:ct.cases,icon:<Activity size={17}/>},
+    {id:"settings",label:ct.settings,icon:<Settings2 size={17}/>},
+    ...Object.entries(moduleNav).map(([id,module])=>({id,label:cm[module],icon:<Activity size={17}/>})),
     { id: "overview", label: t.overview, icon: <LayoutDashboard size={17} /> },
     {
       id: "bookings",
       label: t.bookings,
       icon: <CalendarDays size={17} />,
-      count: pending.length,
+      count: appStore.getAdminMode()==='legacy'?pending.length:undefined,
     },
     { id: "properties", label: t.properties, icon: <Building2 size={17} /> },
     { id: "operations", label: t.operations, icon: <Settings2 size={17} /> },
@@ -200,13 +219,13 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       id: "reviews",
       label: t.reviews,
       icon: <Star size={17} />,
-      count: pendingReviews.length,
+      count: appStore.getAdminMode()==='legacy'?pendingReviews.length:undefined,
     },
     {
       id: "rentals",
       label: t.rentals,
       icon: <House size={17} />,
-      count: inquiries.length,
+      count: appStore.getAdminMode()==='legacy'?inquiries.length:undefined,
     },
     ...(demoAvailable?[{id:"demo" as const,label:demoText[currentLang].nav,icon:<Activity size={17}/>}]:[]),
     {id:"service-providers",label:serviceProviderText[currentLang].admin,icon:<House size={17}/>},
@@ -242,13 +261,14 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       label: admin.propertyGroup,
-      ids: ["properties", "operations", "managers"],
+      ids: ["properties", "records-rooms", "operations", "managers"],
     },
     {
       label: admin.contentGroup,
-      ids: ["service-providers", "rental-owners", "moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
+      ids: ["records-inquiries", "records-employers", "records-seekers", "records-applications", "records-tour-providers", "records-tour-bookings", "records-service-requests", "records-translations", "service-providers", "rental-owners", "moderation", "rentals", "reviews", "articles", "providers", "tours", "jobs", "services", "coupons"],
     },
-    { label: admin.system, ids: ["access", "audit", "profile",...(demoAvailable?["demo"]:[])] },
+    { label: ct.recordsGroup, ids: ["records", "media", "cases", "health"] },
+    { label: admin.system, ids: ["records-users", "access", "audit", "settings", "profile",...(demoAvailable?["demo"]:[])] },
   ];
   const organizedNav = navigationGroups.flatMap((group) =>
     group.ids.flatMap((id) => {
@@ -296,7 +316,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             "AmountAMD",
             "Status",
           ],
-          ...filtered.map((b) => [
+          ...selectAdminBookings(appStore.getState().bookings,{status,query,issuesOnly,arrivalsOn}).map((b) => [
             b.trackingCode,
             b.guestName,
             b.guestContact,
@@ -389,6 +409,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       )}
     </div>
   );
+  const allowPrivateReport=async(format:'csv'|'json')=>{if(!window.confirm(ct.privateReportHint))return false;const reason=window.prompt(ct.reason);if(!reason?.trim())return false;const r=await appStore.action('adminRecordPrivateReport',[{format,confirmed:true,reason:reason.trim()}]);if(!r.success){setFeedback({ok:false,text:r.error||ct.error});return false;}await appStore.setAdminMode('legacy');return true;};
   const actions = (
     <details
       className="admin-report-menu"
@@ -407,33 +428,39 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       <div className="admin-report-options">
         <button
           type="button"
-          onClick={(event) => {
+          onClick={async(event) => {
+            const menu=event.currentTarget.closest("details");
+            if(!await allowPrivateReport('csv'))return;
             exportCsv();
-            event.currentTarget.closest("details")?.removeAttribute("open");
+            menu?.removeAttribute("open");
+            if(isCentral(section))void appStore.setAdminMode('shell').catch(()=>{});
           }}
         >
           {t.download} · CSV
         </button>
         <button
           type="button"
-          onClick={(event) => {
+          onClick={async(event) => {
+            const menu=event.currentTarget.closest("details");
+            if(!await allowPrivateReport('json'))return;
             download(
               `bookings-${today}.json`,
               JSON.stringify(
                 {
                   exportedAt: new Date().toISOString(),
                   currency: "AMD",
-                  bookings: bookingReport(filtered),
+                  bookings: bookingReport(selectAdminBookings(appStore.getState().bookings,{status,query,issuesOnly,arrivalsOn})),
                 },
                 null,
                 2,
               ),
               "application/json",
             );
-            event.currentTarget.closest("details")?.removeAttribute("open");
+            menu?.removeAttribute("open");
+            if(isCentral(section))void appStore.setAdminMode('shell').catch(()=>{});
           }}
         >
-          {t.backup} · JSON
+          {admin.report} · JSON
         </button>
       </div>
     </details>
@@ -445,6 +472,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
         subtitle={t.welcome}
         nav={organizedNav}
         organized
+        navigationSearchLabel={ct.navSearch}
         sidebarFooter={
           <div className="admin-sidebar-identity">
             <span aria-hidden="true">
@@ -456,7 +484,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </div>
         }
-        active={section}
+        active={section==='records'?(Object.entries(moduleNav).find(([,m])=>m===registryModule)?.[0]??'records'):section}
         onChange={go}
         actions={actions}
         disabled={busy}
@@ -470,20 +498,11 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
             <span>{feedback.text}</span>
           </div>
         )}
-        {section === "overview" && (
-          <AdminOverview
-            state={state}
-            today={today}
-            onSection={go}
-            onBookings={openBookings}
-            onNavigate={onNavigate}
-            onCreate={(section) => {
-              if (actionLock.current) return;
-              go(section);
-              setShowForm(true);
-            }}
-          />
-        )}
+        {section === "overview" && <CentralAdminOverview onRecords={module=>{setRegistryModule(module);go('records');}} onSection={go}/>}
+        {section === "records" && <CentralAdminRecords key={registryModule} initialModule={registryModule} onModuleChange={setRegistryModule} onWorkspace={go} onCase={(module,id)=>{setCaseTarget({module,id});go('cases');}}/>}
+        {section === "health" && <CentralAdminHealth/>}
+        {section === "cases" && <CentralAdminCases target={caseTarget}/>}
+        {section === "settings" && <PlatformSettings/>}
         {section === "bookings" && (
           <>
             {sectionHeader(t.bookings)}

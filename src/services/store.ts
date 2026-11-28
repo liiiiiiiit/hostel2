@@ -12,8 +12,11 @@ export class ApiStore {
   private revision = 0;
   private trackingRevision = 0;
   private pendingActions = 0;
+  private adminMode:'shell'|'legacy'=typeof location!=='undefined'&&location.hash.startsWith('#/admin')?'shell':'legacy';
+  getAdminMode=()=>this.adminMode;
+  async setAdminMode(mode:'shell'|'legacy'){if(this.adminMode===mode)return;const previous=this.adminMode;this.adminMode=mode;try{await this.refresh();}catch(e){if(this.adminMode===mode)this.adminMode=previous;throw e;}}
   private actionQueue: Promise<unknown> = Promise.resolve();
-  private headers() { return { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', 'X-App-Language': document.documentElement.lang || 'fa', 'X-Booking-Token': this.bookingToken, 'X-Inquiry-Token': this.inquiryToken }; }
+  private headers() { return { 'Content-Type': 'application/json', 'X-Requested-With': 'YerevanHub', 'X-Admin-Workspace':this.adminMode, 'X-App-Language': document.documentElement.lang || 'fa', 'X-Booking-Token': this.bookingToken, 'X-Inquiry-Token': this.inquiryToken }; }
   private apply(state: ClientState) { this.state = state; for (const listener of this.listeners) listener(); }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getState = () => this.state;
@@ -48,10 +51,12 @@ export class ApiStore {
     ++this.revision;
     this.pendingActions++;
     const trackingRevision = this.trackingRevision;
+    const adminMode=action==='login'?'shell':this.adminMode;
     const run = async (): Promise<ActionResult> => {
       try {
-        const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', signal:AbortSignal.timeout(15000), headers: this.headers(), body: JSON.stringify({ action, args }) });
+        const response = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', signal:AbortSignal.timeout(15000), headers: {...this.headers(),'X-Admin-Workspace':adminMode}, body: JSON.stringify({ action, args }) });
         const data = await response.json();
+        if(action==='login'&&data.success&&data.state?.currentUser?.role==='admin')this.adminMode='shell';
         if (data.state && trackingRevision === this.trackingRevision) this.apply(data.state);
         if (!response.ok) return { success: false, error: data.error || 'درخواست انجام نشد.' };
         return data;

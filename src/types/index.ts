@@ -1,3 +1,4 @@
+import type {AdminActionPayload} from './centralAdmin.js';
 import type { ServiceCategory, ServiceListing, ServiceRequest } from './services.js';
 export type { ServiceCategory, ServiceListing, ServiceRequest, ServiceText, ServicePage } from './services.js';
 import type {CancellationRule,CommissionRule,OptionalService,UnitBlock,BookingChange,BookingEvent,SupportThread,FinanceEntry} from './operations.js';
@@ -420,5 +421,5 @@ export interface ClientState {
   availability: AvailabilityDay[]; demoMode: boolean;
   settings: { emergencyHotline: string; telegramSupport: string; supportHours?:Record<AppLanguage,string>;supportWorkingHoursFa: string; immediateTimeoutMinutes: number };
 }
-export interface ActionResult {
+export interface ActionResult extends AdminActionPayload {
   serviceReference?: string; applicationReference?: string; applicationStatus?: JobApplication['status']; tourReference?: string; tourStatus?: TourBooking['status']; rental?:RentalProperty; state?:ClientState; proposal?:BookingChange;thread?:SupportThread; success: boolean; error?: string; user?: User; booking?: Booking; inquiry?: RentalInquiry; coupon?: Coupon; }

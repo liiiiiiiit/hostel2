@@ -50,3 +50,5 @@ group('rentals.manage','saveOwnerProfile saveOwnerRental setOwnerRentalAvailabil
 group('accounts.assign','saveServiceProviderAccount grantServiceProvider assignServiceProvider');
 group('services.provide','saveServiceBusiness saveProviderService updateProviderServiceRequest');
 group('platform.admin','reviewServiceVerification');
+
+group('platform.admin','adminRecordPrivateReport adminExport adminPreviewImport adminCommitImport adminPrepareBulk adminApplyBulk adminCreateCase adminResolveCase adminReadActivity adminDeleteMedia');
