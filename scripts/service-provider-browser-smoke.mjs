@@ -12,7 +12,7 @@ export async function verifyServiceProviderUI({request,root,env,adminCookie,prox
  async function context(cookie,lang='en',theme='light'){
   const c=await browser.newContext({ignoreHTTPSErrors:true,httpCredentials:{username:'staging',password:proxyPassword},viewport:{width:1366,height:1000}});
   if(cookie){const i=cookie.indexOf('=');await c.addCookies([{name:cookie.slice(0,i),value:cookie.slice(i+1),domain:'test.yerevanhub.ir',path:'/',secure:true,httpOnly:true}]);}
-  await c.addInitScript(({lang,theme})=>{localStorage.setItem('yerevanhub_lang',lang);localStorage.setItem('yerevanhub_theme',theme);},{lang,theme});
+  await c.addInitScript(({lang,theme,origin})=>{if(location.origin!==origin)return;localStorage.setItem('yerevanhub_lang',lang);localStorage.setItem('yerevanhub_theme',theme);},{lang,theme,origin});
   await c.route('**/*',r=>new URL(r.request().url()).origin===origin?r.continue():r.abort());const p=await c.newPage();p.setDefaultTimeout(25000);p.on('pageerror',e=>errors.push(e.message));return {c,p};
  }
  async function mutation(p,name,fn){const response=p.waitForResponse(r=>r.url()===origin+'/api/app'&&r.request().postDataJSON()?.action===name);await fn();const result=await(await response).json();assert.equal(result.success,true,result.error);return result;}
