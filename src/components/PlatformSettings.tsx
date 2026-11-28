@@ -43,6 +43,7 @@ export function PlatformSettings() {
           <label key={lang} className="text-sm">
             {w("hours")} · {({fa:"فارسی",en:"English",ru:"Русский",hy:"Հայերեն"})[lang]}
             <textarea
+              aria-label={w("hours")+" · "+({fa:"فارسی",en:"English",ru:"Русский",hy:"Հայերեն"})[lang]}
               className="field mt-2 w-full"
               value={hours[lang]}
               onChange={(e) => setHours({ ...hours, [lang]: e.target.value })}

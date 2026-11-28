@@ -54,6 +54,7 @@ export function DashboardLayout({
     if (disabled) return;
     onChange(id);
     setMenuOpen(false);
+    setNavQuery('');
     requestAnimationFrame(() =>
       content.current?.focus({ preventScroll: true }),
     );

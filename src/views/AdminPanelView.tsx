@@ -405,6 +405,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       )}
     </div>
   );
+  const allowPrivateReport=async(format:'csv'|'json')=>{if(!window.confirm(ct.privateReportHint))return false;const reason=window.prompt(ct.reason);if(!reason?.trim())return false;const r=await appStore.action('adminRecordPrivateReport',[{format,confirmed:true,reason:reason.trim()}]);if(!r.success)setFeedback({ok:false,text:r.error||ct.error});return r.success;};
   const actions = (
     <details
       className="admin-report-menu"
@@ -423,16 +424,20 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
       <div className="admin-report-options">
         <button
           type="button"
-          onClick={(event) => {
+          onClick={async(event) => {
+            const menu=event.currentTarget.closest("details");
+            if(!await allowPrivateReport('csv'))return;
             exportCsv();
-            event.currentTarget.closest("details")?.removeAttribute("open");
+            menu?.removeAttribute("open");
           }}
         >
           {t.download} · CSV
         </button>
         <button
           type="button"
-          onClick={(event) => {
+          onClick={async(event) => {
+            const menu=event.currentTarget.closest("details");
+            if(!await allowPrivateReport('json'))return;
             download(
               `bookings-${today}.json`,
               JSON.stringify(
@@ -446,7 +451,7 @@ export const AdminPanelView: React.FC<Props> = ({ onNavigate }) => {
               ),
               "application/json",
             );
-            event.currentTarget.closest("details")?.removeAttribute("open");
+            menu?.removeAttribute("open");
           }}
         >
           {admin.report} · JSON

@@ -51,4 +51,4 @@ group('accounts.assign','saveServiceProviderAccount grantServiceProvider assignS
 group('services.provide','saveServiceBusiness saveProviderService updateProviderServiceRequest');
 group('platform.admin','reviewServiceVerification');
 
-group('platform.admin','adminExport adminPreviewImport adminCommitImport adminPrepareBulk adminApplyBulk adminCreateCase adminResolveCase adminReadActivity adminDeleteMedia');
+group('platform.admin','adminRecordPrivateReport adminExport adminPreviewImport adminCommitImport adminPrepareBulk adminApplyBulk adminCreateCase adminResolveCase adminReadActivity adminDeleteMedia');

@@ -2,6 +2,8 @@ import type {AppLanguage} from '../types/index.js';
 import type {AdminModule} from '../types/centralAdmin.js';
 import {moderationText} from './moderation.js';
 import {dashboardText} from './dashboard.js';
+import {jobsText} from './jobs.js';
+import {servicesText} from './services.js';
 export const centralText={
   "en": {
     "title": "Central administration",
@@ -91,7 +93,9 @@ export const centralText={
     "profile": "Profile",
     "local": "Local storage",
     "blob": "Object storage",
-    "navSearch": "Search navigation"
+    "navSearch": "Search navigation",
+    "privateReportHint": "This booking report includes customer names, contacts and tracking codes. Confirm authorized private use and keep the file secure.",
+    "room_type": "Room type"
   },
   "fa": {
     "title": "مدیریت مرکزی",
@@ -181,7 +185,9 @@ export const centralText={
     "profile": "پروفایل",
     "local": "ذخیره‌سازی محلی",
     "blob": "ذخیره‌سازی ابری",
-    "navSearch": "جستجوی منو"
+    "navSearch": "جستجوی منو",
+    "privateReportHint": "این گزارش رزرو شامل نام، اطلاعات تماس و کد پیگیری مشتریان است. استفادهٔ خصوصی و مجاز را تأیید کنید و فایل را امن نگه دارید.",
+    "room_type": "نوع اتاق"
   },
   "ru": {
     "title": "Центр управления",
@@ -271,7 +277,9 @@ export const centralText={
     "profile": "Профиль",
     "local": "Локальное хранилище",
     "blob": "Объектное хранилище",
-    "navSearch": "Поиск по меню"
+    "navSearch": "Поиск по меню",
+    "privateReportHint": "Отчёт содержит имена, контакты и коды отслеживания клиентов. Подтвердите разрешённое использование и храните файл в безопасности.",
+    "room_type": "Тип комнаты"
   },
   "hy": {
     "title": "Կենտրոնական կառավարում",
@@ -361,7 +369,9 @@ export const centralText={
     "profile": "Պրոֆիլ",
     "local": "Տեղային պահոց",
     "blob": "Օբյեկտային պահոց",
-    "navSearch": "Որոնել ընտրացանկում"
+    "navSearch": "Որոնել ընտրացանկում",
+    "privateReportHint": "Հաշվետվությունը պարունակում է հաճախորդների անունները, կապի տվյալները և կոդերը։ Հաստատեք լիազորված օգտագործումը և պահեք ֆայլն անվտանգ։",
+    "room_type": "Սենյակի տեսակ"
   }
 };
 export const centralModules:Record<AppLanguage,Record<AdminModule,string>>={
@@ -474,4 +484,4 @@ export const centralModules:Record<AppLanguage,Record<AdminModule,string>>={
     "activity": "Ադմինիստրատորների գործողություններ"
   }
 };
-export function centralStatus(lang:AppLanguage,status:string){const values={...dashboardText(lang),...moderationText[lang],...centralText[lang]} as Record<string,string>;return values[status]??status;}
+export function centralStatus(lang:AppLanguage,status:string){const values={...jobsText[lang],...servicesText[lang],...dashboardText(lang),...moderationText[lang],...centralText[lang]} as Record<string,string>;return values[status]??status;}

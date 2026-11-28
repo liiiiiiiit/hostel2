@@ -33,7 +33,7 @@ export function registrySQL(module:AdminModule,language:AdminQuery['language']){
  case 'articles':return moderated('articles','article','s.title','s.updated_at','s.status');
  case 'translations':return "SELECT article_id||':'||language AS id,title,language AS status,'' AS updatedAt,0 AS version FROM article_translations";
  case 'reviews':return moderated('reviews','review',"substr(s.comment,1,160)",'s.created_at',"CASE WHEN s.status='approved' THEN 'published' WHEN s.status='rejected' THEN 'rejected' ELSE 'pending_review' END");
- case 'coupons':return "SELECT code AS id,description AS title,CASE WHEN active=1 THEN 'active' ELSE 'inactive' END AS status,starts_at AS updatedAt,0 AS version FROM coupons";
+ case 'coupons':return "SELECT code AS id,description AS title,CASE WHEN active=1 THEN 'active' ELSE 'inactive' END AS status,'' AS updatedAt,0 AS version FROM coupons";
  case 'media':return "SELECT id,id AS title,backend AS status,created_at AS updatedAt,0 AS version,url AS imageUrl,bytes FROM media_assets";
  case 'activity':return `SELECT 'central:'||id AS id,kind AS title,module AS status,created_at AS updatedAt,0 AS version FROM admin_activity
  UNION ALL SELECT 'audit:'||id,action,target_type,timestamp,0 FROM audit_logs
